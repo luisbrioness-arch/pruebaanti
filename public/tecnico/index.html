@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es-CL">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#0B6E75">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Terreno DTH">
+  <title>Terreno DTH · Técnico</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/tecnico.css">
+</head>
+<body>
+
+  <!-- Pantalla de login -->
+  <div id="login-screen" class="login-screen">
+    <div class="login-card">
+      <img class="login-logo" src="icons/icon.svg" alt="" width="56" height="56">
+      <h1>Terreno DTH</h1>
+      <p class="login-subtitulo">Sesión de técnico</p>
+      <div id="login-form-container"></div>
+    </div>
+  </div>
+
+  <!-- Cáscara de la app (oculta hasta confirmar sesión) -->
+  <div id="shell" hidden>
+    <header class="topbar">
+      <button type="button" id="topbar-atras" class="topbar-boton" hidden aria-label="Atrás">←</button>
+      <div class="topbar-titulo" id="topbar-titulo">Terreno DTH</div>
+      <button type="button" id="logout-btn" class="topbar-boton" aria-label="Salir">⏻</button>
+    </header>
+    <div id="offline-banner" class="offline-banner" hidden>Sin conexión — se reintenta al recuperar señal.</div>
+    <main id="view"></main>
+  </div>
+
+  <!-- Modal genérico (escáner de cámara, confirmaciones) -->
+  <div id="modal-overlay" class="modal-overlay" hidden>
+    <div id="modal-contenido" class="modal-caja"></div>
+  </div>
+
+  <!-- Notificaciones -->
+  <div id="toast-pila" class="toast-pila" aria-live="polite"></div>
+
+  <!-- Vendorizadas localmente (ver docs/tecnico-app.md) — cargan como script
+       clásico porque exponen un global (window.Html5Qrcode / window.Compressor),
+       no un módulo ES. `defer` en los tres (estos dos + app.js) evita que
+       html5-qrcode.min.js (~375 KB sin comprimir) bloquee el parseo del HTML
+       mientras se descarga — con `defer` el navegador los baja en paralelo y
+       los ejecuta en el mismo orden relativo de todas formas (spec de HTML),
+       así que scanner.js y paso3-fotos.js siguen viendo los globals ya
+       definidos cuando los usan (recién al abrir el escáner o elegir una
+       foto, nunca al cargar el módulo). -->
+  <script src="js/vendor/html5-qrcode.min.js" defer></script>
+  <script src="js/vendor/compressor.min.js" defer></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

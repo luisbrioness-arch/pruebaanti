@@ -1,0 +1,11 @@
+# El document root del subdominio terreno.hogartv.cl debe apuntar a la
+# carpeta /public, no a esta raíz. Este archivo es solo un cinturón de
+# seguridad: si por error de configuración del hosting alguien apunta acá,
+# esto bloquea el acceso directo al código fuente y a config/config.php.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order deny,allow
+    Deny from all
+</IfModule>

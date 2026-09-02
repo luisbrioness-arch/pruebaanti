@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es-CL">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Terreno DTH · Panel admin</title>
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+  <!-- Pantalla de login -->
+  <div id="login-screen" class="login-screen">
+    <div class="login-card">
+      <h1>Terreno DTH</h1>
+      <p class="login-subtitulo">Panel administrativo</p>
+      <div id="login-form-container"></div>
+    </div>
+  </div>
+
+  <!-- Cáscara de la app (oculta hasta confirmar sesión) -->
+  <div id="shell" hidden>
+    <header class="topbar">
+      <div class="topbar-marca">Terreno DTH <span>· admin</span></div>
+      <nav class="topbar-nav">
+        <a href="#auditoria" class="nav-link" data-route="auditoria">Auditoría</a>
+        <a href="#conflictos" class="nav-link" data-route="conflictos">Conflictos</a>
+        <a href="#tarifario" class="nav-link" data-route="tarifario">Tarifario</a>
+        <a href="#bodega" class="nav-link" data-route="bodega">Bodega</a>
+        <a href="#billetera" class="nav-link" data-route="billetera">Billetera</a>
+      </nav>
+      <div class="topbar-usuario">
+        <span id="pendientes-badge" class="chip chip--alerta" title="Acciones guardadas sin conexión, esperando señal" hidden></span>
+        <span id="usuario-nombre"></span>
+        <button type="button" id="logout-btn" class="btn btn--texto">Salir</button>
+      </div>
+    </header>
+    <main id="view"></main>
+  </div>
+
+  <!-- Modal genérico (rechazo, observar, resolver conflicto, lightbox) -->
+  <div id="modal-overlay" class="modal-overlay" hidden>
+    <div id="modal-contenido" class="modal-caja"></div>
+  </div>
+
+  <!-- Notificaciones -->
+  <div id="toast-pila" class="toast-pila" aria-live="polite"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

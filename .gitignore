@@ -1,0 +1,7 @@
+/config/config.php
+/storage/fotos/**
+!/storage/fotos/.gitkeep
+
+# Sesión de Claude Code / carpetas de trabajo temporales — nunca parte del proyecto.
+/.claude/
+/.tmp_*/
