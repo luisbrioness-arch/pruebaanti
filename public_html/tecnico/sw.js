@@ -9,9 +9,13 @@
 //     de la página) — esto de acá es un bonus para cuando el celular
 //     reconecta con la app en segundo plano, no un reemplazo.
 //
-// Subir este número en cada release para que los clientes viejos invaliden
-// su caché y bajen la versión nueva.
-const CACHE = 'terreno-dth-tecnico-v4';
+// Subir este número en CADA release que toque la cáscara (HTML/CSS/JS) —
+// si no, un técnico con la PWA instalada sigue viendo la versión vieja: la
+// estrategia de abajo es cache-first, y el Cache Storage del service worker
+// es independiente de las cabeceras Cache-Control del servidor, así que
+// esas no lo despiertan. Sin este bump, el cambio recién le llega en el
+// SEGUNDO arranque (revalidación en segundo plano), no en el primero.
+const CACHE = 'terreno-dth-tecnico-v5';
 
 const APP_SHELL = [
   '/tecnico/',
@@ -33,10 +37,12 @@ const APP_SHELL = [
   '/tecnico/js/compress.js',
   '/tecnico/js/uuid.js',
   '/tecnico/js/scanner.js',
+  '/tecnico/js/reportar.js',
   '/tecnico/js/views/login.js',
   '/tecnico/js/views/home.js',
   '/tecnico/js/views/venta.js',
   '/tecnico/js/views/historial.js',
+  '/tecnico/js/views/billetera.js',
   '/tecnico/js/views/wizard/wizard.js',
   '/tecnico/js/views/wizard/paso1-datos.js',
   '/tecnico/js/views/wizard/paso2-escaneo.js',
