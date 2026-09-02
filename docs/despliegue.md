@@ -1,120 +1,169 @@
-# Despliegue en cPanel (terreno.hogartv.cl)
+# Despliegue (DirectAdmin + Git nativo)
 
-Checklist para subir el sistema al hosting real y dejarlo operando. Nada
-de esto necesita Node ni Composer — es PHP vanilla servido tal cual.
+Checklist real de cómo quedó desplegado el sistema — DirectAdmin, con
+deploy automático vía el repositorio Git nativo del panel + un webhook de
+GitHub. Nada de esto necesita Composer ni Node en producción — es PHP
+vanilla servido tal cual.
 
-## 0. Conectar el subdominio (hosting nuevo, dominio en otra cuenta)
+## 0. Por qué esta ruta (y no cPanel + FTP)
 
-Este cPanel es una cuenta distinta de donde vive el resto de `hogartv.cl`
-(otro hosting, con DirectAdmin) — solo se va a usar para el subdominio
-`terreno.hogartv.cl`. El dominio raíz `hogartv.cl` y su DNS siguen
-administrados donde estaban antes; hay que apuntar **solo ese subdominio**
-hacia el cPanel nuevo, sin tocar nada más de `hogartv.cl`.
+Se intentó primero un hosting cPanel separado (con FTP-Deploy-Action de
+GitHub Actions) — se abandonó por una cuenta con la sesión de phpMyAdmin
+rota (usuario interno mal sincronizado, sin arreglo posible desde el panel
+de usuario) y sin SSH en el plan. Se migró al DirectAdmin donde ya vivía
+`hogartv.cl`, que sí tenía SSH disponible en un upgrade de plan — eso abrió
+la puerta al Git nativo del panel, más simple y confiable que FTP.
 
-1. **Conseguir la IP del hosting nuevo** — en cPanel: *Página de inicio* (Home) muestra la "Dirección IP compartida" de la cuenta, o *"Detalles de la cuenta"*. Anótala.
-2. **Crear el registro DNS** — donde sea que hoy se administre el DNS de `hogartv.cl` (el panel de DirectAdmin del otro hosting, o el panel del registrador del dominio si el DNS no vive ahí): agregar un registro
-   ```
-   Tipo A   Nombre: terreno   Valor: <IP del cPanel nuevo>   TTL: automático
-   ```
-   Esto NO se hace en el cPanel nuevo — se hace donde vive el DNS de `hogartv.cl` hoy. Si el hosting nuevo en vez de IP fija te da un hostname para CNAME, usa eso en lugar del registro A (revisa el correo de bienvenida del hosting).
-3. **Dar de alta el subdominio en el cPanel nuevo** — en *Dominios* → *Crear un dominio*, escribir `terreno.hogartv.cl` como dominio completo. cPanel puede pedir tratarlo como "Addon Domain" ya que la cuenta no es dueña de `hogartv.cl` — está bien, acéptalo así. **En el mismo paso, fijar el Document Root a la carpeta `public/` del proyecto** (ej. `public_html/terreno_dth/public`, subiendo el resto del proyecto un nivel arriba de esa ruta) — evita tener que moverlo después.
-4. **Esperar la propagación del DNS** (minutos a un par de horas) y activar **AutoSSL** para `terreno.hogartv.cl` desde *SSL/TLS Status* del cPanel nuevo apenas el dominio resuelva — el login no funciona sin HTTPS (ver punto 7 más abajo).
-5. Confirmar que resuelve antes de seguir: `https://terreno.hogartv.cl/` debería llegar al cPanel nuevo (aunque sea con un error de PHP o 404, no un timeout ni la página de otro hosting) — eso ya dice que el DNS y el vhost están conectados.
+## 1. Crear el subdominio
 
-## 1. Subir los archivos
+**Usar siempre Document Root "Por Defecto"**, nunca "Personalizado" — un
+intento con ruta personalizada (`domains/terreno_dth/public`) produjo un
+403 Forbidden persistente y nunca se pudo determinar la causa exacta contra
+la interfaz de usuario (se descartaron permisos, dueño de archivo, SSL,
+DNS, WAF — con acceso de servidor real probablemente se hubiera resuelto,
+pero no vale la pena el tiempo: "Por Defecto" funciona directo).
 
-Sube **todo el proyecto**, no solo `public/` — `app/`, `config/`,
-`database/`, `storage/` también tienen que existir en el servidor (fuera
-del document root, ver más abajo). Excluye `.claude/` y cualquier carpeta
-`.tmp_*` si quedó alguna suelta — no son parte del sistema.
+1. **Administración de subdominios** → nombre del subdominio → Document
+   Root **"Por Defecto"** → `/domains/<subdominio>.hogartv.cl/public_html`.
+2. Esto fija la carpeta servible en `public_html/` (no `public/`) — el
+   repositorio usa ese nombre exacto por esto mismo.
 
-## 2. Document root → `public/`
+## 2. Repositorio Git nativo (Avanzada → Git)
 
-Si ya lo fijaste al crear el dominio en el paso 0, este punto es solo
-confirmarlo: en *Dominios* del cPanel nuevo, el Document Root de
-`terreno.hogartv.cl` debe apuntar a la carpeta `public/` del proyecto,
-**no** a la raíz. `app/`, `config/` y `database/` quedan un nivel arriba,
-fuera de lo servible — el `.htaccess` de la raíz es solo un cinturón de
-seguridad extra por si un error de configuración apunta ahí igual.
+1. **Claves SSH** → crear una llave nueva **sin contraseña** (una llave con
+   passphrase rompe la automatización) y **sin marcar "Autorizar"** (esa
+   opción es para llaves que dejan ENTRAR a este servidor, no para que el
+   servidor salga hacia GitHub).
+2. Copiar la **llave pública** (`.pub`) y agregarla en GitHub → repo →
+   **Settings → Deploy keys → Add deploy key** — **sin** "Allow write
+   access" (el servidor solo necesita leer).
+3. **Git → Inicializar Repositorio**:
+   - Dominio: `hogartv.cl`
+   - Nombre: cualquiera (ej. `terreno_git`) — es solo una etiqueta interna,
+     no tiene que coincidir con el subdominio.
+   - Remoto: `git@github.com:<usuario>/<repo>.git`
+   - Archivo de llave: **ruta relativa** al home de la cuenta, no absoluta
+     — `.ssh/<nombre_de_la_llave>` (con el punto inicial, sin `/home/...`
+     adelante; el panel rechaza tanto rutas absolutas como el nombre solo).
+4. Una vez creado, entrar al repositorio → **MODIFICAR**:
+   - Despliegue Rama: `main`
+   - Despliegue Carpeta: **ruta relativa al home**, ej.
+     `domains/<subdominio>.hogartv.cl` (sin barra inicial).
+5. Botón **DESPLIEGUE** para el primer checkout manual.
 
-## 3. Versión de PHP
+**Confirmado con una prueba deliberada:** el despliegue NO borra archivos
+que no están en el repositorio (se creó un archivo de prueba en la carpeta
+de destino, se corrió el despliegue de nuevo, y sobrevivió) — por eso
+`config/config.php` y `storage/fotos/*` (ambos en `.gitignore`, nunca en
+el repo) quedan intactos en cada despliegue.
 
-Selector de PHP del hosting (MultiPHP Manager en cPanel, PHP Selector en
-DirectAdmin) → **PHP 8.1 o superior** para este (sub)dominio — usa la más
-alta que tengas disponible, 8.1 es el mínimo, no lo ideal. El sistema trae
-un guard en [`app/bootstrap.php`](../app/bootstrap.php) que corta con un
-mensaje claro si el hosting sirve algo más viejo — si ves ese mensaje en
-vez de la app, es este paso.
+## 3. Webhook (deploy automático en cada push)
 
-Si el selector de tu hosting solo permite fijar la versión **global de la
-cuenta** (afectando a todos los dominios, no solo a este subdominio) — como
-pasa en algunas cuentas DirectAdmin con varios sitios — revisa primero si
-hay una opción de anular la versión **por dominio individual** antes de
-tocar la global, para no afectar otros sitios que dependan de una versión
-distinta.
+En **Git → repositorio → detalle** aparece una **Webhook URL** única. En
+GitHub → repo → **Settings → Webhooks → Add webhook**: pegar esa URL,
+Content type `application/json`, evento "Just the push event". Con esto,
+cada `git push` a `main` dispara el deploy solo, sin GitHub Actions ni FTP.
 
-Extensiones PHP necesarias (casi cualquier cPanel las trae activas por
-defecto, pero conviene confirmar en "Select PHP Version" → Extensions):
-`pdo_mysql`, `gd` o `fileinfo` (para el sniff de MIME real en
-`FotoController`), `session`.
+## 4. Versión de PHP
 
-## 4. Base de datos
+**PHP 8.1+** (el mínimo real del código, ver `app/bootstrap.php`). Se
+gestiona por cuenta completa en la mayoría de los planes DirectAdmin
+compartidos (no por subdominio individual) — revisar en **PHP Selector**;
+si ya está en 8.1 o superior para toda la cuenta, no hay nada que hacer.
+**Cuidado si en algún momento se sube la versión global**: afecta a TODOS
+los dominios de la cuenta, no solo a este — revisar primero si el panel
+ofrece una anulación por dominio individual antes de tocar la versión
+global.
 
-1. Crear la base de datos y el usuario MySQL desde cPanel, y anotar host/nombre/usuario/contraseña.
-2. Importar [`database/schema_fase1.sql`](../database/schema_fase1.sql) completo (ya incluye las tablas de Fase 2 — Liquidación y Billetera — no hace falta un segundo archivo).
-3. **Generar el hash real de la contraseña de Edwin** — el schema deja el usuario admin sembrado con un placeholder:
+## 5. Base de datos
+
+1. Crear la base de datos y el usuario MySQL desde DirectAdmin (**Bases de
+   datos MySQL**), con todos los privilegios otorgados al usuario sobre esa
+   base.
+2. Importar [`database/schema_fase1.sql`](../database/schema_fase1.sql)
+   completo vía phpMyAdmin (ya incluye las tablas de Fase 2 — Liquidación y
+   Billetera — no hace falta un segundo archivo).
+3. **Generar el hash real de la contraseña de Edwin** — el schema deja el
+   usuario admin sembrado con un placeholder:
    ```sql
    INSERT INTO usuarios (nombre, usuario, password_hash, rol, porcentaje_reparto)
    VALUES ('Edwin', 'edwin', '__REEMPLAZAR_CON_HASH_REAL__', 'admin', 100.00);
    ```
-   Ese placeholder **no sirve para loguearse** — hay que reemplazarlo por un hash real de `password_hash()`. Formas de generarlo sin acceso a terminal:
-   - Un script PHP de una línea subido temporalmente a `public/` (ej. `hash.php`): `<?php echo password_hash('la-contraseña-real', PASSWORD_DEFAULT);` — abrirlo una vez en el navegador, copiar el resultado, **borrar el archivo enseguida** (nunca dejarlo en producción).
-   - phpMyAdmin no genera hashes de `password_hash()` de PHP — no sirve `MD5()`/`SHA1()` de MySQL para esto, el login usa `password_verify()`.
-   
-   Con el hash copiado: `UPDATE usuarios SET password_hash = '<hash pegado>' WHERE usuario = 'edwin';`
+   Ese placeholder **no sirve para loguearse**. Formas de generar un hash
+   real sin acceso a terminal PHP:
+   - Un script PHP de una línea subido temporalmente a `public_html/` (ej.
+     `hash.php`): `<?php echo password_hash('la-contraseña-real', PASSWORD_DEFAULT);`
+     — abrirlo una vez en el navegador, copiar el resultado, **borrar el
+     archivo enseguida**.
+   - phpMyAdmin no genera hashes de `password_hash()` de PHP — no sirve
+     `MD5()`/`SHA1()` de MySQL, el login usa `password_verify()`.
 
-## 5. `config/config.php`
+   Con el hash copiado: `UPDATE usuarios SET password_hash = '<hash>' WHERE usuario = 'edwin';`
 
-Copiar [`config/config.example.php`](../config/config.example.php) a
-`config/config.php` (mismo directorio) y completar `db.host`, `db.name`,
-`db.user`, `db.pass` con los datos reales de cPanel. Dejar `app.debug` en
-`false` — nunca exponer trazas de error a un técnico o a alguien de
-afuera. Este archivo **no debe subirse a ningún repositorio** (ya está en
-`.gitignore`).
+## 6. `config/config.php`
 
-## 6. `storage/fotos`
+Se sube **a mano, una sola vez, directo por File Manager** —
+**nunca por git** (está en `.gitignore` a propósito). Copiar el patrón de
+[`config/config.example.php`](../config/config.example.php) con las
+credenciales reales de MySQL de esta cuenta (`host` suele ser `localhost`
+en DirectAdmin). Dejar `app.debug` en `false` siempre en producción.
 
-Debe existir y ser escribible por PHP (normalmente ya lo es en cPanel sin
-tocar nada, porque el proceso PHP corre como el mismo usuario dueño de los
-archivos). Vive **fuera** de `public/` a propósito — las fotos tienen GPS
-implícito y no deben quedar servibles por URL directa; se sirven solo a
-través de `GET /api/fotos/{id}` con control de acceso.
+Nota: `Database::connection()` sanitiza el mensaje de error de PDO antes de
+propagarlo (nunca expone el DSN ni credenciales) — si hace falta ver el
+error real de conexión para diagnosticar algo, subir un script de
+diagnóstico de un solo uso que llame a `new PDO(...)` directo y capture
+`$e->getMessage()` sin pasar por esa clase, en vez de activar `debug: true`
+en la app completa (que igual mostraría el mensaje ya sanitizado).
 
-## 7. HTTPS
+## 7. `storage/fotos/`
 
-El subdominio necesita certificado SSL activo (AutoSSL de cPanel alcanza).
-`Auth::start()` fija la cookie de sesión con `'secure' => true` — sin
-HTTPS, la sesión nunca se guarda y el login parece "no hacer nada". Si se
-necesita probar por HTTP puro en algún momento, ese es el único valor a
-cambiar temporalmente en [`app/Core/Auth.php`](../app/Core/Auth.php).
+Debe existir y ser escribible por PHP. Vive **fuera** de `public_html/` a
+propósito — las fotos tienen GPS implícito y no deben quedar servibles por
+URL directa; se sirven solo a través de `GET /api/fotos/{id}` con control
+de acceso.
 
-## 8. Prueba de humo (en este orden)
+## 8. HTTPS
 
-1. `https://terreno.hogartv.cl/admin/` → login con `edwin` / la contraseña recién fijada.
-2. Panel admin carga (Auditoría vacía es normal si no hay nada aún) y **no** muestra el mensaje de "PHP requiere 8.1+".
-3. `https://terreno.hogartv.cl/tecnico/` en el celular → login con un técnico de prueba (crear uno con `rol='tecnico'` y su propio hash, mismo procedimiento del punto 4) → completar una orden de punta a punta (los 5 pasos) con señal real.
-4. Apagar datos móviles a mitad del wizard, seguir avanzando, confirmar que queda "guardado sin conexión", y que al reactivar la señal se sincroniza solo.
-5. Instalar la PWA del técnico ("Agregar a pantalla de inicio") y confirmar que abre sin barra de navegador.
-6. En el panel admin: aprobar la orden de prueba, y en Billetera confirmar que aparece como pendiente por liquidar para ese técnico.
+Certificado Let's Encrypt gestionado por DirectAdmin (a menudo un wildcard
+`*.hogartv.cl` que cubre subdominios nuevos automáticamente, sin trámite
+aparte). `Auth::start()` fija la cookie de sesión con `'secure' => true` —
+sin HTTPS, la sesión nunca se guarda y el login parece "no hacer nada".
+
+## 9. Prueba de humo (en este orden)
+
+1. `https://<subdominio>.hogartv.cl/admin/` → login con `edwin` / la
+   contraseña recién fijada.
+2. Panel admin carga y **no** muestra el mensaje de "PHP requiere 8.1+".
+3. Crear un usuario técnico de prueba (mismo procedimiento del punto 5,
+   `rol='tecnico'`) → `https://<subdominio>.hogartv.cl/tecnico/` en el
+   celular → login → completar una orden de punta a punta (los 5 pasos)
+   con señal real. **Requiere una tarifa vigente** para el tipo de servicio
+   usado (Tarifario en el panel admin) — si no hay ninguna, el envío final
+   se rechaza correctamente (es una validación real, no un bug).
+4. Apagar datos móviles a mitad del wizard, seguir avanzando, confirmar que
+   queda "guardado sin conexión", y que al reactivar la señal se sincroniza
+   solo.
+5. Instalar la PWA del técnico ("Agregar a pantalla de inicio") y confirmar
+   que abre sin barra de navegador.
+6. En el panel admin: aprobar la orden de prueba, y en Billetera confirmar
+   que aparece como pendiente por liquidar para ese técnico.
 
 ## Notas
 
 - No hay build step ni `npm install` en el servidor — todo el JS del
-  frontend (`public/admin/js/`, `public/tecnico/js/`) se sirve tal cual,
-  como módulos ES nativos.
+  frontend (`public_html/admin/js/`, `public_html/tecnico/js/`) se sirve
+  tal cual, como módulos ES nativos.
 - Las dos librerías vendorizadas (`html5-qrcode.min.js`, `compressor.min.js`
-  bajo `public/tecnico/js/vendor/`) ya están en el repo — no se descargan en
-  el servidor.
+  bajo `public_html/tecnico/js/vendor/`) ya están en el repo — no se
+  descargan en el servidor.
+- El `.htaccess` de la raíz del proyecto (pensado originalmente como
+  cinturón de seguridad extra, bloqueando acceso directo si el Document
+  Root apuntara mal) se **quitó del repositorio** — causó un 403 heredado
+  real en dos hostings distintos con configuraciones de `AllowOverride`/
+  scope de `.htaccess` más amplias de lo esperado. La protección real ya
+  existe por estructura: `app/`, `config/`, `database/`, `storage/` viven
+  fuera de `public_html/`, así que nunca son alcanzables por URL sin
+  importar qué `.htaccess` haya o no.
 - Si en algún momento se agrega un segundo técnico o cambia algún
   `porcentaje_reparto`, es un `UPDATE` directo sobre `usuarios` — no hay
   hoy una pantalla de admin para gestionar usuarios más allá de lo que ya
