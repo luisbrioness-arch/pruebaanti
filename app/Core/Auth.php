@@ -16,13 +16,37 @@ use App\Repositories\UsuarioRepository;
  */
 final class Auth
 {
+    /**
+     * Una jornada completa. Con el default de PHP (~24 min de inactividad)
+     * a un técnico se le vencía la sesión entre un trabajo y el siguiente:
+     * además de la molestia de re-loguear, si eso pasaba mientras tenía
+     * trabajo encolado sin señal, la cola recibía un 401 al vaciarse (ver
+     * js/offline.js, que ahora lo conserva en vez de descartarlo).
+     */
+    private const DURACION_SESION = 12 * 60 * 60;
+
     public static function start(): void
     {
         if (session_status() === PHP_SESSION_ACTIVE) {
             return;
         }
+
+        // Directorio propio de sesiones, fuera del webroot. En hosting
+        // compartido el save_path por defecto es común a todos los sitios:
+        // el recolector de basura de CUALQUIERA de ellos (con un
+        // gc_maxlifetime más corto) puede borrar nuestros archivos de sesión
+        // antes de tiempo, así que alargar la duración sin esto no sirve.
+        $config = require dirname(__DIR__, 2) . '/config/config.php';
+        $rutaSesiones = dirname($config['storage']['fotos_path']) . '/sesiones';
+        if (is_dir($rutaSesiones) || @mkdir($rutaSesiones, 0700, true)) {
+            ini_set('session.gc_maxlifetime', (string) self::DURACION_SESION);
+            session_save_path($rutaSesiones);
+        }
+
         session_set_cookie_params([
-            'lifetime' => 0,
+            // Cookie persistente (no de navegador cerrado): la PWA del
+            // técnico se mata y se reabre todo el día en el celular.
+            'lifetime' => self::DURACION_SESION,
             'path' => '/',
             // 'secure' exige HTTPS. El subdominio de producción lo tiene;
             // si se prueba en local por http, cambiar esto a false ahí.

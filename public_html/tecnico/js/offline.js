@@ -124,6 +124,15 @@ export async function procesarCola() {
         if (e instanceof ApiError && e.code === 'sin_conexion') {
           break;
         }
+        // Sesión vencida (o permiso perdido) NO es un rechazo del trabajo:
+        // el servidor ni siquiera llegó a mirarlo. Descartarlo acá le haría
+        // perder al técnico una orden ya terminada en terreno solo porque
+        // pasó demasiado rato sin señal. Se deja en la cola y se avisa que
+        // hay que volver a iniciar sesión — al hacerlo, se manda sola.
+        if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
+          toast('Tu sesión se venció — vuelve a iniciar sesión y lo pendiente se enviará solo.', 'malo', 8000);
+          break;
+        }
         await colaEliminar(item.id);
         notificar();
         const mensaje = e instanceof ApiError ? e.message : String(e);

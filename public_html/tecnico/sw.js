@@ -173,9 +173,12 @@ async function enviarItemSw(item) {
       body: JSON.stringify(item.payload),
     });
   }
-  // 4xx/5xx reales (no de red) igual cuentan como "no se puede reintentar tal
+  // 4xx/5xx reales (no de red) cuentan como "no se puede reintentar tal
   // cual" — se descarta para no trabar la cola, igual que en offline.js.
-  return { ok: respuesta.ok, permanente: !respuesta.ok };
+  // EXCEPTO 401/403: ahí el servidor no rechazó el trabajo, solo se venció
+  // la sesión; descartarlo perdería una orden ya terminada en terreno.
+  const sesionVencida = respuesta.status === 401 || respuesta.status === 403;
+  return { ok: respuesta.ok, permanente: !respuesta.ok && !sesionVencida, sesionVencida };
 }
 
 async function procesarColaEnSw() {
@@ -190,6 +193,12 @@ async function procesarColaEnSw() {
     const item = items[0];
     try {
       const resultado = await enviarItemSw(item);
+      if (resultado.sesionVencida) {
+        // Se deja en la cola: cuando el técnico vuelva a iniciar sesión,
+        // js/offline.js la vacía sola. Ver el mismo criterio allá.
+        console.warn('[terreno-dth sw] sesión vencida — la cola queda pendiente:', item);
+        return;
+      }
       await eliminarDeColaSw(item.id);
       if (!resultado.ok) {
         console.error('[terreno-dth sw] acción pendiente descartada (rechazo real del servidor):', item);
