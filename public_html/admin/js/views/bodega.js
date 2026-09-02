@@ -95,9 +95,9 @@ export async function renderBodega(container) {
           // No se refresca la tabla: sin conexión no hay forma de saber el
           // estado real, y mostrar un error de red justo después del aviso
           // de "guardado" confundiría más de lo que ayuda.
-          toast(`Serie ${escapeHtml(payload.numero_serie)} guardada sin conexión — se dará de alta al recuperar señal.`, 'neutro');
+          toast(`Serie ${payload.numero_serie} guardada sin conexión — se dará de alta al recuperar señal.`, 'neutro');
         } else {
-          toast(`Equipo ${escapeHtml(datos.numero_serie)} dado de alta en bodega.`, 'ok');
+          toast(`Equipo ${datos.numero_serie} dado de alta en bodega.`, 'ok');
           await cargarTablaEquipos($filtro.value);
         }
       } catch (e) {
@@ -244,10 +244,10 @@ export async function renderBodega(container) {
             try {
               const { encolado } = await conColaSiHaceFalta('asignar_equipo', payload, () => api(`/admin/equipos/${e.id}/asignar`, { method: 'POST', body: { tecnico_id: tecnicoId } }));
               if (encolado) {
-                toast(`${escapeHtml(e.numero_serie)}: guardado sin conexión — se asignará al recuperar señal.`, 'neutro');
+                toast(`${e.numero_serie}: guardado sin conexión — se asignará al recuperar señal.`, 'neutro');
                 marcarFilaPendiente('asignación pendiente');
               } else {
-                toast(`${escapeHtml(e.numero_serie)} asignado.`, 'ok');
+                toast(`${e.numero_serie} asignado.`, 'ok');
                 await cargarTablaEquipos(estado);
               }
             } catch (err) { toast(err.message, 'malo'); }
@@ -268,10 +268,10 @@ export async function renderBodega(container) {
             try {
               const { encolado } = await conColaSiHaceFalta('traspasar_equipo', payload, () => api(`/admin/equipos/${e.id}/traspasar`, { method: 'POST', body: { tecnico_destino_id: tecnicoDestinoId } }));
               if (encolado) {
-                toast(`${escapeHtml(e.numero_serie)}: guardado sin conexión — se traspasará al recuperar señal.`, 'neutro');
+                toast(`${e.numero_serie}: guardado sin conexión — se traspasará al recuperar señal.`, 'neutro');
                 marcarFilaPendiente('traspaso pendiente');
               } else {
-                toast(`${escapeHtml(e.numero_serie)} traspasado.`, 'ok');
+                toast(`${e.numero_serie} traspasado.`, 'ok');
                 await cargarTablaEquipos(estado);
               }
             } catch (err) { toast(err.message, 'malo'); }
@@ -284,10 +284,10 @@ export async function renderBodega(container) {
             try {
               const { encolado } = await conColaSiHaceFalta('ingreso_bodega', { id: e.id }, () => api(`/admin/equipos/${e.id}/ingreso-bodega`, { method: 'POST' }));
               if (encolado) {
-                toast(`${escapeHtml(e.numero_serie)}: guardado sin conexión — se registrará el ingreso al recuperar señal.`, 'neutro');
+                toast(`${e.numero_serie}: guardado sin conexión — se registrará el ingreso al recuperar señal.`, 'neutro');
                 marcarFilaPendiente('ingreso pendiente');
               } else {
-                toast(`${escapeHtml(e.numero_serie)} de vuelta en bodega.`, 'ok');
+                toast(`${e.numero_serie} de vuelta en bodega.`, 'ok');
                 await cargarTablaEquipos(estado);
               }
             } catch (err) { toast(err.message, 'malo'); }
@@ -300,10 +300,10 @@ export async function renderBodega(container) {
             try {
               const { encolado } = await conColaSiHaceFalta('falla_fabrica', { id: e.id, observacion: null }, () => api(`/admin/equipos/${e.id}/falla-fabrica`, { method: 'POST', body: {} }));
               if (encolado) {
-                toast(`${escapeHtml(e.numero_serie)}: guardado sin conexión — se marcará al recuperar señal.`, 'neutro');
+                toast(`${e.numero_serie}: guardado sin conexión — se marcará al recuperar señal.`, 'neutro');
                 marcarFilaPendiente('falla de fábrica pendiente');
               } else {
-                toast(`${escapeHtml(e.numero_serie)} marcado como falla de fábrica.`, 'alerta');
+                toast(`${e.numero_serie} marcado como falla de fábrica.`, 'alerta');
                 await cargarTablaEquipos(estado);
               }
             } catch (err) { toast(err.message, 'malo'); }

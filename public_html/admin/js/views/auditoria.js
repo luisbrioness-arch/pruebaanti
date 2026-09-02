@@ -244,10 +244,10 @@ export async function renderAuditoria(container) {
     try {
       const { encolado } = await conColaSiHaceFalta('aprobar', { id }, () => api(`/admin/ordenes/${id}/aprobar`, { method: 'POST' }));
       if (encolado) {
-        toast(`Folio ${escapeHtml(folio)} guardado sin conexión — se aprobará al recuperar señal.`, 'neutro');
+        toast(`Folio ${folio} guardado sin conexión — se aprobará al recuperar señal.`, 'neutro');
         quitarDeListaLocal(id);
       } else {
-        toast(`Folio ${escapeHtml(folio)} aprobado.`, 'ok');
+        toast(`Folio ${folio} aprobado.`, 'ok');
         await avanzarSiguiente();
       }
     } catch (e) {
@@ -294,10 +294,10 @@ export async function renderAuditoria(container) {
         const { encolado } = await conColaSiHaceFalta('rechazar', payload, () => api(`/admin/ordenes/${id}/rechazar`, { method: 'POST', body: payload }));
         cerrar();
         if (encolado) {
-          toast(`Folio ${escapeHtml(folio)} guardado sin conexión — se rechazará al recuperar señal.`, 'neutro');
+          toast(`Folio ${folio} guardado sin conexión — se rechazará al recuperar señal.`, 'neutro');
           quitarDeListaLocal(id);
         } else {
-          toast(`Folio ${escapeHtml(folio)} rechazado.`, 'alerta');
+          toast(`Folio ${folio} rechazado.`, 'alerta');
           await avanzarSiguiente();
         }
       } catch (e) {
@@ -349,10 +349,10 @@ export async function renderAuditoria(container) {
     try {
       const { encolado } = await conColaSiHaceFalta('reabrir', { id }, () => api(`/admin/ordenes/${id}/reabrir`, { method: 'POST' }));
       if (encolado) {
-        toast(`Folio ${escapeHtml(folio)} guardado sin conexión — se reabrirá al recuperar señal.`, 'neutro');
+        toast(`Folio ${folio} guardado sin conexión — se reabrirá al recuperar señal.`, 'neutro');
         quitarDeListaLocal(id);
       } else {
-        toast(`Folio ${escapeHtml(folio)} reabierto — el técnico ya puede corregirlo.`, 'ok');
+        toast(`Folio ${folio} reabierto — el técnico ya puede corregirlo.`, 'ok');
         await avanzarSiguiente();
       }
     } catch (e) {

@@ -49,11 +49,4 @@ final class ReporteRepository
             ->prepare('UPDATE reportes SET estado = ?, resuelto_por = ?, resuelto_en = ? WHERE id = ?')
             ->execute(['resuelto', $resueltoPor, date('Y-m-d H:i:s'), $id]);
     }
-
-    public function reabrir(int $id): void
-    {
-        Database::connection()
-            ->prepare('UPDATE reportes SET estado = ?, resuelto_por = NULL, resuelto_en = NULL WHERE id = ?')
-            ->execute(['abierto', $id]);
-    }
 }

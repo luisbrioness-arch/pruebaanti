@@ -534,6 +534,21 @@ CREATE TABLE reportes (
     KEY idx_reporte_estado (estado, creado_en)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- INTENTOS DE LOGIN — freno de fuerza bruta contra el único endpoint
+-- público del sistema (ver App\Core\Auth::attempt). Solo se guardan los
+-- FALLIDOS; un login exitoso borra los del usuario/IP, así que la tabla
+-- se mantiene chica sola. Sin FK a usuarios a propósito: se registran
+-- también intentos con usuarios que no existen, que es justo el caso que
+-- hay que frenar.
+CREATE TABLE intentos_login (
+    id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    usuario     VARCHAR(100)    NOT NULL,
+    ip          VARCHAR(45)     NOT NULL,
+    creado_en   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_intento_usuario (usuario, creado_en),
+    KEY idx_intento_ip (ip, creado_en)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================================

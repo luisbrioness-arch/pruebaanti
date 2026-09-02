@@ -193,9 +193,9 @@ export async function renderBilletera(container) {
         );
         cerrar();
         if (encolado) {
-          toast(`Cierre de ${escapeHtml(nombreTecnico)} guardado sin conexión — se aplicará al recuperar señal.`, 'neutro');
+          toast(`Cierre de ${nombreTecnico} guardado sin conexión — se aplicará al recuperar señal.`, 'neutro');
         } else {
-          toast(`Período de ${escapeHtml(nombreTecnico)} cerrado.`, 'ok');
+          toast(`Período de ${nombreTecnico} cerrado.`, 'ok');
           await cargarDetalle(tecnicoId);
           await refrescarSaldos();
         }
@@ -237,7 +237,7 @@ export async function renderBilletera(container) {
         );
         cerrar();
         if (encolado) {
-          toast(`Pago a ${escapeHtml(nombreTecnico)} guardado sin conexión — se aplicará al recuperar señal.`, 'neutro');
+          toast(`Pago a ${nombreTecnico} guardado sin conexión — se aplicará al recuperar señal.`, 'neutro');
         } else {
           toast('Pago registrado.', 'ok');
           await cargarDetalle(tecnicoId);
@@ -281,7 +281,7 @@ export async function renderBilletera(container) {
         );
         cerrar();
         if (encolado) {
-          toast(`Ajuste a ${escapeHtml(nombreTecnico)} guardado sin conexión — se aplicará al recuperar señal.`, 'neutro');
+          toast(`Ajuste a ${nombreTecnico} guardado sin conexión — se aplicará al recuperar señal.`, 'neutro');
         } else {
           toast('Ajuste registrado.', 'ok');
           await cargarDetalle(tecnicoId);

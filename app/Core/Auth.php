@@ -6,6 +6,7 @@ namespace App\Core;
 
 use App\Exceptions\ApiException;
 use App\Exceptions\ForbiddenException;
+use App\Repositories\IntentoLoginRepository;
 use App\Repositories\UsuarioRepository;
 
 /**
@@ -33,16 +34,50 @@ final class Auth
         session_start();
     }
 
+    /** Intentos fallidos permitidos (por usuario y por IP) antes de bloquear. */
+    private const MAX_INTENTOS = 8;
+    /** Ventana en minutos sobre la que se cuentan esos intentos. */
+    private const VENTANA_MINUTOS = 15;
+
     public static function attempt(string $usuario, string $password): array
     {
+        $intentos = new IntentoLoginRepository();
+        $ip = self::ip();
+
+        // Sin esto, el login queda abierto a fuerza bruta: es el único
+        // endpoint público del sistema y una contraseña débil se adivina en
+        // minutos. Se cuenta por usuario Y por IP: lo primero frena el
+        // ataque contra una cuenta concreta, lo segundo frena probar muchos
+        // usuarios distintos desde el mismo origen.
+        if ($intentos->fallidosRecientes($usuario, $ip, self::VENTANA_MINUTOS) >= self::MAX_INTENTOS) {
+            throw new ApiException(
+                'Demasiados intentos fallidos. Espera ' . self::VENTANA_MINUTOS . ' minutos e intenta de nuevo.',
+                429,
+                'demasiados_intentos'
+            );
+        }
+
         $repo = new UsuarioRepository();
         $user = $repo->findByUsuario($usuario);
         if (!$user || !(int) $user['activo'] || !password_verify($password, $user['password_hash'])) {
+            $intentos->registrarFallido($usuario, $ip);
             throw new ApiException('Usuario o contraseña incorrectos', 401, 'credenciales_invalidas');
         }
+
+        // Contra fijación de sesión: el id que traía el navegador antes de
+        // autenticarse no debe seguir siendo válido después.
+        session_regenerate_id(true);
+
+        $intentos->limpiarDe($usuario, $ip);
         $_SESSION['usuario_id'] = (int) $user['id'];
         unset($user['password_hash']);
         return $user;
+    }
+
+    /** IP del cliente, tal como la ve el servidor (sin confiar en cabeceras de proxy que cualquiera puede falsear). */
+    private static function ip(): string
+    {
+        return substr((string) ($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45);
     }
 
     public static function logout(): void

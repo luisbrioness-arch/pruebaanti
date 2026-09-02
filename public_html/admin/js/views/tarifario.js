@@ -93,10 +93,10 @@ export async function renderTarifario(container) {
             // palabra cuando la cola lo mande de verdad).
             tr.querySelector('.celda-monto').textContent = `${formatMoney(monto)} (sin conexión)`;
             tr.querySelector('.celda-desde').textContent = 'pendiente de confirmar';
-            toast(`${escapeHtml(fila[cfg.nombreCampo])}: guardado sin conexión — se aplicará al recuperar señal.`, 'neutro');
+            toast(`${fila[cfg.nombreCampo]}: guardado sin conexión — se aplicará al recuperar señal.`, 'neutro');
             boton.disabled = false;
           } else {
-            toast(`${escapeHtml(fila[cfg.nombreCampo])} actualizado a ${formatMoney(monto)}.`, 'ok');
+            toast(`${fila[cfg.nombreCampo]} actualizado a ${formatMoney(monto)}.`, 'ok');
             await cargar();
           }
         } catch (e) {

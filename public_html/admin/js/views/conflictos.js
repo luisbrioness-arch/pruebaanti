@@ -96,10 +96,10 @@ export async function renderConflictos(container) {
         );
         cerrar();
         if (encolado) {
-          toast(`Folio ${escapeHtml(conflicto.folio)} guardado sin conexión — se resolverá al recuperar señal.`, 'neutro');
+          toast(`Folio ${conflicto.folio} guardado sin conexión — se resolverá al recuperar señal.`, 'neutro');
           quitarDeListaLocal(conflicto.id);
         } else {
-          toast(`Folio ${escapeHtml(conflicto.folio)} resuelto.`, 'ok');
+          toast(`Folio ${conflicto.folio} resuelto.`, 'ok');
           await cargar();
         }
       } catch (e) {
