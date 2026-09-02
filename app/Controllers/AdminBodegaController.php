@@ -69,6 +69,13 @@ final class AdminBodegaController
         Response::json((new BodegaService())->traspasarEquipo((int) $req->param('id'), $tecnicoDestinoId));
     }
 
+    /** El admin cancela un envío (asignación o traspaso) que el técnico todavía no confirmó. */
+    public function cancelarTraspasoEquipo(Request $req): void
+    {
+        Auth::requireAdmin();
+        Response::json((new BodegaService())->cancelarTraspasoEquipo((int) $req->param('id')));
+    }
+
     public function fallaFabrica(Request $req): void
     {
         Auth::requireAdmin();
@@ -95,14 +102,28 @@ final class AdminBodegaController
 
     public function entregarFerreteria(Request $req): void
     {
-        Auth::requireAdmin();
+        $admin = Auth::requireAdmin();
         $itemCodigo = (string) $req->input('item_codigo', '');
         $tecnicoId = (int) $req->input('tecnico_id', 0);
         $cantidad = (float) $req->input('cantidad', 0);
         if ($itemCodigo === '' || !$tecnicoId) {
             throw new ValidationException('Faltan item_codigo o tecnico_id.');
         }
-        Response::json((new BodegaService())->entregarFerreteria($itemCodigo, $tecnicoId, $cantidad), 201);
+        Response::json((new BodegaService())->entregarFerreteria($itemCodigo, $tecnicoId, $cantidad, (int) $admin['id']), 201);
+    }
+
+    /** Entregas de ferretería esperando confirmación, de cualquier técnico — solo visibilidad. */
+    public function entregasFerreteriaPendientes(Request $req): void
+    {
+        Auth::requireAdmin();
+        Response::json(['pendientes' => (new BodegaService())->entregasFerreteriaPendientesTodas()]);
+    }
+
+    /** El admin cancela una entrega de ferretería que el técnico todavía no confirmó. */
+    public function cancelarEntregaFerreteria(Request $req): void
+    {
+        Auth::requireAdmin();
+        Response::json((new BodegaService())->cancelarEntregaFerreteria((int) $req->param('id')));
     }
 
     public function obtenerKit(Request $req): void

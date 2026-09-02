@@ -18,6 +18,7 @@ use App\Controllers\CatalogoController;
 use App\Controllers\FotoController;
 use App\Controllers\OrdenController;
 use App\Controllers\ReporteController;
+use App\Controllers\TecnicoBodegaController;
 use App\Controllers\VentaController;
 use App\Core\Auth;
 use App\Core\Request;
@@ -61,6 +62,13 @@ $router->get('/api/ventas/pendientes', fn(Request $r) => (new VentaController())
 // --- Billetera propia (ver docs/liquidacion-billetera.md) -------------------
 $router->get('/api/mi-billetera', fn(Request $r) => (new BilleteraController())->mia($r));
 
+// --- Traspasos pendientes de confirmar por el propio técnico (ver docs/bodegas-traspasos.md) ---
+$router->get('/api/mis-traspasos', fn(Request $r) => (new TecnicoBodegaController())->pendientes($r));
+$router->post('/api/mis-traspasos/equipos/{id}/aceptar', fn(Request $r) => (new TecnicoBodegaController())->aceptarEquipo($r));
+$router->post('/api/mis-traspasos/equipos/{id}/rechazar', fn(Request $r) => (new TecnicoBodegaController())->rechazarEquipo($r));
+$router->post('/api/mis-traspasos/ferreteria/{id}/aceptar', fn(Request $r) => (new TecnicoBodegaController())->aceptarFerreteria($r));
+$router->post('/api/mis-traspasos/ferreteria/{id}/rechazar', fn(Request $r) => (new TecnicoBodegaController())->rechazarFerreteria($r));
+
 // --- Reportar bug o pedir un cambio (cualquier usuario con sesión) ----------
 $router->post('/api/reportes', fn(Request $r) => (new ReporteController())->crear($r));
 
@@ -88,8 +96,9 @@ $router->put('/api/admin/tarifas/{tipoServicio}', fn(Request $r) => (new AdminTa
 $router->get('/api/admin/comisiones', fn(Request $r) => (new AdminTarifarioController())->listarComisiones($r));
 $router->put('/api/admin/comisiones/{plan}', fn(Request $r) => (new AdminTarifarioController())->editarComision($r));
 
-// Usuarios (solo lectura — el alta sigue siendo manual en Fase 1)
+// Usuarios
 $router->get('/api/admin/usuarios', fn(Request $r) => (new AdminUsuarioController())->listar($r));
+$router->post('/api/admin/usuarios', fn(Request $r) => (new AdminUsuarioController())->crear($r));
 
 // Liquidación y billetera
 $router->get('/api/admin/billetera/saldos', fn(Request $r) => (new AdminBilleteraController())->saldos($r));
@@ -113,12 +122,15 @@ $router->get('/api/admin/equipos', fn(Request $r) => (new AdminBodegaController(
 $router->post('/api/admin/equipos', fn(Request $r) => (new AdminBodegaController())->altaEquipo($r));
 $router->post('/api/admin/equipos/{id}/asignar', fn(Request $r) => (new AdminBodegaController())->asignarEquipo($r));
 $router->post('/api/admin/equipos/{id}/traspasar', fn(Request $r) => (new AdminBodegaController())->traspasarEquipo($r));
+$router->post('/api/admin/equipos/{id}/cancelar-traspaso', fn(Request $r) => (new AdminBodegaController())->cancelarTraspasoEquipo($r));
 $router->post('/api/admin/equipos/{id}/falla-fabrica', fn(Request $r) => (new AdminBodegaController())->fallaFabrica($r));
 $router->post('/api/admin/equipos/{id}/ingreso-bodega', fn(Request $r) => (new AdminBodegaController())->ingresoBodega($r));
 
 // Bodega — ferretería y kits
 $router->get('/api/admin/ferreteria/stock', fn(Request $r) => (new AdminBodegaController())->stockFerreteria($r));
 $router->post('/api/admin/ferreteria/entregar', fn(Request $r) => (new AdminBodegaController())->entregarFerreteria($r));
+$router->get('/api/admin/ferreteria/pendientes', fn(Request $r) => (new AdminBodegaController())->entregasFerreteriaPendientes($r));
+$router->post('/api/admin/ferreteria/pendientes/{id}/cancelar', fn(Request $r) => (new AdminBodegaController())->cancelarEntregaFerreteria($r));
 $router->get('/api/admin/kits/{tipoServicio}', fn(Request $r) => (new AdminBodegaController())->obtenerKit($r));
 $router->put('/api/admin/kits/{tipoServicio}', fn(Request $r) => (new AdminBodegaController())->actualizarKit($r));
 

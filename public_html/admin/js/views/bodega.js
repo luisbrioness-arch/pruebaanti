@@ -67,6 +67,7 @@ export async function renderBodega(container) {
           <option value="">Todos</option>
           <option value="bodega">En bodega</option>
           <option value="maleta">En maleta</option>
+          <option value="en_transito">En tránsito (pendiente)</option>
           <option value="instalado">Instalado</option>
           <option value="retirado">Retirado</option>
           <option value="falla_fabrica">Falla de fábrica</option>
@@ -151,7 +152,7 @@ export async function renderBodega(container) {
             <form id="form-asignar-masivo" class="form-fila">
               <span class="campo-ayuda">${seleccionados.size} en bodega seleccionados</span>
               <select name="tecnico_id" required>${opcionesUsuarios()}</select>
-              <button type="submit" class="btn btn--primario btn--chico">Asignar seleccionados</button>
+              <button type="submit" class="btn btn--primario btn--chico">Enviar seleccionados</button>
             </form>
           `;
           $barra.querySelector('#form-asignar-masivo').addEventListener('submit', async (ev) => {
@@ -200,7 +201,7 @@ export async function renderBodega(container) {
         }
         if (fallidos) toast(`${fallidos} de ${ids.length} fallaron — revisa la consola.`, 'malo');
         else if (encoladosN) toast(`${ok + encoladosN} guardados${encoladosN ? `, ${encoladosN} sin conexión (se aplicarán al recuperar señal)` : ''}.`, 'neutro');
-        else toast(`${ok} equipos actualizados.`, 'ok');
+        else toast(`${ok} equipos enviados — quedan pendientes hasta que cada técnico confirme.`, 'ok');
         await cargarTablaEquipos(estado);
       }
 
@@ -234,7 +235,7 @@ export async function renderBodega(container) {
           const form = el(`
             <form class="form-inline">
               <select name="tecnico_id" required>${opcionesUsuarios()}</select>
-              <button type="submit" class="btn btn--secundario btn--chico">Asignar</button>
+              <button type="submit" class="btn btn--secundario btn--chico">Enviar</button>
             </form>
           `);
           form.addEventListener('submit', async (ev) => {
@@ -244,10 +245,10 @@ export async function renderBodega(container) {
             try {
               const { encolado } = await conColaSiHaceFalta('asignar_equipo', payload, () => api(`/admin/equipos/${e.id}/asignar`, { method: 'POST', body: { tecnico_id: tecnicoId } }));
               if (encolado) {
-                toast(`${e.numero_serie}: guardado sin conexión — se asignará al recuperar señal.`, 'neutro');
-                marcarFilaPendiente('asignación pendiente');
+                toast(`${e.numero_serie}: guardado sin conexión — se enviará al recuperar señal.`, 'neutro');
+                marcarFilaPendiente('envío pendiente');
               } else {
-                toast(`${e.numero_serie} asignado.`, 'ok');
+                toast(`${e.numero_serie} enviado — queda pendiente hasta que el técnico confirme que lo recibió.`, 'ok');
                 await cargarTablaEquipos(estado);
               }
             } catch (err) { toast(err.message, 'malo'); }
@@ -271,12 +272,28 @@ export async function renderBodega(container) {
                 toast(`${e.numero_serie}: guardado sin conexión — se traspasará al recuperar señal.`, 'neutro');
                 marcarFilaPendiente('traspaso pendiente');
               } else {
-                toast(`${e.numero_serie} traspasado.`, 'ok');
+                toast(`${e.numero_serie} enviado — queda pendiente hasta que el técnico confirme que lo recibió.`, 'ok');
                 await cargarTablaEquipos(estado);
               }
             } catch (err) { toast(err.message, 'malo'); }
           });
           $acciones.appendChild(form);
+        }
+        if (e.estado === 'en_transito') {
+          const $chip = el(`<span class="chip chip--alerta">⏳ Esperando que ${escapeHtml(e.tecnico_nombre || 'el técnico')} confirme</span>`);
+          const btnCancelar = el('<button type="button" class="btn btn--secundario btn--chico">Cancelar envío</button>');
+          btnCancelar.addEventListener('click', async () => {
+            try {
+              const { encolado } = await conColaSiHaceFalta('cancelar_traspaso_equipo', { id: e.id }, () => api(`/admin/equipos/${e.id}/cancelar-traspaso`, { method: 'POST', body: {} }));
+              if (encolado) {
+                toast(`${e.numero_serie}: guardado sin conexión — se cancelará al recuperar señal.`, 'neutro');
+              } else {
+                toast(`${e.numero_serie}: envío cancelado.`, 'ok');
+                await cargarTablaEquipos(estado);
+              }
+            } catch (err) { toast(err.message, 'malo'); }
+          });
+          $acciones.append($chip, btnCancelar);
         }
         if (e.estado === 'retirado') {
           const btn = el('<button type="button" class="btn btn--secundario btn--chico">Ingresó a bodega</button>');
@@ -335,6 +352,11 @@ export async function renderBodega(container) {
         </label>
         <button type="submit" class="btn btn--primario">Entregar</button>
       </form>
+
+      <h3>Pendientes de confirmar</h3>
+      <div id="tabla-pendientes-ferreteria"><p class="vacio">Cargando…</p></div>
+
+      <h3>Stock confirmado por técnico</h3>
       <div id="tabla-stock"><p class="vacio">Cargando…</p></div>
     `;
 
@@ -352,15 +374,59 @@ export async function renderBodega(container) {
         if (encolado) {
           toast('Guardado sin conexión — la entrega se registrará al recuperar señal.', 'neutro');
         } else {
-          toast('Entrega registrada.', 'ok');
-          await cargarStock();
+          toast('Entrega enviada — queda pendiente hasta que el técnico confirme la cantidad recibida.', 'ok');
+          await Promise.all([cargarStock(), cargarPendientesFerreteria()]);
         }
       } catch (e) {
         toast(e.message, 'malo');
       }
     });
 
-    await cargarStock();
+    await Promise.all([cargarStock(), cargarPendientesFerreteria()]);
+  }
+
+  async function cargarPendientesFerreteria() {
+    const $tabla = $contenido.querySelector('#tabla-pendientes-ferreteria');
+    try {
+      const { pendientes } = await api('/admin/ferreteria/pendientes');
+      if (!pendientes.length) {
+        $tabla.innerHTML = '<p class="vacio">No hay entregas esperando confirmación.</p>';
+        return;
+      }
+      $tabla.innerHTML = `
+        <table class="tabla">
+          <thead><tr><th>Técnico</th><th>Ítem</th><th>Cantidad</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      `;
+      const $tbody = $tabla.querySelector('tbody');
+      for (const p of pendientes) {
+        const tr = el(`
+          <tr>
+            <td>${escapeHtml(p.tecnico_nombre)}</td>
+            <td>${escapeHtml(p.item_nombre)}</td>
+            <td>${p.cantidad} ${escapeHtml(p.unidad_medida)}</td>
+            <td class="celda-acciones"></td>
+          </tr>
+        `);
+        const btn = el('<button type="button" class="btn btn--secundario btn--chico">Cancelar</button>');
+        btn.addEventListener('click', async () => {
+          try {
+            const { encolado } = await conColaSiHaceFalta('cancelar_entrega_ferreteria', { id: p.id }, () => api(`/admin/ferreteria/pendientes/${p.id}/cancelar`, { method: 'POST', body: {} }));
+            if (encolado) {
+              toast('Guardado sin conexión — se cancelará al recuperar señal.', 'neutro');
+            } else {
+              toast('Entrega cancelada.', 'ok');
+              await cargarPendientesFerreteria();
+            }
+          } catch (err) { toast(err.message, 'malo'); }
+        });
+        tr.querySelector('.celda-acciones').appendChild(btn);
+        $tbody.appendChild(tr);
+      }
+    } catch (e) {
+      $tabla.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
+    }
   }
 
   async function cargarStock() {

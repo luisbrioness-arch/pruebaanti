@@ -35,6 +35,7 @@ export async function renderHome(container) {
         <div class="lista-borradores" id="lista-borradores"></div>
       </div>
 
+      <button type="button" class="btn btn--secundario btn--ancho" id="btn-traspasos">Traspasos por confirmar <span id="badge-traspasos"></span></button>
       <button type="button" class="btn btn--secundario btn--ancho" id="btn-historial">Ver mis órdenes enviadas</button>
       <button type="button" class="btn btn--secundario btn--ancho" id="btn-billetera">Ver mi billetera</button>
     </section>
@@ -47,8 +48,17 @@ export async function renderHome(container) {
   seccion.querySelector('#btn-registrar-venta').addEventListener('click', () => {
     irA('venta');
   });
+  seccion.querySelector('#btn-traspasos').addEventListener('click', () => irA('traspasos'));
   seccion.querySelector('#btn-historial').addEventListener('click', () => irA('historial'));
   seccion.querySelector('#btn-billetera').addEventListener('click', () => irA('billetera'));
+
+  // Best-effort: si no hay señal, el botón queda sin número — no es crítico,
+  // el técnico igual puede entrar a mirar cuando quiera.
+  api('/mis-traspasos').then(({ equipos, ferreteria }) => {
+    const n = equipos.length + ferreteria.length;
+    const $badge = seccion.querySelector('#badge-traspasos');
+    if ($badge && n > 0) $badge.textContent = `(${n})`;
+  }).catch(() => {});
 
   pintarBorradores(seccion.querySelector('#lista-borradores'));
 

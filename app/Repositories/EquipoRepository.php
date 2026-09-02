@@ -8,9 +8,16 @@ use App\Core\Database;
 
 final class EquipoRepository
 {
-    public function find(int $id): ?array
+    /**
+     * @param bool $bloqueando SELECT ... FOR UPDATE — usar dentro de
+     *   Database::transaction() cuando el llamador va a decidir un cambio de
+     *   estado en base a lo leído (aceptar/rechazar un traspaso), para que
+     *   dos confirmaciones casi simultáneas del mismo equipo no pisen la
+     *   misma fila dos veces (mismo motivo que LiquidacionService::cerrarPeriodo).
+     */
+    public function find(int $id, bool $bloqueando = false): ?array
     {
-        $stmt = Database::connection()->prepare('SELECT * FROM equipos WHERE id = ?');
+        $stmt = Database::connection()->prepare('SELECT * FROM equipos WHERE id = ?' . ($bloqueando ? ' FOR UPDATE' : ''));
         $stmt->execute([$id]);
         return $stmt->fetch() ?: null;
     }
@@ -22,12 +29,38 @@ final class EquipoRepository
         return $stmt->fetch() ?: null;
     }
 
-    public function actualizarEstado(int $id, string $estado, ?int $usuarioActualId, ?int $ordenInstalacionId): void
+    /**
+     * @param int|null $origenPendienteId Solo tiene sentido junto con
+     *   estado 'en_transito': de dónde salió, para poder devolverlo ahí si
+     *   el técnico lo rechaza (NULL = bodega central). Se limpia (pasando
+     *   null) en cuanto el equipo sale de 'en_transito', para cualquier lado.
+     */
+    public function actualizarEstado(
+        int $id,
+        string $estado,
+        ?int $usuarioActualId,
+        ?int $ordenInstalacionId,
+        ?int $origenPendienteId = null
+    ): void {
+        $stmt = Database::connection()->prepare(
+            'UPDATE equipos SET estado = ?, usuario_actual_id = ?, orden_instalacion_id = ?, origen_pendiente_id = ? WHERE id = ?'
+        );
+        $stmt->execute([$estado, $usuarioActualId, $ordenInstalacionId, $origenPendienteId, $id]);
+    }
+
+    /** Equipos en camino hacia este técnico, esperando que los confirme (ver docs/bodegas-traspasos.md). */
+    public function pendientesPara(int $tecnicoId): array
     {
         $stmt = Database::connection()->prepare(
-            'UPDATE equipos SET estado = ?, usuario_actual_id = ?, orden_instalacion_id = ? WHERE id = ?'
+            "SELECT e.*, te.nombre AS tipo_equipo_nombre, uo.nombre AS origen_nombre
+             FROM equipos e
+             JOIN tipos_equipo te ON te.id = e.tipo_equipo_id
+             LEFT JOIN usuarios uo ON uo.id = e.origen_pendiente_id
+             WHERE e.estado = 'en_transito' AND e.usuario_actual_id = ?
+             ORDER BY e.actualizado_en ASC"
         );
-        $stmt->execute([$estado, $usuarioActualId, $ordenInstalacionId, $id]);
+        $stmt->execute([$tecnicoId]);
+        return $stmt->fetchAll();
     }
 
     /** Alta en bodega — siempre nace en estado 'bodega', sin dueño. */

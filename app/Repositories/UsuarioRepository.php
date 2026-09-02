@@ -30,4 +30,22 @@ final class UsuarioRepository
             ->fetchAll();
         return $filas;
     }
+
+    public function existeUsuario(string $usuario): bool
+    {
+        $stmt = Database::connection()->prepare('SELECT 1 FROM usuarios WHERE usuario = ? LIMIT 1');
+        $stmt->execute([$usuario]);
+        return (bool) $stmt->fetchColumn();
+    }
+
+    /** Alta de un técnico (o admin) nuevo — $datos ya trae password_hash, nunca la contraseña en claro. */
+    public function crear(array $datos): int
+    {
+        $stmt = Database::connection()->prepare(
+            'INSERT INTO usuarios (nombre, usuario, email, password_hash, rol, porcentaje_reparto)
+             VALUES (:nombre, :usuario, :email, :password_hash, :rol, :porcentaje_reparto)'
+        );
+        $stmt->execute($datos);
+        return (int) Database::connection()->lastInsertId();
+    }
 }

@@ -7,6 +7,7 @@ import { renderHome } from './views/home.js';
 import { renderVenta } from './views/venta.js';
 import { renderHistorial } from './views/historial.js';
 import { renderBilletera } from './views/billetera.js';
+import { renderTraspasos } from './views/traspasos.js';
 import { renderWizard } from './views/wizard/wizard.js';
 import { initModoReportar } from './reportar.js';
 
@@ -14,6 +15,7 @@ route('home', renderHome);
 route('venta', renderVenta);
 route('historial', renderHistorial);
 route('billetera', renderBilletera);
+route('traspasos', renderTraspasos);
 route('wizard', renderWizard);
 
 const $shell = document.getElementById('shell');

@@ -87,29 +87,45 @@ Editar **nunca** hace `UPDATE` sobre el monto vigente: cierra la fila (`vigente_
 ```
 GET  /api/admin/equipos?estado=bodega&tecnico_id=2
 POST /api/admin/equipos                        { tipo_equipo, numero_serie }         → alta, nace en 'bodega'
-POST /api/admin/equipos/{id}/asignar            { tecnico_id }                        → 'bodega' → 'maleta'
-POST /api/admin/equipos/{id}/traspasar          { tecnico_destino_id }                → 'maleta' → 'maleta' (otro dueño)
+POST /api/admin/equipos/{id}/asignar            { tecnico_id }                        → 'bodega' → 'en_transito'
+POST /api/admin/equipos/{id}/traspasar          { tecnico_destino_id }                → 'maleta' → 'en_transito'
+POST /api/admin/equipos/{id}/cancelar-traspaso                                        → 'en_transito' → vuelve a donde estaba
 POST /api/admin/equipos/{id}/falla-fabrica      { observacion? }                      → sale sin culpar al técnico
 POST /api/admin/equipos/{id}/ingreso-bodega                                          → 'retirado' → 'bodega'
 ```
 
+**`asignar`/`traspasar` ya no aplican al toque — quedan pendientes de que el técnico confirme** (ver [bodegas-traspasos.md](bodegas-traspasos.md) para el diseño completo). El equipo pasa a `en_transito` con `usuario_actual_id` ya apuntando al técnico destino (se ve "en camino" en la tabla) hasta que él lo acepta o lo rechaza desde `/api/mis-traspasos/*`. `cancelar-traspaso` es la salida del admin si se equivocó de técnico y todavía no confirmó nada.
+
 `ingreso-bodega` es deliberadamente una acción separada de la orden de retiro: el momento en que el técnico saca el equipo de la casa del cliente y el momento en que ese equipo llega físicamente a la bodega son dos eventos reales, no uno (puede pasar días después, cuando junta varios retiros en un viaje).
 
-`traspasar` (respuesta 9) cubre el caso real de que un técnico le entregue un equipo a otro directamente en terreno, sin que ninguno pise la bodega ese día — antes de esto, la única forma de mover un equipo entre maletas pasaba por `asignar`, que asume que viene de bodega. El equipo se queda en estado `maleta` (solo cambia el dueño) y la fila de `movimientos_equipo` (tipo `traspaso`) guarda origen y destino — la trazabilidad completa, no un salto que parezca que el equipo pasó por bodega sin haberlo hecho. El schema ya traía este tipo en el ENUM desde la Fase 1 (`movimientos_ferreteria` incluso trae `traspaso_entrada`/`traspaso_salida` para el mismo caso con ferretería — no implementado todavía, mismo patrón si hace falta después).
+`traspasar` (respuesta 9) cubre el caso real de que un técnico le entregue un equipo a otro directamente en terreno, sin que ninguno pise la bodega ese día — antes de esto, la única forma de mover un equipo entre maletas pasaba por `asignar`, que asume que viene de bodega. La fila de `movimientos_equipo` (tipo `traspaso_pendiente` al enviar, `traspaso` al confirmar) guarda origen y destino — la trazabilidad completa, no un salto que parezca que el equipo pasó por bodega sin haberlo hecho.
 
 **Escáner de código de barras en el alta** (reporte #4) — botón "📷 Escanear" junto al campo de N° de serie, misma librería vendorizada que usa la app técnico (`html5-qrcode`, copiada a `public_html/admin/js/vendor/` — duplicada, no compartida entre apps, mismo criterio de siempre). Sin cámara disponible (típico en un panel de escritorio), cae solo al mensaje de "escribe la serie a mano" — nunca bloquea el alta.
 
-**Selección múltiple + acción masiva** (reporte #5) — checkbox por fila en `bodega` o `maleta`; al seleccionar aparece una barra con la acción que corresponde (Asignar si todos están en `bodega`, Traspasar si todos están en `maleta`) y un único selector de técnico destino para todos. No hay endpoint masivo real en el servidor — se manda una llamada por equipo, una por una (cada una pasa igual por la cola offline si hace falta); si se mezclan estados en la selección, la barra avisa que no se pueden mover juntos en vez de ofrecer una acción que no tiene sentido.
+**Selección múltiple + acción masiva** (reporte #5) — checkbox por fila en `bodega` o `maleta` (no en `en_transito`: ya está en camino, no hay nada que seleccionar); al seleccionar aparece una barra con la acción que corresponde (Enviar si todos están en `bodega`, Traspasar si todos están en `maleta`) y un único selector de técnico destino para todos. No hay endpoint masivo real en el servidor — se manda una llamada por equipo, una por una (cada una pasa igual por la cola offline si hace falta, y cada una queda pendiente de confirmación por separado); si se mezclan estados en la selección, la barra avisa que no se pueden mover juntos en vez de ofrecer una acción que no tiene sentido.
 
 ## Bodega — ferretería y kits
 
 ```
-GET  /api/admin/ferreteria/stock?tecnico_id=2
-POST /api/admin/ferreteria/entregar             { item_codigo, tecnico_id, cantidad }
+GET  /api/admin/ferreteria/stock?tecnico_id=2                      → stock YA CONFIRMADO por cada técnico
+POST /api/admin/ferreteria/entregar             { item_codigo, tecnico_id, cantidad }   → queda pendiente, no toca el stock todavía
+GET  /api/admin/ferreteria/pendientes                              → todo lo pendiente, de cualquier técnico
+POST /api/admin/ferreteria/pendientes/{id}/cancelar                → el admin cancela una entrega sin confirmar
 
 GET  /api/admin/kits/{tipoServicioCodigo}
 PUT  /api/admin/kits/{tipoServicioCodigo}       { items: [{ item_codigo, cantidad_estandar }] }
 ```
+
+Igual que con los equipos: `entregar` ya no descuenta ni acredita nada al toque — crea una fila en `entregas_ferreteria_pendientes` y recién se aplica a `stock_ferreteria_usuario`/`movimientos_ferreteria` cuando el técnico confirma la cantidad recibida desde `/api/mis-traspasos/ferreteria/{id}/aceptar`. Si rechaza, no hay nada que revertir — nunca se aplicó.
+
+## Usuarios
+
+```
+GET  /api/admin/usuarios                                            → activos, sin password_hash
+POST /api/admin/usuarios   { nombre, usuario, password, rol?, email?, porcentaje_reparto? }
+```
+
+El alta de técnicos (y de otros admins) ya no requiere tocar la base de datos a mano — antes era el único método (ver `docs/despliegue.md`, sección 5, que sigue aplicando solo para sembrar el PRIMER admin, porque para usar este endpoint hace falta ya estar logueado como uno). `usuario` se valida contra `^[a-z0-9_.]+$` (minúsculas, números, punto, guion bajo — el mismo formato con el que se loguea) y tiene que ser único; `password` se hashea con `password_hash()` antes de guardarse, nunca en claro. `rol` por defecto `'tecnico'`; `porcentaje_reparto` por defecto `100`.
 
 El kit **no se versiona** como el tarifario — es una plantilla de lo que el wizard debería precargar, no un monto ya cobrado. Las órdenes ya enviadas guardan su propio `orden_ferreteria` con `cantidad_estandar`/`cantidad_final` congeladas y no dependen de esta tabla después de creadas.
 

@@ -549,6 +549,72 @@ CREATE TABLE intentos_login (
     KEY idx_intento_ip (ip, creado_en)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- TRASPASOS PENDIENTES DE CONFIRMACIÓN — "bodega central" ya existía como
+-- concepto implícito (equipos.estado = 'bodega', sin dueño) y "bodega de
+-- cada técnico" también (equipos.estado = 'maleta', usuario_actual_id = él);
+-- lo que faltaba era que el técnico confirmara lo que le mandan antes de
+-- que cuente como suyo — hasta ahora asignar/traspasar aplicaba al toque,
+-- sin que nadie del otro lado verificara series ni cantidades.
+--
+-- Equipos: se agrega el estado 'en_transito' — el equipo queda "reservado"
+-- para el técnico destino (usuario_actual_id ya apunta a él, para que se
+-- vea en camino) pero NO cuenta como en su maleta todavía. origen_pendiente_id
+-- guarda de dónde salió (NULL = bodega central, un id = la maleta de ese
+-- técnico) para poder devolverlo ahí mismo si lo rechaza.
+ALTER TABLE equipos
+    MODIFY COLUMN estado ENUM(
+        'bodega',
+        'maleta',
+        'en_transito',
+        'instalado',
+        'retirado',
+        'falla_fabrica',
+        'devuelto_tuves',
+        'perdido'
+    ) NOT NULL DEFAULT 'bodega',
+    ADD COLUMN origen_pendiente_id INT UNSIGNED NULL AFTER usuario_actual_id,
+    ADD CONSTRAINT fk_equipo_origenpendiente FOREIGN KEY (origen_pendiente_id)
+        REFERENCES usuarios(id);
+
+ALTER TABLE movimientos_equipo
+    MODIFY COLUMN tipo_movimiento ENUM(
+        'ingreso_bodega',
+        'asignacion_maleta',
+        'traspaso',
+        'traspaso_pendiente',
+        'traspaso_rechazado',
+        'traspaso_cancelado',
+        'instalacion',
+        'retiro',
+        'falla_fabrica',
+        'devolucion_tuves',
+        'ajuste_descuadre'
+    ) NOT NULL;
+
+-- Ferretería: a diferencia del equipo (serializado, con fila propia que se
+-- puede "reservar"), la entrega es solo una cantidad — se guarda la
+-- intención en esta tabla y NO se toca stock_ferreteria_usuario ni se
+-- escribe en movimientos_ferreteria hasta que el técnico confirma. Si
+-- rechaza, no hay nada que revertir: nunca se aplicó.
+CREATE TABLE entregas_ferreteria_pendientes (
+    id                      INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    item_ferreteria_id      INT UNSIGNED    NOT NULL,
+    tecnico_id              INT UNSIGNED    NOT NULL,
+    cantidad                DECIMAL(10,2)   NOT NULL,
+    estado                  ENUM('pendiente','aceptada','rechazada') NOT NULL DEFAULT 'pendiente',
+    observacion_tecnico     VARCHAR(255)    NULL,
+    creado_por              INT UNSIGNED    NOT NULL,
+    creado_en               DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resuelto_en             DATETIME        NULL,
+    CONSTRAINT fk_entregaferrpend_item FOREIGN KEY (item_ferreteria_id)
+        REFERENCES items_ferreteria(id),
+    CONSTRAINT fk_entregaferrpend_tecnico FOREIGN KEY (tecnico_id)
+        REFERENCES usuarios(id),
+    CONSTRAINT fk_entregaferrpend_creadopor FOREIGN KEY (creado_por)
+        REFERENCES usuarios(id),
+    KEY idx_entregaferrpend_tecnico (tecnico_id, estado)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================================

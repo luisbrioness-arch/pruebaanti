@@ -277,6 +277,7 @@ button { font: inherit; }
 .item-material-serie { font-weight: 700; font-family: var(--fuente-mono); font-size: .95rem; }
 .item-material-meta { font-size: .78rem; color: var(--tinta-3); }
 .item-material .btn-icono { color: var(--malo); flex-shrink: 0; }
+.celda-mono { font-family: var(--fuente-mono); }
 
 .pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
 .pill--ok { background: var(--ok-suave); color: var(--ok); }
