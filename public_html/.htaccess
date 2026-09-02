@@ -11,4 +11,15 @@ RewriteRule ^ index.php [QSA,L]
     Header set X-Content-Type-Options "nosniff"
     Header set X-Frame-Options "SAMEORIGIN"
     Header set Referrer-Policy "same-origin"
+
+    # JS y CSS cambian con cada deploy — sin esto, un navegador (o el cache
+    # del propio LiteSpeed) puede seguir sirviendo una versión vieja
+    # después de un push y parecer que el cambio "no llegó". Con
+    # must-revalidate el navegador siempre le pregunta al servidor si hay
+    # una versión más nueva antes de reusar la que tiene guardada — no es
+    # "sin caché" a lo bruto, solo nunca se queda con algo desactualizado.
+    <FilesMatch "\.(js|css)$">
+        Header set Cache-Control "no-cache, must-revalidate"
+        Header set X-LiteSpeed-Cache-Control "no-cache"
+    </FilesMatch>
 </IfModule>
