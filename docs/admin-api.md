@@ -97,6 +97,10 @@ POST /api/admin/equipos/{id}/ingreso-bodega                                     
 
 `traspasar` (respuesta 9) cubre el caso real de que un técnico le entregue un equipo a otro directamente en terreno, sin que ninguno pise la bodega ese día — antes de esto, la única forma de mover un equipo entre maletas pasaba por `asignar`, que asume que viene de bodega. El equipo se queda en estado `maleta` (solo cambia el dueño) y la fila de `movimientos_equipo` (tipo `traspaso`) guarda origen y destino — la trazabilidad completa, no un salto que parezca que el equipo pasó por bodega sin haberlo hecho. El schema ya traía este tipo en el ENUM desde la Fase 1 (`movimientos_ferreteria` incluso trae `traspaso_entrada`/`traspaso_salida` para el mismo caso con ferretería — no implementado todavía, mismo patrón si hace falta después).
 
+**Escáner de código de barras en el alta** (reporte #4) — botón "📷 Escanear" junto al campo de N° de serie, misma librería vendorizada que usa la app técnico (`html5-qrcode`, copiada a `public_html/admin/js/vendor/` — duplicada, no compartida entre apps, mismo criterio de siempre). Sin cámara disponible (típico en un panel de escritorio), cae solo al mensaje de "escribe la serie a mano" — nunca bloquea el alta.
+
+**Selección múltiple + acción masiva** (reporte #5) — checkbox por fila en `bodega` o `maleta`; al seleccionar aparece una barra con la acción que corresponde (Asignar si todos están en `bodega`, Traspasar si todos están en `maleta`) y un único selector de técnico destino para todos. No hay endpoint masivo real en el servidor — se manda una llamada por equipo, una por una (cada una pasa igual por la cola offline si hace falta); si se mezclan estados en la selección, la barra avisa que no se pueden mover juntos en vez de ofrecer una acción que no tiene sentido.
+
 ## Bodega — ferretería y kits
 
 ```

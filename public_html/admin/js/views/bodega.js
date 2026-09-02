@@ -2,6 +2,7 @@ import { api } from '../api.js';
 import { toast } from '../toast.js';
 import { conColaSiHaceFalta } from '../offline.js';
 import { badge, escapeHtml, el } from '../utils.js';
+import { abrirScanner } from '../scanner.js';
 
 export async function renderBodega(container) {
   container.appendChild(el(`
@@ -54,8 +55,9 @@ export async function renderBodega(container) {
         </label>
         <label class="campo campo--inline">
           <span>N° de serie</span>
-          <input type="text" name="numero_serie" placeholder="Ej: 8934221100561" required>
+          <input type="text" name="numero_serie" id="input-numero-serie" placeholder="Ej: 8934221100561" required>
         </label>
+        <button type="button" class="btn btn--secundario" id="btn-escanear-serie" title="Escanear código de barras">📷 Escanear</button>
         <button type="submit" class="btn btn--primario">Dar de alta en bodega</button>
       </form>
 
@@ -76,6 +78,11 @@ export async function renderBodega(container) {
 
     const $filtro = $contenido.querySelector('#filtro-estado-equipo');
     $filtro.addEventListener('change', () => cargarTablaEquipos($filtro.value));
+
+    $contenido.querySelector('#btn-escanear-serie').addEventListener('click', async () => {
+      const resultado = await abrirScanner();
+      if (resultado) $contenido.querySelector('#input-numero-serie').value = resultado.serie;
+    });
 
     $contenido.querySelector('#form-alta').addEventListener('submit', async (ev) => {
       ev.preventDefault();
@@ -101,8 +108,18 @@ export async function renderBodega(container) {
     await cargarTablaEquipos('');
   }
 
+  /**
+   * Selección para acciones masivas (reporte #5: "poder seleccionar varios
+   * equipos y transferir"). Solo tiene sentido entre filas del MISMO estado
+   * (asignar es 'bodega'→técnico, traspasar es 'maleta'→otro técnico) — no
+   * hay una acción común a mezclar entre estados distintos, así que la
+   * barra de acciones se oculta si la selección queda mixta.
+   */
+  const seleccionados = new Map(); // id -> { estado, numero_serie }
+
   async function cargarTablaEquipos(estado) {
     const $tabla = $contenido.querySelector('#tabla-equipos');
+    seleccionados.clear();
     try {
       const qs = estado ? `?estado=${encodeURIComponent(estado)}` : '';
       const { equipos } = await api(`/admin/equipos${qs}`);
@@ -111,15 +128,88 @@ export async function renderBodega(container) {
         return;
       }
       $tabla.innerHTML = `
+        <div id="acciones-masivas" class="acciones-masivas" hidden></div>
         <table class="tabla">
-          <thead><tr><th>Serie</th><th>Tipo</th><th>Estado</th><th>Técnico</th><th>Acciones</th></tr></thead>
+          <thead><tr><th></th><th>Serie</th><th>Tipo</th><th>Estado</th><th>Técnico</th><th>Acciones</th></tr></thead>
           <tbody></tbody>
         </table>
       `;
+      const $barra = $tabla.querySelector('#acciones-masivas');
+
+      function actualizarBarra() {
+        if (!seleccionados.size) { $barra.hidden = true; $barra.innerHTML = ''; return; }
+        const estados = new Set([...seleccionados.values()].map((v) => v.estado));
+        if (estados.size > 1) {
+          $barra.hidden = false;
+          $barra.innerHTML = `<p class="campo-ayuda">${seleccionados.size} seleccionados — mezclan estados distintos, no se pueden mover juntos.</p>`;
+          return;
+        }
+        const estadoComun = [...estados][0];
+        if (estadoComun === 'bodega') {
+          $barra.hidden = false;
+          $barra.innerHTML = `
+            <form id="form-asignar-masivo" class="form-fila">
+              <span class="campo-ayuda">${seleccionados.size} en bodega seleccionados</span>
+              <select name="tecnico_id" required>${opcionesUsuarios()}</select>
+              <button type="submit" class="btn btn--primario btn--chico">Asignar seleccionados</button>
+            </form>
+          `;
+          $barra.querySelector('#form-asignar-masivo').addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            const tecnicoId = Number(new FormData(ev.target).get('tecnico_id'));
+            await ejecutarAccionMasiva('asignar_equipo', (id) => api(`/admin/equipos/${id}/asignar`, { method: 'POST', body: { tecnico_id: tecnicoId } }), (id) => ({ id, tecnico_id: tecnicoId }));
+          });
+        } else if (estadoComun === 'maleta') {
+          $barra.hidden = false;
+          $barra.innerHTML = `
+            <form id="form-traspasar-masivo" class="form-fila">
+              <span class="campo-ayuda">${seleccionados.size} en maleta seleccionados</span>
+              <select name="tecnico_destino_id" required>${opcionesUsuarios()}</select>
+              <button type="submit" class="btn btn--primario btn--chico">Traspasar seleccionados</button>
+            </form>
+          `;
+          $barra.querySelector('#form-traspasar-masivo').addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            const tecnicoDestinoId = Number(new FormData(ev.target).get('tecnico_destino_id'));
+            await ejecutarAccionMasiva('traspasar_equipo', (id) => api(`/admin/equipos/${id}/traspasar`, { method: 'POST', body: { tecnico_destino_id: tecnicoDestinoId } }), (id) => ({ id, tecnico_destino_id: tecnicoDestinoId }));
+          });
+        } else {
+          $barra.hidden = true;
+        }
+      }
+
+      /**
+       * Manda una acción por cada seleccionado, uno por uno — no hay un
+       * endpoint masivo real en el servidor para esto, así que se reusan
+       * los mismos endpoints de a uno (cada uno pasa igual por la cola
+       * offline si hace falta). Sin conexión, cada ítem queda encolado por
+       * separado y se procesan en orden al recuperar señal.
+       */
+      async function ejecutarAccionMasiva(tipo, llamada, armarPayload) {
+        const ids = [...seleccionados.keys()];
+        let ok = 0, encoladosN = 0, fallidos = 0;
+        for (const id of ids) {
+          const info = seleccionados.get(id);
+          try {
+            const { encolado } = await conColaSiHaceFalta(tipo, armarPayload(id), () => llamada(id));
+            if (encolado) encoladosN++; else ok++;
+          } catch (e) {
+            fallidos++;
+            console.error('[terreno-dth admin] acción masiva falló para', info.numero_serie, e.message);
+          }
+        }
+        if (fallidos) toast(`${fallidos} de ${ids.length} fallaron — revisa la consola.`, 'malo');
+        else if (encoladosN) toast(`${ok + encoladosN} guardados${encoladosN ? `, ${encoladosN} sin conexión (se aplicarán al recuperar señal)` : ''}.`, 'neutro');
+        else toast(`${ok} equipos actualizados.`, 'ok');
+        await cargarTablaEquipos(estado);
+      }
+
       const $tbody = $tabla.querySelector('tbody');
       for (const e of equipos) {
+        const puedeSeleccionar = e.estado === 'bodega' || e.estado === 'maleta';
         const tr = el(`
           <tr>
+            <td>${puedeSeleccionar ? `<input type="checkbox" class="check-equipo" data-id="${e.id}">` : ''}</td>
             <td class="celda-mono">${escapeHtml(e.numero_serie)}</td>
             <td>${escapeHtml(e.tipo_equipo_nombre)}</td>
             <td>${badge(e.estado)}</td>
@@ -128,6 +218,12 @@ export async function renderBodega(container) {
           </tr>
         `);
         const $acciones = tr.querySelector('.celda-acciones');
+
+        tr.querySelector('.check-equipo')?.addEventListener('change', (ev) => {
+          if (ev.target.checked) seleccionados.set(e.id, { estado: e.estado, numero_serie: e.numero_serie });
+          else seleccionados.delete(e.id);
+          actualizarBarra();
+        });
 
         /** Sin conexión no hay fila nueva que pintar (el servidor decide el estado real) — se marca esta fila como "en camino" y se le quitan más acciones hasta que se sepa de verdad. */
         function marcarFilaPendiente(mensaje) {

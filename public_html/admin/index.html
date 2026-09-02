@@ -46,6 +46,11 @@
   <!-- Notificaciones -->
   <div id="toast-pila" class="toast-pila" aria-live="polite"></div>
 
+  <!-- Vendorizada localmente, misma librería que usa la app técnico (ver
+       docs/admin-api.md) — carga como script clásico porque expone un
+       global (window.Html5Qrcode), no un módulo ES. `defer` evita que
+       bloquee el parseo del HTML mientras se descarga. -->
+  <script src="js/vendor/html5-qrcode.min.js" defer></script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>
