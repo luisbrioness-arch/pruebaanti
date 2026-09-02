@@ -1,16 +1,33 @@
-// "Modo inspección" — botón flotante siempre visible; al activarlo, toca
-// cualquier elemento de la pantalla para reportarlo. Captura sola la
-// pantalla (hash actual) y una descripción del elemento tocado (tag,
-// selector, texto) — el técnico solo escribe QUÉ pasa, no DÓNDE. No pasa
-// por la cola offline (ver docs/reportes.md: esa cola es para acciones
-// ligadas a una orden, un reporte es independiente de cualquier orden).
+// "Modo inspección" — solo para el desarrollador, nunca visible para el
+// técnico en el uso normal. Se activa entrando con ?debug=1 en la URL
+// (persiste en sessionStorage mientras dure la pestaña). Con el modo
+// activo, un botón flotante deja elegir cualquier elemento de la pantalla
+// con un toque; captura sola la pantalla (hash) y una descripción del
+// elemento (tag, selector, texto) — solo se escribe QUÉ pasa, no DÓNDE. No
+// pasa por la cola offline (ver docs/reportes.md: esa cola es para
+// acciones ligadas a una orden, un reporte es independiente de cualquier
+// orden).
 import { api, ApiError } from './api.js';
 import { abrirModal } from './modal.js';
 import { toast } from './toast.js';
 
 const ATTR_UI = 'data-reportar-ui';
+const CLAVE_SESION = 'terreno_dth_debug';
 let modoActivo = false;
 let elementoResaltado = null;
+
+function debugActivo() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('debug') === '1') {
+    sessionStorage.setItem(CLAVE_SESION, '1');
+    return true;
+  }
+  try {
+    return sessionStorage.getItem(CLAVE_SESION) === '1';
+  } catch {
+    return false;
+  }
+}
 
 function truncar(texto, max = 100) {
   const limpio = String(texto ?? '').replace(/\s+/g, ' ').trim();
@@ -85,13 +102,6 @@ function abrirDialogoReporte(el) {
     </dl>
     <form id="form-reportar">
       <label class="campo">
-        <span>Tipo</span>
-        <select name="tipo">
-          <option value="bug">Bug — algo no funciona</option>
-          <option value="cambio">Cambio — me gustaría que fuera distinto</option>
-        </select>
-      </label>
-      <label class="campo">
         <span>Descripción</span>
         <textarea name="descripcion" rows="3" required placeholder="Qué está mal…" autofocus></textarea>
       </label>
@@ -114,7 +124,7 @@ function abrirDialogoReporte(el) {
     try {
       await api('/reportes', {
         method: 'POST',
-        body: { tipo: fd.get('tipo'), descripcion: fd.get('descripcion'), pantalla, elemento },
+        body: { tipo: 'bug', descripcion: fd.get('descripcion'), pantalla, elemento },
       });
       cerrar();
       toast('Reporte enviado — gracias.', 'ok');
@@ -149,6 +159,7 @@ function crearFab() {
 }
 
 export function initModoReportar() {
+  if (!debugActivo()) return;
   crearFab();
   document.addEventListener('mousemove', onMouseMove, true);
   document.addEventListener('click', onClickCaptura, true);

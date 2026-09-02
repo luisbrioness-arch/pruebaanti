@@ -1,28 +1,36 @@
 # Reportes (bugs y pedidos de cambio) — modo inspección
 
-Botón flotante 🐞 (fijo, esquina inferior derecha) en el panel admin y en
-la app técnico. Al tocarlo se activa "modo inspección": el cursor cambia a
-cruceta, y el siguiente clic en cualquier elemento de la pantalla lo
-selecciona y abre un formulario para describir el problema — el usuario
-solo escribe **qué** está mal, nunca **dónde**, porque el elemento y la
-pantalla ya quedaron capturados solos.
+Herramienta **solo para el desarrollador** (Luis) — nunca visible para
+Edwin ni los técnicos en el uso normal de la app. Se activa entrando con
+`?debug=1` en la URL (ej. `https://dth.hogartv.cl/admin/?debug=1`); queda
+guardado en `sessionStorage` mientras dure la pestaña, así que no hace
+falta repetir el parámetro al navegar entre vistas de la misma sesión —
+pero si se cierra la pestaña o se abre en otra, hay que volver a agregarlo.
+
+Con el modo activo aparece un botón flotante 🐞 (esquina inferior derecha).
+Al tocarlo se activa "modo inspección": el cursor cambia a cruceta, y el
+siguiente clic en cualquier elemento de la pantalla lo selecciona y abre un
+formulario para describir el problema — solo se escribe **qué** está mal,
+nunca **dónde**, porque el elemento y la pantalla ya quedaron capturados
+solos. Sin campo de "tipo" (bug/cambio) — la descripción libre ya lo
+explica, clasificarlo aparte no aportaba nada.
 
 Patrón adaptado de `debug-mode.ts` / `debug_report.php` de otro proyecto
-del cliente, con dos ajustes deliberados por el contexto distinto:
+del cliente, con un ajuste deliberado por el contexto distinto: **base de
+datos, no archivos `.md`** — ese otro proyecto es un sitio público sin
+login, revisado bajando archivos por FTP/SSH; acá los usuarios ya están
+autenticados y este hosting no tiene SSH, así que la base de datos (que
+este sistema ya usa para todo lo demás) es más práctica que archivos
+sueltos en el servidor. La clave secreta de aquel proyecto no hizo falta
+replicarla — acá el `?debug=1` ya es suficiente porque nadie más que Luis
+tiene motivo para escribirlo.
 
-- **Base de datos, no archivos `.md`** — ese otro proyecto es un sitio
-  público sin login, revisado bajando archivos por FTP/SSH; acá los
-  usuarios ya están autenticados y este hosting no tiene SSH, así que la
-  base de datos (que este sistema ya usa para todo lo demás) es más
-  práctica que archivos sueltos en el servidor.
-- **Sin `?debug=1` ni clave secreta** — innecesario acá: los usuarios ya
-  son de confianza, con sesión iniciada.
-
-**Sin bandeja de admin a propósito** — Edwin no necesita una pantalla para
-revisar reportes uno por uno; el flujo real es: reporta algo → se lo
-cuenta a Claude directo (pegando la descripción, o pidiéndole que consulte
-la tabla) → Claude lo arregla y hace push. No hay UI de "marcar resuelto"
-ni estado — la fila en `reportes` es solo el registro de que se pidió.
+**Sin bandeja de admin a propósito** — Edwin no ve nada de esto (ni el
+botón, ni una pantalla de reportes). El flujo real es: Luis activa el modo,
+reporta algo, y se lo cuenta a Claude directo (pegando la descripción, o
+pidiéndole que consulte la tabla) → Claude lo arregla y hace push. No hay
+UI de "marcar resuelto" ni estado — la fila en `reportes` es solo el
+registro de que se pidió.
 
 ## Modelo
 
