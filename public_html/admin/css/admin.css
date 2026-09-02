@@ -168,7 +168,19 @@ textarea { resize: vertical; min-height: 60px; }
 .celda-mono { font-family: var(--fuente-mono); }
 .celda-monto { font-family: var(--fuente-mono); font-weight: 600; }
 .celda-negativa { color: var(--malo); font-weight: 700; }
-.celda-acciones { display: flex; gap: 6px; flex-wrap: wrap; }
+/* Los controles de esta celda tienen que quedar parejos entre sí y entre
+   filas (reporte #6): el <select> de asignar/traspasar traía el padding
+   normal de un input (más alto que un .btn--chico) y cada botón medía
+   distinto según el largo de su texto, así que cada fila se veía movida
+   respecto de la de arriba. Mismo alto y mismo ancho mínimo para todos. */
+.celda-acciones { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+.celda-acciones .btn--chico { min-width: 124px; justify-content: center; }
+.celda-acciones select { padding: 4px 8px; font-size: .78rem; min-width: 124px; }
+/* Cada fila tiene distinta cantidad de acciones según el estado del equipo
+   (3 en bodega/maleta, 2 en retirado, 1 en el resto). Alineando a la
+   derecha, el botón que TODAS comparten ("Falla de fábrica") queda en la
+   misma columna en todas las filas, en vez de saltar de posición. */
+.tabla th:last-child { text-align: right; }
 .tabla--editable input { width: 110px; }
 
 /* ==========================================================================
