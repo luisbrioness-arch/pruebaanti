@@ -52,7 +52,7 @@ async function boot() {
   }
 }
 
-document.getElementById('logout-btn').addEventListener('click', async () => {
+document.getElementById('logout-btn')?.addEventListener('click', async () => {
   await api('/auth/logout', { method: 'POST' }).catch(() => {});
   setUsuarioActual(null);
   location.hash = '';
