@@ -1,11 +1,11 @@
 # App técnico (PWA) · Fase 1
 
-Frontend en [`public/tecnico/`](../public/tecnico), HTML5/CSS/JS vanilla, sin build step — mismo criterio que el panel admin ([admin-api.md](admin-api.md)). Habla con la misma API documentada en [wizard-api.md](wizard-api.md); esto es solo la interfaz que el técnico toca con el pulgar en terreno.
+Frontend en [`public_html/tecnico/`](../public_html/tecnico), HTML5/CSS/JS vanilla, sin build step — mismo criterio que el panel admin ([admin-api.md](admin-api.md)). Habla con la misma API documentada en [wizard-api.md](wizard-api.md); esto es solo la interfaz que el técnico toca con el pulgar en terreno.
 
 ## Qué se construyó
 
 ```
-public/tecnico/
+public_html/tecnico/
   manifest.webmanifest, sw.js          — PWA instalable, cáscara cacheada + Background Sync
   icons/                                — icon.svg + PNG 192/512 (ver "Íconos" abajo)
   index.html, css/tecnico.css
@@ -44,10 +44,10 @@ El selector "+ Agregar" solo muestra ítems del catálogo que todavía no están
 
 ## Hallazgo real corregido: las fotos no tenían cómo servirse
 
-`storage/fotos_path` vive deliberadamente fuera de `/public` (fotos con GPS implícito, no deben quedar servibles sin control — ver `config/config.example.php`). Pero **no existía ningún endpoint que las sirviera** — ni para este wizard ni para el lightbox de auditoría del panel admin, que ya estaba en producción apuntando a `/${ruta_archivo}`, una ruta que jamás iba a resolver a nada. Se agregó:
+`storage/fotos_path` vive deliberadamente fuera de `/public_html` (fotos con GPS implícito, no deben quedar servibles sin control — ver `config/config.example.php`). Pero **no existía ningún endpoint que las sirviera** — ni para este wizard ni para el lightbox de auditoría del panel admin, que ya estaba en producción apuntando a `/${ruta_archivo}`, una ruta que jamás iba a resolver a nada. Se agregó:
 
 - `GET /api/fotos/{id}` (`FotoController`) — autoriza solo al técnico dueño de la orden o a un admin, resuelve la ruta real bajo `storage/`, valida que no se salga de esa carpeta, y sirve el archivo con el mime real (nunca confía en la extensión).
-- Corregidas las dos referencias rotas en `public/admin/js/views/auditoria.js` (miniatura y lightbox) para usar `/api/fotos/{id}`.
+- Corregidas las dos referencias rotas en `public_html/admin/js/views/auditoria.js` (miniatura y lightbox) para usar `/api/fotos/{id}`.
 
 ## Hallazgo real corregido: la barra de acciones de cada paso no existía en el DOM
 

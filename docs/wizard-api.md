@@ -2,7 +2,7 @@
 
 > El frontend que consume esta API (PWA del técnico) está documentado en [tecnico-app.md](tecnico-app.md).
 
-Capa de aplicación en [`app/`](../app), front controller en [`public/index.php`](../public/index.php). Implementa exactamente las reglas fijadas en [modelo-datos-fase1.md](modelo-datos-fase1.md) y probadas en [validate_schema.mjs](../database/tests/validate_schema.mjs). Todas las rutas requieren sesión iniciada (`POST /api/auth/login`), salvo esa misma.
+Capa de aplicación en [`app/`](../app), front controller en [`public_html/index.php`](../public_html/index.php). Implementa exactamente las reglas fijadas en [modelo-datos-fase1.md](modelo-datos-fase1.md) y probadas en [validate_schema.mjs](../database/tests/validate_schema.mjs). Todas las rutas requieren sesión iniciada (`POST /api/auth/login`), salvo esa misma.
 
 Todas las respuestas son JSON. Los errores tienen esta forma fija:
 

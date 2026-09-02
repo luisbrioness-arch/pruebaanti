@@ -1,6 +1,6 @@
 // Envoltorio único sobre fetch() para /api/*. Ver docs/wizard-api.md para la
 // forma exacta de cada respuesta y cada error. Mismo contrato que usa el
-// panel admin (public/admin/js/api.js) — es la misma API.
+// panel admin (public_html/admin/js/api.js) — es la misma API.
 
 const BASE = '/api';
 

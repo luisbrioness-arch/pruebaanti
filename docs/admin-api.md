@@ -1,6 +1,6 @@
 # API del panel admin · Fase 1
 
-Capa de aplicación en `app/Services/{Auditoria,Bodega,Tarifario,Conflicto}Service.php` y `app/Controllers/Admin*Controller.php`, rutas en [`public/index.php`](../public/index.php). Todas requieren `Auth::requireAdmin()` — sesión con `rol = 'admin'`, hoy solo Edwin.
+Capa de aplicación en `app/Services/{Auditoria,Bodega,Tarifario,Conflicto}Service.php` y `app/Controllers/Admin*Controller.php`, rutas en [`public_html/index.php`](../public_html/index.php). Todas requieren `Auth::requireAdmin()` — sesión con `rol = 'admin'`, hoy solo Edwin.
 
 Validado end-to-end con una base SQLite real inyectada en `Database` por reflexión (mismo patrón de rigor que `database/tests/validate_schema.mjs`, pero ejercitando las clases PHP reales en vez de reimplementar las reglas): alta de equipos, wizard completo, auditoría, edición de tarifa y resolución de conflicto, 27/27 pasos correctos. No se deja ese arnés en el repo — es una prueba de humo, no parte del producto.
 
@@ -25,7 +25,7 @@ GET  /api/admin/ordenes?estado=enviada&tecnico_id=2
 | `folio_en_conflicto` | la orden está en estado `conflicto` |
 | `registrada_por_admin` | fue un registro retroactivo, no lo cargó el técnico en terreno |
 
-Las miniaturas y el lightbox de fotos apuntan a `GET /api/fotos/{id}` — ver [tecnico-app.md](tecnico-app.md#hallazgo-real-corregido-las-fotos-no-tenían-cómo-servirse) por qué hizo falta agregar ese endpoint (las fotos viven fuera de `/public` a propósito).
+Las miniaturas y el lightbox de fotos apuntan a `GET /api/fotos/{id}` — ver [tecnico-app.md](tecnico-app.md#hallazgo-real-corregido-las-fotos-no-tenían-cómo-servirse) por qué hizo falta agregar ese endpoint (las fotos viven fuera de `/public_html` a propósito).
 
 ```
 GET  /api/admin/ordenes/{id}          → detalle completo (materiales, fotos, ferretería, anomalías)
@@ -139,7 +139,7 @@ Validado en el mismo arnés SQLite mencionado arriba: instalación normal con ki
 
 **Pendiente de decisión de negocio, no de código:** la falta de fotos/GPS deja estas órdenes con menos evidencia que las del wizard normal. Si Edwin quiere un límite adicional (ej. que un registro retroactivo nunca se apruebe en el lote masivo, o que requiera un comentario obligatorio), es un ajuste chico sobre `AuditoriaService::aprobarMasivo()` — hoy `registrada_por_admin` ya la excluye de "aprobar masivo" por ser una anomalía, así que ese límite ya existe de hecho.
 
-## Cola de escritura offline del panel admin (`public/admin/js/db.js`, `js/offline.js`)
+## Cola de escritura offline del panel admin (`public_html/admin/js/db.js`, `js/offline.js`)
 
 Mismo mecanismo que la app técnico (ver [tecnico-app.md](tecnico-app.md)), adaptado a que este panel es una herramienta de escritorio que se deja abierta — no una PWA instalable, así que no tiene service worker ni Background Sync: la cola se vacía sola con el evento `online` de la pestaña o al recargar.
 

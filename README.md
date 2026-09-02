@@ -6,8 +6,8 @@ Sistema de operación en terreno para una contratista de instalaciones DTH
 
 Dos frontends vanilla (sin build step) sobre una única API PHP:
 
-- **`public/tecnico/`** — PWA instalable para el técnico en terreno (celular), con cola de escritura offline.
-- **`public/admin/`** — panel de escritorio para Edwin (admin), con su propia cola de escritura offline.
+- **`public_html/tecnico/`** — PWA instalable para el técnico en terreno (celular), con cola de escritura offline.
+- **`public_html/admin/`** — panel de escritorio para Edwin (admin), con su propia cola de escritura offline.
 
 ## Stack
 
@@ -30,12 +30,13 @@ step — todo se sirve tal cual.
 app/            Backend PHP (Controllers, Services, Repositories, Core)
 config/         config.php (real, fuera de git) + config.example.php (plantilla)
 database/       schema_fase1.sql + scripts de prueba (no se despliegan)
-public/         Document root del hosting — index.php, admin/, tecnico/
-storage/fotos/  Fotos de órdenes (fuera de /public a propósito, servidas con control de acceso)
+public_html/    Document root del hosting — index.php, admin/, tecnico/
+storage/fotos/  Fotos de órdenes (fuera de /public_html a propósito, servidas con control de acceso)
 ```
 
 ## Despliegue
 
-Automático vía GitHub Actions al hacer push a `main` (ver
-`.github/workflows/deploy.yml`). Detalle completo del hosting en
-[`docs/despliegue.md`](docs/despliegue.md).
+Automático vía el repositorio Git nativo del hosting (DirectAdmin) + un
+webhook de GitHub: cada push a `main` dispara un pull/checkout directo en
+el servidor, sin FTP ni GitHub Actions de por medio. Detalle completo del
+hosting en [`docs/despliegue.md`](docs/despliegue.md).

@@ -1,6 +1,6 @@
 /**
  * IndexedDB mínimo para la cola de acciones pendientes del panel admin —
- * mismo patrón que la app técnico (public/tecnico/js/db.js), base de datos
+ * mismo patrón que la app técnico (public_html/tecnico/js/db.js), base de datos
  * separada ('terreno_dth_admin') para no acoplar el formato de cola de un
  * panel con el del otro aunque compartan origen.
  */

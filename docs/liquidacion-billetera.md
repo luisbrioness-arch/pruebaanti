@@ -118,13 +118,13 @@ Todos bajo `Auth::requireAdmin()` salvo `/api/mi-billetera` (ver más abajo), en
 
 Nota de implementación: `/api/admin/billetera/saldos` está registrada
 **antes** que `/api/admin/billetera/{tecnicoId}` en
-[`public/index.php`](../public/index.php) — el `Router` resuelve por orden
+[`public_html/index.php`](../public_html/index.php) — el `Router` resuelve por orden
 de registro y "saldos" calzaría con el wildcard `{tecnicoId}` si estuviera
 declarada después.
 
 ## Vista y cola offline (panel admin)
 
-[`billetera.js`](../public/admin/js/views/billetera.js) sigue el mismo
+[`billetera.js`](../public_html/admin/js/views/billetera.js) sigue el mismo
 patrón que el resto del panel: grilla de tarjetas de saldo (clickeables) +
 selector de técnico → detalle con saldo grande, bloque de "pendiente por
 liquidar" (el botón "Cerrar período" solo aparece si hay algo pendiente),
@@ -132,7 +132,7 @@ botones de pago/ajuste, e historiales de cierres y movimientos.
 
 Las tres acciones de escritura pasan por
 `conColaSiHaceFalta(tipo, payload, llamadaOnline)`, la misma cola de
-[`offline.js`](../public/admin/js/offline.js) que ya usan auditoría,
+[`offline.js`](../public_html/admin/js/offline.js) que ya usan auditoría,
 conflictos, tarifario y bodega (ver
 [`admin-api.md`](admin-api.md#cola-de-escritura-offline-del-panel-admin)).
 A diferencia de tarifas/comisiones/kits, `cerrar_periodo`, `registrar_pago`
@@ -191,7 +191,7 @@ lógica nueva.
   panel admin. Por eso tampoco pasa por la cola de escritura offline de la
   PWA (`js/offline.js`/`js/db.js`): si no hay señal, simplemente no hay
   datos nuevos que mostrar, sin nada que encolar.
-- Vista: [`public/tecnico/js/views/billetera.js`](../public/tecnico/js/views/billetera.js).
+- Vista: [`public_html/tecnico/js/views/billetera.js`](../public_html/tecnico/js/views/billetera.js).
 
 Validado con: 200 con saldo/movimientos/período correctos (vía PHP-WASM,
 sesión de técnico simulada), 401 sin sesión, y — vía navegador real contra
