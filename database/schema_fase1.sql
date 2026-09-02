@@ -522,6 +522,7 @@ CREATE TABLE reportes (
     tipo            ENUM('bug','cambio') NOT NULL,
     descripcion     VARCHAR(1000)   NOT NULL,
     pantalla        VARCHAR(100)    NULL,
+    elemento        VARCHAR(300)    NULL,   -- etiqueta + selector + texto del elemento clickeado en modo inspección
     estado          ENUM('abierto','resuelto') NOT NULL DEFAULT 'abierto',
     resuelto_por    INT UNSIGNED    NULL,
     resuelto_en     DATETIME        NULL,

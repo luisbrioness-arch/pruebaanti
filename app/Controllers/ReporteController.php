@@ -31,7 +31,14 @@ final class ReporteController
             throw new ValidationException('La descripción no puede estar vacía.');
         }
         $pantalla = $req->input('pantalla');
-        $id = (new ReporteRepository())->crear($usuarioId, $tipo, $descripcion, $pantalla !== null ? (string) $pantalla : null);
+        $elemento = $req->input('elemento');
+        $id = (new ReporteRepository())->crear(
+            $usuarioId,
+            $tipo,
+            $descripcion,
+            $pantalla !== null ? (string) $pantalla : null,
+            $elemento !== null ? (string) $elemento : null
+        );
         Response::json((new ReporteRepository())->find($id), 201);
     }
 }

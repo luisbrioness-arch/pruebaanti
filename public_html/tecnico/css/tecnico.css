@@ -376,7 +376,28 @@ button { font: inherit; }
   padding: 20px 20px calc(20px + var(--safe-bottom));
   display: flex; flex-direction: column; gap: 14px;
 }
-.modal-caja h2 { color: var(--acento-2); }
+.modal-caja h2, .modal-caja h3 { color: var(--acento-2); }
+.modal-caja form { display: flex; flex-direction: column; gap: 12px; }
+.modal-explicacion { color: var(--tinta-2); font-size: .85rem; }
+.modal-acciones { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ---------- Modo inspección (reportar.js) ---------- */
+.reportar-contexto {
+  background: var(--superficie-2); border-radius: var(--radio-chico); padding: 10px 12px;
+  font-size: .76rem; color: var(--tinta-2);
+}
+.reportar-contexto div { display: flex; gap: 6px; }
+.reportar-contexto dt { font-weight: 600; flex-shrink: 0; }
+.reportar-contexto dd code { color: var(--acento-2); }
+.reportar-fab {
+  position: fixed; bottom: calc(16px + var(--safe-bottom)); right: 16px; z-index: 60;
+  width: 48px; height: 48px; border-radius: 50%; border: none;
+  background: var(--acento); color: #fff; font-size: 1.2rem;
+  box-shadow: var(--sombra-flotante); cursor: pointer;
+}
+.reportar-fab--activo { background: var(--malo); }
+body.reportar-eligiendo, body.reportar-eligiendo * { cursor: crosshair !important; }
+.reportar-resaltado { outline: 2px solid var(--malo) !important; outline-offset: 2px !important; }
 
 /* ---------- Toasts ---------- */
 .toast-pila {

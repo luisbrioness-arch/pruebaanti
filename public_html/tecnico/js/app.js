@@ -8,7 +8,7 @@ import { renderVenta } from './views/venta.js';
 import { renderHistorial } from './views/historial.js';
 import { renderBilletera } from './views/billetera.js';
 import { renderWizard } from './views/wizard/wizard.js';
-import { abrirModalReportar } from './reportar.js';
+import { initModoReportar } from './reportar.js';
 
 route('home', renderHome);
 route('venta', renderVenta);
@@ -44,12 +44,11 @@ async function boot() {
     // Cada vez que se abre la app es un buen momento para intentar vaciar
     // lo que haya quedado pendiente de un rato sin señal (ver offline.js).
     procesarCola();
+    initModoReportar();
   } catch {
     mostrarLogin();
   }
 }
-
-document.getElementById('reportar-btn').addEventListener('click', () => abrirModalReportar());
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
   await api('/auth/logout', { method: 'POST' }).catch(() => {});

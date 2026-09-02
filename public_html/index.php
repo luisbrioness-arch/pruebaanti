@@ -9,7 +9,6 @@ use App\Controllers\AdminBilleteraController;
 use App\Controllers\AdminBodegaController;
 use App\Controllers\AdminConflictoController;
 use App\Controllers\AdminOrdenController;
-use App\Controllers\AdminReporteController;
 use App\Controllers\AdminTarifarioController;
 use App\Controllers\AdminUsuarioController;
 use App\Controllers\AuthController;
@@ -98,11 +97,6 @@ $router->get('/api/admin/billetera/{tecnicoId}/pendiente', fn(Request $r) => (ne
 $router->post('/api/admin/billetera/{tecnicoId}/cerrar', fn(Request $r) => (new AdminBilleteraController())->cerrar($r));
 $router->post('/api/admin/billetera/{tecnicoId}/pago', fn(Request $r) => (new AdminBilleteraController())->pago($r));
 $router->post('/api/admin/billetera/{tecnicoId}/ajuste', fn(Request $r) => (new AdminBilleteraController())->ajuste($r));
-
-// Reportes (bugs/cambios) — ver docs/reportes.md
-$router->get('/api/admin/reportes', fn(Request $r) => (new AdminReporteController())->listar($r));
-$router->post('/api/admin/reportes/{id}/resolver', fn(Request $r) => (new AdminReporteController())->resolver($r));
-$router->post('/api/admin/reportes/{id}/reabrir', fn(Request $r) => (new AdminReporteController())->reabrir($r));
 
 // Bodega — catálogos para los formularios
 $router->get('/api/admin/catalogo/tipos-equipo', fn(Request $r) => (new AdminBodegaController())->catalogoTiposEquipo($r));

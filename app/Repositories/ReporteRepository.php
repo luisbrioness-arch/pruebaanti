@@ -8,13 +8,13 @@ use App\Core\Database;
 
 final class ReporteRepository
 {
-    public function crear(int $usuarioId, string $tipo, string $descripcion, ?string $pantalla): int
+    public function crear(int $usuarioId, string $tipo, string $descripcion, ?string $pantalla, ?string $elemento): int
     {
         $stmt = Database::connection()->prepare(
-            'INSERT INTO reportes (usuario_id, tipo, descripcion, pantalla)
-             VALUES (?, ?, ?, ?)'
+            'INSERT INTO reportes (usuario_id, tipo, descripcion, pantalla, elemento)
+             VALUES (?, ?, ?, ?, ?)'
         );
-        $stmt->execute([$usuarioId, $tipo, $descripcion, $pantalla]);
+        $stmt->execute([$usuarioId, $tipo, $descripcion, $pantalla, $elemento]);
         return (int) Database::connection()->lastInsertId();
     }
 

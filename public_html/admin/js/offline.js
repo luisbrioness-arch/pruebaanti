@@ -50,9 +50,7 @@ const RUTAS = {
   cerrar_periodo: (p) => ({ path: `/admin/billetera/${p.tecnicoId}/cerrar`, method: 'POST', body: { observaciones: p.observaciones } }),
   registrar_pago: (p) => ({ path: `/admin/billetera/${p.tecnicoId}/pago`, method: 'POST', body: { monto: p.monto, observacion: p.observacion } }),
   registrar_ajuste: (p) => ({ path: `/admin/billetera/${p.tecnicoId}/ajuste`, method: 'POST', body: { monto: p.monto, observacion: p.observacion } }),
-  reportar: (p) => ({ path: '/reportes', method: 'POST', body: { tipo: p.tipo, descripcion: p.descripcion, pantalla: p.pantalla } }),
-  reporte_resolver: (p) => ({ path: `/admin/reportes/${p.id}/resolver`, method: 'POST', body: {} }),
-  reporte_reabrir: (p) => ({ path: `/admin/reportes/${p.id}/reabrir`, method: 'POST', body: {} }),
+  reportar: (p) => ({ path: '/reportes', method: 'POST', body: { tipo: p.tipo, descripcion: p.descripcion, pantalla: p.pantalla, elemento: p.elemento } }),
 };
 
 const ETIQUETAS = {
@@ -62,7 +60,7 @@ const ETIQUETAS = {
   asignar_equipo: 'asignar equipo', traspasar_equipo: 'traspasar equipo', falla_fabrica: 'marcar falla de fábrica',
   ingreso_bodega: 'ingreso a bodega', entregar_ferreteria: 'entregar ferretería', actualizar_kit: 'actualizar kit',
   cerrar_periodo: 'cerrar período de liquidación', registrar_pago: 'registrar pago', registrar_ajuste: 'registrar ajuste',
-  reportar: 'enviar reporte', reporte_resolver: 'marcar reporte resuelto', reporte_reabrir: 'reabrir reporte',
+  reportar: 'enviar reporte',
 };
 
 /**

@@ -243,6 +243,25 @@ textarea { resize: vertical; min-height: 60px; }
 .modal-acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 body.modal-abierto { overflow: hidden; }
 
+/* ---------- Modo inspección (reportar.js) ---------- */
+.reportar-contexto {
+  background: var(--superficie-2); border-radius: var(--radio); padding: 10px 12px;
+  font-size: .78rem; color: var(--tinta-2); margin-bottom: 14px;
+}
+.reportar-contexto div { display: flex; gap: 6px; }
+.reportar-contexto dt { font-weight: 600; flex-shrink: 0; }
+.reportar-contexto dd code { color: var(--acento-2); }
+.reportar-fab {
+  position: fixed; bottom: 20px; right: 20px; z-index: 9997;
+  width: 52px; height: 52px; border-radius: 50%; border: none;
+  background: var(--acento); color: #fff; font-size: 1.3rem;
+  box-shadow: var(--sombra); cursor: pointer;
+}
+.reportar-fab:hover { background: var(--acento-2); }
+.reportar-fab--activo { background: var(--malo); }
+body.reportar-eligiendo, body.reportar-eligiendo * { cursor: crosshair !important; }
+.reportar-resaltado { outline: 2px solid var(--malo) !important; outline-offset: 2px !important; }
+
 /* ---------- Tarjetas de conflicto ---------- */
 .tarjeta-conflicto {
   display: flex; justify-content: space-between; align-items: center; gap: 16px;

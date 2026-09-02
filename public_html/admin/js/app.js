@@ -7,15 +7,13 @@ import { renderConflictos } from './views/conflictos.js';
 import { renderTarifario } from './views/tarifario.js';
 import { renderBodega } from './views/bodega.js';
 import { renderBilletera } from './views/billetera.js';
-import { renderReportes } from './views/reportes.js';
-import { abrirModalReportar } from './reportar.js';
+import { initModoReportar } from './reportar.js';
 
 route('auditoria', renderAuditoria);
 route('conflictos', renderConflictos);
 route('tarifario', renderTarifario);
 route('bodega', renderBodega);
 route('billetera', renderBilletera);
-route('reportes', renderReportes);
 
 const $shell = document.getElementById('shell');
 const $loginScreen = document.getElementById('login-screen');
@@ -53,12 +51,11 @@ async function boot() {
     startRouter();
     actualizarBadgePendientes();
     procesarCola();
+    initModoReportar();
   } catch {
     mostrarLogin();
   }
 }
-
-document.getElementById('reportar-btn').addEventListener('click', () => abrirModalReportar());
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
   await api('/auth/logout', { method: 'POST' }).catch(() => {});
