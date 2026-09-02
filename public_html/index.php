@@ -9,6 +9,7 @@ use App\Controllers\AdminBilleteraController;
 use App\Controllers\AdminBodegaController;
 use App\Controllers\AdminConflictoController;
 use App\Controllers\AdminOrdenController;
+use App\Controllers\AdminReporteController;
 use App\Controllers\AdminTarifarioController;
 use App\Controllers\AdminUsuarioController;
 use App\Controllers\AuthController;
@@ -16,6 +17,7 @@ use App\Controllers\BilleteraController;
 use App\Controllers\CatalogoController;
 use App\Controllers\FotoController;
 use App\Controllers\OrdenController;
+use App\Controllers\ReporteController;
 use App\Controllers\VentaController;
 use App\Core\Auth;
 use App\Core\Request;
@@ -59,6 +61,9 @@ $router->get('/api/ventas/pendientes', fn(Request $r) => (new VentaController())
 // --- Billetera propia (ver docs/liquidacion-billetera.md) -------------------
 $router->get('/api/mi-billetera', fn(Request $r) => (new BilleteraController())->mia($r));
 
+// --- Reportar bug o pedir un cambio (cualquier usuario con sesión) ----------
+$router->post('/api/reportes', fn(Request $r) => (new ReporteController())->crear($r));
+
 // --- Panel admin (ver docs/admin-api.md) ------------------------------------
 // Auditoría
 $router->get('/api/admin/ordenes', fn(Request $r) => (new AdminAuditoriaController())->listar($r));
@@ -93,6 +98,11 @@ $router->get('/api/admin/billetera/{tecnicoId}/pendiente', fn(Request $r) => (ne
 $router->post('/api/admin/billetera/{tecnicoId}/cerrar', fn(Request $r) => (new AdminBilleteraController())->cerrar($r));
 $router->post('/api/admin/billetera/{tecnicoId}/pago', fn(Request $r) => (new AdminBilleteraController())->pago($r));
 $router->post('/api/admin/billetera/{tecnicoId}/ajuste', fn(Request $r) => (new AdminBilleteraController())->ajuste($r));
+
+// Reportes (bugs/cambios) — ver docs/reportes.md
+$router->get('/api/admin/reportes', fn(Request $r) => (new AdminReporteController())->listar($r));
+$router->post('/api/admin/reportes/{id}/resolver', fn(Request $r) => (new AdminReporteController())->resolver($r));
+$router->post('/api/admin/reportes/{id}/reabrir', fn(Request $r) => (new AdminReporteController())->reabrir($r));
 
 // Bodega — catálogos para los formularios
 $router->get('/api/admin/catalogo/tipos-equipo', fn(Request $r) => (new AdminBodegaController())->catalogoTiposEquipo($r));

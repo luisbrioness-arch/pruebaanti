@@ -512,6 +512,27 @@ ALTER TABLE ventas
     ADD CONSTRAINT fk_venta_periodo FOREIGN KEY (periodo_liquidacion_id)
         REFERENCES periodos_liquidacion(id);
 
+-- REPORTES — bugs/cambios que cualquier usuario (técnico o admin) deja
+-- desde donde esté; Edwin los revisa en una bandeja nueva del panel admin.
+-- 'pantalla' la captura el frontend solo (qué vista estaba abierta), nunca
+-- la escribe el usuario — es contexto para depurar, no un campo de formulario.
+CREATE TABLE reportes (
+    id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    usuario_id      INT UNSIGNED    NOT NULL,
+    tipo            ENUM('bug','cambio') NOT NULL,
+    descripcion     VARCHAR(1000)   NOT NULL,
+    pantalla        VARCHAR(100)    NULL,
+    estado          ENUM('abierto','resuelto') NOT NULL DEFAULT 'abierto',
+    resuelto_por    INT UNSIGNED    NULL,
+    resuelto_en     DATETIME        NULL,
+    creado_en       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_reporte_usuario FOREIGN KEY (usuario_id)
+        REFERENCES usuarios(id),
+    CONSTRAINT fk_reporte_resueltopor FOREIGN KEY (resuelto_por)
+        REFERENCES usuarios(id),
+    KEY idx_reporte_estado (estado, creado_en)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================================

@@ -8,6 +8,7 @@ import { renderVenta } from './views/venta.js';
 import { renderHistorial } from './views/historial.js';
 import { renderBilletera } from './views/billetera.js';
 import { renderWizard } from './views/wizard/wizard.js';
+import { abrirModalReportar } from './reportar.js';
 
 route('home', renderHome);
 route('venta', renderVenta);
@@ -47,6 +48,8 @@ async function boot() {
     mostrarLogin();
   }
 }
+
+document.getElementById('reportar-btn').addEventListener('click', () => abrirModalReportar());
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
   await api('/auth/logout', { method: 'POST' }).catch(() => {});
