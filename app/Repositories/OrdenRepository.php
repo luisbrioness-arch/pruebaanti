@@ -95,12 +95,20 @@ final class OrdenRepository
     }
 
     /** Órdenes aprobadas de un técnico que todavía no entraron a ningún cierre de liquidación. */
-    public function pendientesDeLiquidar(int $tecnicoId): array
+    /**
+     * @param bool $bloqueando true SOLO desde dentro de la transacción que
+     *   cierra un período (ver LiquidacionService::cerrarPeriodo). Sin el
+     *   FOR UPDATE, dos cierres simultáneos —un doble clic alcanza— leen las
+     *   mismas órdenes pendientes y ambos acreditan el mismo trabajo: el
+     *   técnico queda pagado dos veces. Con el bloqueo, el segundo espera al
+     *   primero y al releer ya no encuentra nada pendiente.
+     */
+    public function pendientesDeLiquidar(int $tecnicoId, bool $bloqueando = false): array
     {
         $stmt = Database::connection()->prepare(
             "SELECT * FROM ordenes
              WHERE tecnico_id = ? AND estado = 'aprobada' AND periodo_liquidacion_id IS NULL
-             ORDER BY fecha_auditoria ASC"
+             ORDER BY fecha_auditoria ASC" . ($bloqueando ? ' FOR UPDATE' : '')
         );
         $stmt->execute([$tecnicoId]);
         return $stmt->fetchAll();

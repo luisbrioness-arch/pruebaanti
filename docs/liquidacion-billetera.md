@@ -87,6 +87,13 @@ Toda la lógica vive en
 - `cerrarPeriodo($tecnicoId, $cerradoPorId, $observaciones)` — todo dentro
   de una transacción. Rechaza si el técnico no existe o si no hay nada
   pendiente (`monto_total <= 0`) — no tiene sentido un período vacío.
+  **Las lecturas de pendientes van con `FOR UPDATE`**: sin eso, dos cierres
+  simultáneos (un doble clic en el botón alcanzaba) leían las mismas
+  órdenes, creaban dos períodos y acreditaban DOS VECES el mismo trabajo en
+  la billetera. Con el bloqueo, el segundo cierre espera al primero y al
+  releer ya no encuentra pendientes, así que corta con "no hay nada
+  pendiente" en vez de duplicar. El modal además deshabilita su botón al
+  enviar, para que el doble clic ni siquiera salga del navegador.
 - `registrarPago($tecnicoId, $monto, $creadoPorId, $observacion)` — el
   monto debe ser mayor a 0 (se guarda como negativo internamente).
 - `registrarAjuste($tecnicoId, $monto, $creadoPorId, $observacion)` — el

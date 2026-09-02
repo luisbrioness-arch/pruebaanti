@@ -184,6 +184,12 @@ export async function renderBilletera(container) {
     root.querySelector('#btn-cancelar').addEventListener('click', cerrar);
     root.querySelector('#form-cerrar').addEventListener('submit', async (ev) => {
       ev.preventDefault();
+      // Doble clic = dos peticiones en paralelo; en "cerrar período" eso
+      // llegaba a acreditar dos veces el mismo trabajo (el bloqueo en el
+      // servidor ya lo corta, esto evita siquiera intentarlo).
+      const $submit = ev.target.querySelector('button[type="submit"]');
+      if ($submit.disabled) return;
+      $submit.disabled = true;
       const observaciones = new FormData(ev.target).get('observaciones') || null;
       const payload = { observaciones };
       try {
@@ -201,6 +207,7 @@ export async function renderBilletera(container) {
         }
       } catch (e) {
         toast(e.message, 'malo');
+        $submit.disabled = false; // permitir reintentar tras un error
       }
     });
   }
@@ -227,6 +234,12 @@ export async function renderBilletera(container) {
     root.querySelector('#btn-cancelar').addEventListener('click', cerrar);
     root.querySelector('#form-pago').addEventListener('submit', async (ev) => {
       ev.preventDefault();
+      // Doble clic = dos peticiones en paralelo; en "cerrar período" eso
+      // llegaba a acreditar dos veces el mismo trabajo (el bloqueo en el
+      // servidor ya lo corta, esto evita siquiera intentarlo).
+      const $submit = ev.target.querySelector('button[type="submit"]');
+      if ($submit.disabled) return;
+      $submit.disabled = true;
       const fd = new FormData(ev.target);
       const payload = { monto: Number(fd.get('monto')), observacion: fd.get('observacion') || null };
       if (!payload.monto || payload.monto <= 0) return;
@@ -245,6 +258,7 @@ export async function renderBilletera(container) {
         }
       } catch (e) {
         toast(e.message, 'malo');
+        $submit.disabled = false; // permitir reintentar tras un error
       }
     });
   }
@@ -271,6 +285,12 @@ export async function renderBilletera(container) {
     root.querySelector('#btn-cancelar').addEventListener('click', cerrar);
     root.querySelector('#form-ajuste').addEventListener('submit', async (ev) => {
       ev.preventDefault();
+      // Doble clic = dos peticiones en paralelo; en "cerrar período" eso
+      // llegaba a acreditar dos veces el mismo trabajo (el bloqueo en el
+      // servidor ya lo corta, esto evita siquiera intentarlo).
+      const $submit = ev.target.querySelector('button[type="submit"]');
+      if ($submit.disabled) return;
+      $submit.disabled = true;
       const fd = new FormData(ev.target);
       const payload = { monto: Number(fd.get('monto')), observacion: fd.get('observacion') };
       if (!payload.monto || !payload.observacion.trim()) return;
@@ -289,6 +309,7 @@ export async function renderBilletera(container) {
         }
       } catch (e) {
         toast(e.message, 'malo');
+        $submit.disabled = false; // permitir reintentar tras un error
       }
     });
   }

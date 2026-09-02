@@ -54,12 +54,13 @@ final class VentaRepository
     }
 
     /** Ventas instaladas de un vendedor que todavía no entraron a ningún cierre de liquidación. */
-    public function pendientesDeLiquidar(int $vendedorId): array
+    /** @param bool $bloqueando ver OrdenRepository::pendientesDeLiquidar — mismo motivo (doble cierre = doble pago). */
+    public function pendientesDeLiquidar(int $vendedorId, bool $bloqueando = false): array
     {
         $stmt = Database::connection()->prepare(
             "SELECT * FROM ventas
              WHERE vendedor_id = ? AND estado = 'instalada' AND periodo_liquidacion_id IS NULL
-             ORDER BY creado_en ASC"
+             ORDER BY creado_en ASC" . ($bloqueando ? ' FOR UPDATE' : '')
         );
         $stmt->execute([$vendedorId]);
         return $stmt->fetchAll();

@@ -63,8 +63,13 @@ final class LiquidacionService
         }
 
         return Database::transaction(function () use ($tecnicoId, $cerradoPorId, $observaciones) {
-            $ordenes = $this->ordenes->pendientesDeLiquidar($tecnicoId);
-            $ventas = $this->ventas->pendientesDeLiquidar($tecnicoId);
+            // Lectura CON BLOQUEO (ver los repositorios): si entran dos
+            // cierres a la vez —un doble clic en el botón alcanza— el
+            // segundo espera acá, y al continuar ya no ve nada pendiente,
+            // así que corta abajo en vez de acreditar el mismo trabajo dos
+            // veces en la billetera del técnico.
+            $ordenes = $this->ordenes->pendientesDeLiquidar($tecnicoId, bloqueando: true);
+            $ventas = $this->ventas->pendientesDeLiquidar($tecnicoId, bloqueando: true);
             if (!$ordenes && !$ventas) {
                 throw new ValidationException('No hay nada pendiente de liquidar para este técnico.');
             }
