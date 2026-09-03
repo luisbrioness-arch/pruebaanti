@@ -20,15 +20,27 @@ final class MovimientoEquipoRepository
         return (bool) $stmt->fetchColumn();
     }
 
-    /** Línea de tiempo completa de un equipo — para el buscador por serie del admin. */
+    /**
+     * Línea de tiempo completa de un equipo — para el buscador por serie del
+     * admin, y para el botón "Rastreo" (pedido: "que en el caso de un
+     * equipo instalado se pueda ver donde fue instalado"). El movimiento
+     * 'instalacion' trae además el cliente/dirección/GPS de la orden que lo
+     * instaló, cuando esa orden viene de una venta propia — si no, solo
+     * queda folio + GPS de la orden (la dirección del cliente vive en
+     * `ventas`, no en `ordenes`).
+     */
     public function historialDeEquipo(int $equipoId): array
     {
         $stmt = Database::connection()->prepare(
-            "SELECT m.*, uo.nombre AS origen_nombre, ud.nombre AS destino_nombre, o.folio AS orden_folio
+            "SELECT m.*, uo.nombre AS origen_nombre, ud.nombre AS destino_nombre,
+                    o.folio AS orden_folio, o.latitud AS orden_latitud, o.longitud AS orden_longitud,
+                    v.cliente_nombre AS orden_cliente_nombre, v.cliente_direccion AS orden_cliente_direccion,
+                    v.cliente_telefono AS orden_cliente_telefono
              FROM movimientos_equipo m
              LEFT JOIN usuarios uo ON uo.id = m.usuario_origen_id
              LEFT JOIN usuarios ud ON ud.id = m.usuario_destino_id
              LEFT JOIN ordenes o ON o.id = m.orden_id
+             LEFT JOIN ventas v ON v.id = o.venta_id
              WHERE m.equipo_id = ?
              ORDER BY m.creado_en DESC, m.id DESC"
         );

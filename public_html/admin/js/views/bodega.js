@@ -3,6 +3,7 @@ import { toast } from '../toast.js';
 import { conColaSiHaceFalta } from '../offline.js';
 import { badge, escapeHtml, el, formatDateTime, MOVIMIENTO_EQUIPO_LABEL } from '../utils.js';
 import { abrirScanner } from '../scanner.js';
+import { abrirModal } from '../modal.js';
 
 /** Días corridos desde una fecha del servidor (formato "YYYY-MM-DD HH:mm:ss") — para los avisos de "esto lleva mucho esperando" (mejora 3). */
 function diasDesde(fechaServidor) {
@@ -10,6 +11,70 @@ function diasDesde(fechaServidor) {
   return Math.floor(ms / (1000 * 60 * 60 * 24));
 }
 const DIAS_AVISO_PENDIENTE = 3;
+
+/** Tabla de línea de tiempo compartida por "Buscar por serie" y el botón "Rastreo". */
+function filaHistorialHtml(movimientos) {
+  if (!movimientos.length) return '<p class="vacio">Sin movimientos registrados.</p>';
+  return `
+    <table class="tabla">
+      <thead><tr><th>Fecha</th><th>Movimiento</th><th>De</th><th>A</th><th>Orden</th><th>Observación</th></tr></thead>
+      <tbody>
+        ${movimientos.map((m) => `
+          <tr>
+            <td>${formatDateTime(m.creado_en)}</td>
+            <td>${escapeHtml(MOVIMIENTO_EQUIPO_LABEL[m.tipo_movimiento] || m.tipo_movimiento)}</td>
+            <td>${escapeHtml(m.origen_nombre || '—')}</td>
+            <td>${escapeHtml(m.destino_nombre || '—')}</td>
+            <td>${escapeHtml(m.orden_folio || '—')}</td>
+            <td>${escapeHtml(m.observacion || '—')}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+/**
+ * Botón "Rastreo" (pedido: "que en el caso de un equipo instalado se pueda
+ * realizar seguimiento o se pueda ver donde fue instalado") — reutiliza el
+ * mismo /admin/equipos/{id}/historial que ya usa "Buscar por serie", pero
+ * en un modal y con un resumen arriba de la tabla: quién lo instaló, cuándo,
+ * en qué orden, y el cliente/dirección/GPS de esa orden cuando existen
+ * (vienen de la venta enlazada — una orden sin venta propia no tiene cliente
+ * registrado en el sistema, solo el GPS que haya tomado el técnico).
+ */
+async function abrirRastreoEquipo(equipoId, numeroSerie) {
+  const { root, cerrar } = abrirModal(`
+    <h3>Rastreo de ${escapeHtml(numeroSerie)}</h3>
+    <div id="rastreo-resumen"><p class="vacio">Cargando…</p></div>
+    <div class="modal-acciones">
+      <button type="button" class="btn btn--secundario" id="btn-cerrar-rastreo">Cerrar</button>
+    </div>
+  `);
+  root.querySelector('#btn-cerrar-rastreo').addEventListener('click', cerrar);
+  try {
+    const { movimientos } = await api(`/admin/equipos/${equipoId}/historial`);
+    const instalacion = movimientos.find((m) => m.tipo_movimiento === 'instalacion');
+    const resumenHtml = instalacion ? `
+      <div class="modal-explicacion" style="margin-bottom: 14px;">
+        <p><strong>Instalado por:</strong> ${escapeHtml(instalacion.destino_nombre || instalacion.origen_nombre || '—')}</p>
+        <p><strong>Fecha:</strong> ${formatDateTime(instalacion.creado_en)}</p>
+        <p><strong>Orden:</strong> ${escapeHtml(instalacion.orden_folio || '—')}</p>
+        ${instalacion.orden_cliente_nombre ? `<p><strong>Cliente:</strong> ${escapeHtml(instalacion.orden_cliente_nombre)}</p>` : ''}
+        ${instalacion.orden_cliente_direccion ? `<p><strong>Dirección:</strong> ${escapeHtml(instalacion.orden_cliente_direccion)}</p>` : ''}
+        ${instalacion.orden_cliente_telefono ? `<p><strong>Teléfono:</strong> ${escapeHtml(instalacion.orden_cliente_telefono)}</p>` : ''}
+        ${instalacion.orden_latitud && instalacion.orden_longitud ? `<p><a href="https://www.google.com/maps?q=${instalacion.orden_latitud},${instalacion.orden_longitud}" target="_blank" rel="noopener">📍 Ver ubicación GPS en el mapa</a></p>` : ''}
+      </div>
+    ` : '<p class="vacio">Este equipo todavía no registra una instalación.</p>';
+    root.querySelector('#rastreo-resumen').innerHTML = `
+      ${resumenHtml}
+      <h4>Historial completo</h4>
+      ${filaHistorialHtml(movimientos)}
+    `;
+  } catch (e) {
+    root.querySelector('#rastreo-resumen').innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
+  }
+}
 
 /**
  * Reorganización de menús (pedido: "mejora estos menus que sean mas
@@ -324,6 +389,11 @@ export async function renderBodega(container, params = {}) {
             } catch (err) { toast(err.message, 'malo'); }
           });
           $acciones.appendChild(form);
+        }
+        if (e.estado === 'instalado') {
+          const btnRastreo = el('<button type="button" class="btn btn--secundario btn--chico">🔎 Rastreo</button>');
+          btnRastreo.addEventListener('click', () => abrirRastreoEquipo(e.id, e.numero_serie));
+          $acciones.appendChild(btnRastreo);
         }
         if (!['falla_fabrica', 'devuelto_tuves', 'perdido'].includes(e.estado)) {
           const btnFalla = el('<button type="button" class="btn btn--malo btn--chico">Falla de fábrica</button>');
@@ -900,23 +970,7 @@ export async function renderBodega(container, params = {}) {
         const { equipo, movimientos } = await api(`/admin/equipos/${equipoId}/historial`);
         $historial.innerHTML = `
           <h3>Historial de ${escapeHtml(equipo.numero_serie)}</h3>
-          ${movimientos.length ? `
-            <table class="tabla">
-              <thead><tr><th>Fecha</th><th>Movimiento</th><th>De</th><th>A</th><th>Orden</th><th>Observación</th></tr></thead>
-              <tbody>
-                ${movimientos.map((m) => `
-                  <tr>
-                    <td>${formatDateTime(m.creado_en)}</td>
-                    <td>${escapeHtml(MOVIMIENTO_EQUIPO_LABEL[m.tipo_movimiento] || m.tipo_movimiento)}</td>
-                    <td>${escapeHtml(m.origen_nombre || '—')}</td>
-                    <td>${escapeHtml(m.destino_nombre || '—')}</td>
-                    <td>${escapeHtml(m.orden_folio || '—')}</td>
-                    <td>${escapeHtml(m.observacion || '—')}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          ` : '<p class="vacio">Sin movimientos registrados.</p>'}
+          ${filaHistorialHtml(movimientos)}
         `;
       } catch (e) {
         $historial.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
