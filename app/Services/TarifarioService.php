@@ -55,6 +55,23 @@ final class TarifarioService
         return $this->tarifas->vigentePara((int) $tipo['id']);
     }
 
+    /**
+     * "Eliminar" una tarifa de tipo de servicio (pedido: "que aplique igual
+     * para las Tarifas por tipo de servicio") — ver
+     * TarifaServicioRepository::cerrarSinCrear para el porqué del aviso
+     * fuerte en el panel: sin tarifa vigente, esa clase de orden queda
+     * bloqueada para todos los técnicos hasta que se cargue un monto nuevo.
+     */
+    public function eliminarTarifa(string $tipoServicioCodigo): array
+    {
+        $tipo = $this->tiposServicio->findByCodigo($tipoServicioCodigo);
+        if (!$tipo) {
+            throw new ValidationException('Tipo de servicio desconocido: ' . $tipoServicioCodigo);
+        }
+        $this->tarifas->cerrarSinCrear((int) $tipo['id']);
+        return $this->tarifas->todasVigentes();
+    }
+
     public function listarComisiones(): array
     {
         return $this->comisiones->todasVigentes();

@@ -30,6 +30,15 @@ final class AdminTarifarioController
         ));
     }
 
+    /** "Eliminar" una tarifa de tipo de servicio — ver TarifarioService::eliminarTarifa. */
+    public function eliminarTarifa(Request $req): void
+    {
+        Auth::requireAdmin();
+        Response::json(['tarifas' => (new TarifarioService())->eliminarTarifa(
+            (string) $req->param('tipoServicio')
+        )]);
+    }
+
     public function listarComisiones(Request $req): void
     {
         Auth::requireAdmin();

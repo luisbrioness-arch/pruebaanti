@@ -16,7 +16,7 @@ import { toast } from './toast.js';
 import { colaAgregar, colaListar, colaEliminar, colaContar, colaEliminarPorTipoYClave } from './db.js';
 
 const TIPOS_COALESCIBLES = new Set([
-  'editar_tarifa', 'editar_comision', 'editar_tarifa_instalacion', 'eliminar_tarifa_instalacion',
+  'editar_tarifa', 'eliminar_tarifa', 'editar_comision', 'editar_tarifa_instalacion', 'eliminar_tarifa_instalacion',
   'actualizar_kit', 'cambiar_activo_plan',
 ]);
 
@@ -36,6 +36,7 @@ export { colaContar };
 
 const RUTAS = {
   editar_tarifa: (p) => ({ path: `/admin/tarifas/${encodeURIComponent(p.codigo)}`, method: 'PUT', body: { monto: p.monto } }),
+  eliminar_tarifa: (p) => ({ path: `/admin/tarifas/${encodeURIComponent(p.codigo)}`, method: 'DELETE' }),
   editar_comision: (p) => ({ path: `/admin/comisiones/${encodeURIComponent(p.codigo)}`, method: 'PUT', body: { monto: p.monto } }),
   editar_tarifa_instalacion: (p) => ({ path: `/admin/tarifas-instalacion/${encodeURIComponent(p.codigo)}`, method: 'PUT', body: { monto: p.monto } }),
   eliminar_tarifa_instalacion: (p) => ({ path: `/admin/tarifas-instalacion/${encodeURIComponent(p.codigo)}`, method: 'DELETE' }),
@@ -60,7 +61,7 @@ const RUTAS = {
 };
 
 const ETIQUETAS = {
-  editar_tarifa: 'editar tarifa', editar_comision: 'editar comisión', editar_tarifa_instalacion: 'editar instalación por plan',
+  editar_tarifa: 'editar tarifa', eliminar_tarifa: 'eliminar tarifa', editar_comision: 'editar comisión', editar_tarifa_instalacion: 'editar instalación por plan',
   eliminar_tarifa_instalacion: 'eliminar instalación por plan', alta_equipo: 'alta de equipo',
   asignar_equipo: 'enviar equipo a técnico', traspasar_equipo: 'traspasar equipo', cancelar_traspaso_equipo: 'cancelar envío de equipo',
   falla_fabrica: 'marcar falla de fábrica',

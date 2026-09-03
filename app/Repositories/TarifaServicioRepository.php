@@ -48,4 +48,20 @@ final class TarifaServicioRepository
         $stmt->execute([$tipoServicioId, $monto, $ahora, $creadoPor]);
         return (int) Database::connection()->lastInsertId();
     }
+
+    /**
+     * "Eliminar" una tarifa de tipo de servicio (pedido: "que aplique igual
+     * para las Tarifas por tipo de servicio") — cierra la fila vigente sin
+     * crear otra. A DIFERENCIA de instalación por plan, acá no hay monto
+     * plano al que caer: sin fila vigente, OrdenWizardService::calcularMontoBruto
+     * lanza 409 sin_tarifa_vigente y ningún técnico puede cerrar una orden
+     * de ese tipo de servicio hasta que se cargue un monto nuevo. El panel
+     * avisa esto antes de confirmar (ver tarifario.js).
+     */
+    public function cerrarSinCrear(int $tipoServicioId): void
+    {
+        Database::connection()
+            ->prepare('UPDATE tarifas_servicio SET vigente_hasta = ? WHERE tipo_servicio_id = ? AND vigente_hasta IS NULL')
+            ->execute([date('Y-m-d H:i:s'), $tipoServicioId]);
+    }
 }

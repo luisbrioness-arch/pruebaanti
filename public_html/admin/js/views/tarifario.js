@@ -162,6 +162,46 @@ export async function renderTarifario(container) {
         nombreCampo: 'tipo_servicio_nombre',
         endpoint: (codigo) => `/admin/tarifas/${encodeURIComponent(codigo)}`,
         tipoAccion: 'editar_tarifa',
+        // Pedido: "que aplique igual para las Tarifas por tipo de
+        // servicio" — a diferencia de instalación por plan, acá NO hay
+        // monto plano al que caer (esta ES la tarifa plana), así que sin
+        // confirmación sería fácil bloquear por accidente a todos los
+        // técnicos para ese tipo de servicio. Por eso, a diferencia de las
+        // otras dos tablas, esta sí pasa por un modal antes de eliminar.
+        onEliminar: (codigo, nombre) => new Promise((resolve, reject) => {
+          const { root, cerrar } = abrirModal(`
+            <h3>Eliminar tarifa de "${escapeHtml(nombre)}"</h3>
+            <p class="modal-explicacion">
+              Sin un monto vigente para este tipo de servicio, ningún técnico va a poder cerrar una orden
+              de "${escapeHtml(nombre)}" hasta que cargues uno nuevo — se les va a mostrar un error pidiendo
+              que avisen al administrador. No se borra ningún dato: el historial de montos sigue intacto.
+            </p>
+            <div class="modal-acciones">
+              <button type="button" class="btn btn--secundario" id="btn-cancelar">Cancelar</button>
+              <button type="button" class="btn btn--malo" id="btn-confirmar">Eliminar</button>
+            </div>
+          `);
+          root.querySelector('#btn-cancelar').addEventListener('click', () => { cerrar(); resolve(); });
+          root.querySelector('#btn-confirmar').addEventListener('click', async () => {
+            cerrar();
+            try {
+              const { encolado } = await conColaSiHaceFalta(
+                'eliminar_tarifa', { codigo },
+                () => api(`/admin/tarifas/${encodeURIComponent(codigo)}`, { method: 'DELETE' }),
+                codigo
+              );
+              if (encolado) {
+                toast(`${nombre}: guardado sin conexión — se aplicará al recuperar señal.`, 'neutro');
+              } else {
+                toast(`Tarifa de "${nombre}" eliminada — nadie puede cerrar ese tipo de orden hasta que cargues un monto nuevo.`, 'alerta', 8000);
+                await cargar();
+              }
+              resolve();
+            } catch (e) {
+              reject(e);
+            }
+          });
+        }),
       });
       renderTablaComisiones($comisiones, comisiones);
       $selectPlanInstalacion.innerHTML = comisiones.length
@@ -193,7 +233,7 @@ export async function renderTarifario(container) {
           <td class="celda-monto">${formatMoney(fila.monto)}</td>
           <td class="celda-desde">${formatDateTime(fila.vigente_desde)}</td>
           <td>
-            <div class="celda-acciones">
+            <div class="fila-tarifa-acciones">
               <form class="form-inline">
                 <input type="number" name="monto" min="1" step="1" placeholder="Nuevo monto" required>
                 <button type="submit" class="btn btn--secundario btn--chico">Guardar</button>
@@ -233,13 +273,14 @@ export async function renderTarifario(container) {
           boton.disabled = false;
         }
       });
-      tr.querySelector('[data-eliminar]')?.addEventListener('click', async (ev) => {
-        ev.target.disabled = true;
+      tr.querySelector('[data-eliminar]')?.addEventListener('click', async () => {
+        // Sin disabled acá: algunas implementaciones de onEliminar abren un
+        // modal de confirmación primero (que ya bloquea el resto de la
+        // página) y un cancelar no debe dejar el botón inutilizable.
         try {
           await cfg.onEliminar(codigo, fila[cfg.nombreCampo]);
         } catch (e) {
           toast(e.message, 'malo');
-          ev.target.disabled = false;
         }
       });
       $tbody.appendChild(tr);
@@ -275,7 +316,7 @@ export async function renderTarifario(container) {
           <td class="celda-monto">${formatMoney(fila.monto)}</td>
           <td class="celda-desde">${formatDateTime(fila.vigente_desde)}</td>
           <td>
-            <div class="celda-acciones">
+            <div class="fila-tarifa-acciones">
               <form class="form-inline">
                 <input type="number" name="monto" min="1" step="1" placeholder="Nuevo monto" required>
                 <button type="submit" class="btn btn--secundario btn--chico">Guardar</button>

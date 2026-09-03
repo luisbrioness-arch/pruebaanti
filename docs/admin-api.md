@@ -123,8 +123,9 @@ Recordatorio: la regla que decide qué entra a este buzón (`OrdenRepository::fo
 ## Tarifario y comisiones
 
 ```
-GET /api/admin/tarifas
-PUT /api/admin/tarifas/{tipoServicioCodigo}   { monto }
+GET    /api/admin/tarifas
+PUT    /api/admin/tarifas/{tipoServicioCodigo}   { monto }
+DELETE /api/admin/tarifas/{tipoServicioCodigo}   → cierra la fila vigente sin reemplazarla
 
 GET  /api/admin/comisiones
 PUT  /api/admin/comisiones/{planCodigo}        { monto }
@@ -146,6 +147,9 @@ Editar **nunca** hace `UPDATE` sobre el monto vigente: cierra la fila (`vigente_
 
 - **Comisiones por plan** ("Eliminar" con modal de confirmación, "Reactivar" sin ella): `PUT /admin/planes/{planCodigo}/activo` con `{activo: false|true}` — desactiva/reactiva el plan entero (`planes.activo`, columna que ya existía en el schema pero nada la exponía). Desactivado, sale de `GET /catalogo/planes` (el selector de "Registrar venta" del técnico, vía `PlanRepository::activos()`) pero sigue intacto en Tarifario — `GET /admin/comisiones` sigue listándolo (con `plan_activo` en la fila) para poder reactivarlo. Un plan desactivado no se puede editar por `PUT /admin/comisiones/{codigo}` (`PlanRepository::porCodigo` sigue filtrando `activo = 1`) — hay que reactivarlo primero.
 - **Instalación por plan** ("Eliminar", sin modal — es reversible con solo volver a usar "Agregar / actualizar"): `DELETE /admin/tarifas-instalacion/{planCodigo}` cierra la fila vigente de `tarifas_instalacion_plan` sin crear otra (`TarifaInstalacionPlanRepository::cerrarSinCrear`) — no toca el plan en sí, solo hace que esa instalación vuelva a cobrar el monto plano de `tarifas_servicio` hasta que alguien cargue un monto nuevo.
+- **Tarifas por tipo de servicio** (pedido: *"que aplique igual para las Tarifas por tipo de servicio"* — "Eliminar" acá SÍ pasa por un modal de confirmación, a diferencia de las otras dos): `DELETE /admin/tarifas/{tipoServicioCodigo}` cierra la fila vigente de `tarifas_servicio` sin crear otra. A diferencia de instalación por plan, acá no hay un monto plano al que caer — es literalmente la tarifa que usa `OrdenWizardService::calcularMontoBruto` como fallback para todo lo demás. Sin fila vigente, cualquier técnico que intente cerrar una orden de ese tipo de servicio recibe `409 sin_tarifa_vigente` hasta que se cargue un monto nuevo — por eso el modal avisa esto explícitamente antes de confirmar.
+
+Los tres botones "Eliminar" son rojos y viven en la misma fila que "Guardar" (no debajo) — `.fila-tarifa-acciones` en vez de la `.celda-acciones` que usa Bodega, porque el `min-width: 124px` por botón de esa clase (pensado para textos largos como "Falla de fábrica") sería más ancho que toda la columna acá y forzaría el salto de línea que justamente se pidió evitar.
 
 ## Bodega — equipos
 

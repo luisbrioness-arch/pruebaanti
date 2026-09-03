@@ -103,6 +103,7 @@ $router->post('/api/admin/conflictos/{id}/resolver', fn(Request $r) => (new Admi
 // Tarifario y comisiones (versionados — nunca se sobreescriben)
 $router->get('/api/admin/tarifas', fn(Request $r) => (new AdminTarifarioController())->listarTarifas($r));
 $router->put('/api/admin/tarifas/{tipoServicio}', fn(Request $r) => (new AdminTarifarioController())->editarTarifa($r));
+$router->delete('/api/admin/tarifas/{tipoServicio}', fn(Request $r) => (new AdminTarifarioController())->eliminarTarifa($r));
 $router->get('/api/admin/comisiones', fn(Request $r) => (new AdminTarifarioController())->listarComisiones($r));
 $router->put('/api/admin/comisiones/{plan}', fn(Request $r) => (new AdminTarifarioController())->editarComision($r));
 $router->post('/api/admin/planes', fn(Request $r) => (new AdminTarifarioController())->crearPlan($r));
