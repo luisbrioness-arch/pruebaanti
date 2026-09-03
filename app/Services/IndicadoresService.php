@@ -25,6 +25,30 @@ final class IndicadoresService
              GROUP BY estado"
         )->fetchAll();
 
+        // Tiles accionables de Inicio (pedido: "que diga instalaciones este
+        // mes y otro ventas este mes ... y a la derecha el valor en dinero
+        // que lo que llevamos"). Solo cuenta lo confirmado (aprobada/
+        // liquidada) — una rechazada no suma acá, por eso además ya no
+        // hace falta un tile aparte de "Rechazadas".
+        $instalacionesMes = $pdo->query(
+            "SELECT COUNT(*) AS n, COALESCE(SUM(o.monto_bruto), 0) AS monto
+             FROM ordenes o
+             JOIN tipos_servicio ts ON ts.id = o.tipo_servicio_id
+             WHERE ts.codigo = 'instalacion_nueva'
+               AND o.creado_en >= DATE_FORMAT(NOW(), '%Y-%m-01')
+               AND o.estado IN ('aprobada', 'liquidada')"
+        )->fetch();
+
+        // Ventas: se cuentan todas las registradas este mes (actividad de
+        // venta), pero el monto solo suma la comisión ya confirmada
+        // (instalada) — una venta todavía 'registrada' no tiene
+        // monto_comision hasta que se instale.
+        $ventasMes = $pdo->query(
+            "SELECT COUNT(*) AS n, COALESCE(SUM(monto_comision), 0) AS monto
+             FROM ventas
+             WHERE creado_en >= DATE_FORMAT(NOW(), '%Y-%m-01')"
+        )->fetch();
+
         $liquidadoMes = (float) $pdo->query(
             "SELECT COALESCE(SUM(monto), 0) FROM movimientos_billetera
              WHERE tipo_movimiento = 'liquidacion' AND creado_en >= DATE_FORMAT(NOW(), '%Y-%m-01')"
@@ -77,6 +101,8 @@ final class IndicadoresService
 
         return [
             'ordenes_por_estado_mes' => $ordenesPorEstadoMes,
+            'instalaciones_mes' => ['n' => (int) $instalacionesMes['n'], 'monto' => (float) $instalacionesMes['monto']],
+            'ventas_mes' => ['n' => (int) $ventasMes['n'], 'monto' => (float) $ventasMes['monto']],
             'liquidado_mes' => $liquidadoMes,
             'saldo_pendiente_total' => $saldoPendienteTotal,
             'equipos_por_estado' => $equiposPorEstado,

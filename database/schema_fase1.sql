@@ -252,19 +252,6 @@ CREATE TABLE items_ferreteria (
     UNIQUE KEY uk_itemferr_codigo (codigo)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Kit estándar por tipo de servicio: lo que el wizard precarga en el paso 4.
-CREATE TABLE kits_servicio_item (
-    id                      INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    tipo_servicio_id        INT UNSIGNED    NOT NULL,
-    item_ferreteria_id      INT UNSIGNED    NOT NULL,
-    cantidad_estandar       DECIMAL(8,2)    NOT NULL,
-    CONSTRAINT fk_kititem_tiposervicio FOREIGN KEY (tipo_servicio_id)
-        REFERENCES tipos_servicio(id),
-    CONSTRAINT fk_kititem_item FOREIGN KEY (item_ferreteria_id)
-        REFERENCES items_ferreteria(id),
-    UNIQUE KEY uk_kititem (tipo_servicio_id, item_ferreteria_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
 -- Stock teórico de ferretería por técnico (su "maleta" de consumibles).
 -- Es una tabla derivada — se reconstruye sumando movimientos_ferreteria —
 -- pero se mantiene materializada por rendimiento (se lee en cada wizard).

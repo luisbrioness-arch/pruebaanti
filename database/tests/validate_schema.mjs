@@ -289,15 +289,6 @@ step('Seed: items_ferreteria', () => {
     .forEach(([codigo, um]) => db.insert('items_ferreteria', { codigo, nombre: codigo, unidad_medida: um }));
 });
 
-step('Seed: kit estándar de instalación nueva', () => {
-  const ts = db.one('tipos_servicio', r => r.codigo === 'instalacion_nueva');
-  const cantidades = { grampa_7mm: 20, conector_rg6: 2, amarra: 5, tarugo: 4, tirafondo: 4, cable_rg6_m: 15 };
-  for (const [codigo, cantidad] of Object.entries(cantidades)) {
-    const item = db.one('items_ferreteria', r => r.codigo === codigo);
-    db.insert('kits_servicio_item', { tipo_servicio_id: ts.id, item_ferreteria_id: item.id, cantidad_estandar: cantidad });
-  }
-});
-
 // --- HALLAZGO 1: sin esto, no se puede calcular monto_bruto -----------------
 expectFail('Sin tarifa vigente seedeada, snapshot de precio falla al crear la orden', () => {
   const ts = db.one('tipos_servicio', r => r.codigo === 'instalacion_nueva');
@@ -345,7 +336,7 @@ step('Bodega: 3 equipos entregados a la maleta de Edwin', () => {
   db.insert('movimientos_equipo', { equipo_id: e3.id, tipo_movimiento: 'asignacion_maleta', usuario_destino_id: edwin.id });
 });
 
-step('Bodega: stock inicial de ferretería entregado a Edwin (cubre el kit completo)', () => {
+step('Bodega: stock inicial de ferretería entregado a Edwin (cubre lo que va a usar en la instalación)', () => {
   const edwin = db.one('usuarios', r => r.usuario === 'edwin');
   const cantidades = { grampa_7mm: 100, conector_rg6: 20, amarra: 50, tarugo: 40, tirafondo: 40, cable_rg6_m: 100 };
   for (const [codigo, cantidad] of Object.entries(cantidades)) {
@@ -404,24 +395,26 @@ step('Paso 3: sube la foto del decodificador principal', () => {
   });
 });
 
-step('Paso 4: consumo de ferretería (kit estándar, sin ajustes) + cierre técnico', () => {
-  const ts = db.one('tipos_servicio', r => r.codigo === 'instalacion_nueva');
-  const kit = db.find('kits_servicio_item', r => r.tipo_servicio_id === ts.id);
+step('Paso 4: consumo de ferretería (el técnico busca y agrega uno por uno lo que usó — ya no hay kit estándar que precargar) + cierre técnico', () => {
   const edwin = db.one('usuarios', r => r.usuario === 'edwin');
-  for (const k of kit) {
+  // Mismos montos que tenía el viejo kit estándar de 'instalacion_nueva' —
+  // acá ya no salen de una tabla, el técnico los eligió a mano uno por uno.
+  const cantidades = { grampa_7mm: 20, conector_rg6: 2, amarra: 5, tarugo: 4, tirafondo: 4, cable_rg6_m: 15 };
+  for (const [codigo, cantidad] of Object.entries(cantidades)) {
+    const item = db.one('items_ferreteria', r => r.codigo === codigo);
     db.insert('orden_ferreteria', {
-      orden_id: orden.id, item_ferreteria_id: k.item_ferreteria_id,
-      cantidad_estandar: k.cantidad_estandar, cantidad_final: k.cantidad_estandar, ajustado_manualmente: 0,
+      orden_id: orden.id, item_ferreteria_id: item.id,
+      cantidad_estandar: 0, cantidad_final: cantidad, ajustado_manualmente: 1,
     });
     db.insert('movimientos_ferreteria', {
-      item_ferreteria_id: k.item_ferreteria_id, usuario_id: edwin.id,
-      tipo_movimiento: 'consumo_orden', cantidad: -k.cantidad_estandar, orden_id: orden.id,
+      item_ferreteria_id: item.id, usuario_id: edwin.id,
+      tipo_movimiento: 'consumo_orden', cantidad: -cantidad, orden_id: orden.id,
     });
-    const stockRow = db.one('stock_ferreteria_usuario', r => r.usuario_id === edwin.id && r.item_ferreteria_id === k.item_ferreteria_id);
-    db.update('stock_ferreteria_usuario', r => r === stockRow, { cantidad_actual: stockRow.cantidad_actual - k.cantidad_estandar });
+    const stockRow = db.one('stock_ferreteria_usuario', r => r.usuario_id === edwin.id && r.item_ferreteria_id === item.id);
+    db.update('stock_ferreteria_usuario', r => r === stockRow, { cantidad_actual: stockRow.cantidad_actual - cantidad });
   }
   db.update('ordenes', r => r === orden, {
-    senal_porcentaje: 78, calidad_porcentaje: 91, satelite: '55.5W', metros_cable: 22,
+    senal_porcentaje: 78, calidad_porcentaje: 91, metros_cable: 22,
   });
 });
 
@@ -623,10 +616,9 @@ step('Paso 3: fotos dinámicas — una por cada equipo escaneado (2, no un núme
   });
 });
 
-step('Paso 4: sin kit de ferretería para retiro — el paso se salta solo (0 filas en el kit)', () => {
-  const ts = db.one('tipos_servicio', r => r.codigo === 'retiro');
-  const kit = db.find('kits_servicio_item', r => r.tipo_servicio_id === ts.id);
-  if (kit.length !== 0) throw new Error('retiro no debería tener kit estándar seedeado');
+step('Paso 4: el técnico no agrega ferretería a este retiro — la orden simplemente no consume nada', () => {
+  const filas = db.find('orden_ferreteria', r => r.orden_id === ordenRetiro.id);
+  if (filas.length !== 0) throw new Error('esta orden no debería tener ferretería asociada — nadie agregó nada');
 });
 
 step('Paso 5: enviar — equipos pasan a "retirado", no a bodega todavía', () => {

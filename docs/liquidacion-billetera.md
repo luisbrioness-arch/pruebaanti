@@ -142,7 +142,7 @@ Las tres acciones de escritura pasan por
 [`offline.js`](../public_html/admin/js/offline.js) que ya usan tarifario y
 bodega (ver
 [`admin-api.md`](admin-api.md#cola-de-escritura-offline-del-panel-admin)).
-A diferencia de tarifas/comisiones/kits, `cerrar_periodo`, `registrar_pago`
+A diferencia de tarifas/comisiones, `cerrar_periodo`, `registrar_pago`
 y `registrar_ajuste` **no son coalescibles** — cada una es un evento
 distinto e independiente (dos pagos seguidos son dos pagos, no una edición
 que reemplaza a la anterior), así que ninguna está en

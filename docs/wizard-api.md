@@ -49,7 +49,7 @@ GET /api/catalogo/items-ferreteria
 → { items: [{ id, codigo, nombre, unidad_medida, activo }] }
 ```
 
-`items-ferreteria` es el catálogo COMPLETO (no la maleta de un técnico ni el kit de un tipo de servicio) — el paso 4 lo usa para ofrecer "agregar un ítem fuera del kit" (ver `docs/tecnico-app.md`).
+`items-ferreteria` es el catálogo COMPLETO (no la maleta de un técnico) — el paso 4 lo usa para el buscador de ítems (ya no hay kit por tipo de servicio, ver `docs/tecnico-app.md`).
 
 El celular debe refrescar `/api/maleta` cada vez que tenga señal y usarla para la validación offline del paso 2 — ver más abajo.
 
@@ -113,7 +113,7 @@ campos: foto (archivo), tipo, equipo_id? (solo si tipo=equipo_retirado), latitud
 
 ```
 POST /api/ordenes/{uuid}/ferreteria
-{ items: [{ item_ferreteria_id, cantidad_final }, ...] }   // items: [] o ausente = usar el kit estándar tal cual
+{ items: [{ item_ferreteria_id, cantidad_final }, ...] }   // items: [] o ausente = la orden no consumió ferretería (ya no hay kit que aplicar de oficio)
 → { ...orden con ferreteria actualizada }
 ```
 
@@ -121,8 +121,10 @@ Reemplaza siempre el conjunto completo de la orden (no hace diff) — si el téc
 
 ```
 PATCH /api/ordenes/{uuid}/cierre
-{ senal_porcentaje?, calidad_porcentaje?, satelite?, metros_cable?, observaciones?, latitud?, longitud? }
+{ senal_porcentaje?, calidad_porcentaje?, metros_cable?, observaciones?, latitud?, longitud? }
 ```
+
+**Actualización — se sacó el campo "Satélite"** (pedido: *"elimina satelite"*). Ya no está en el formulario del paso 4 ni lo acepta este endpoint; la columna `ordenes.satelite` queda en el schema por las órdenes viejas que ya la tenían cargada, pero nada nuevo la escribe.
 
 ### Paso 5 — enviar
 

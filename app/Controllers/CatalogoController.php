@@ -15,7 +15,7 @@ use App\Repositories\TipoServicioRepository;
 /**
  * Endpoints de solo lectura que el celular cachea para poder validar cosas
  * offline (maleta) o armar el formulario (tipos de servicio + requisitos
- * de foto + kit estándar).
+ * de foto + catálogo de ferretería para el buscador del paso 4).
  */
 final class CatalogoController
 {
@@ -39,9 +39,9 @@ final class CatalogoController
     }
 
     /**
-     * Catálogo completo de ferretería — para que el paso 4 del wizard pueda
-     * ofrecer "agregar un ítem fuera del kit", no solo ajustar cantidades de
-     * lo que ya trae el kit por defecto (ver docs/tecnico-app.md). No exige
+     * Catálogo completo de ferretería — de acá sale el buscador del paso 4
+     * del wizard (ya no hay kit estándar que precargar: el técnico busca y
+     * agrega uno por uno lo que usó, ver docs/tecnico-app.md). No exige
      * admin: cualquier técnico autenticado necesita verlo para su propio
      * cierre. El registro real (`POST /ordenes/{uuid}/ferreteria`) ya
      * aceptaba cualquier item_ferreteria_id válido — esto solo le da al

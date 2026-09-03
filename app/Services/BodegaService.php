@@ -12,14 +12,12 @@ use App\Repositories\BodegaRepository;
 use App\Repositories\EntregaFerreteriaPendienteRepository;
 use App\Repositories\EquipoRepository;
 use App\Repositories\ItemFerreteriaRepository;
-use App\Repositories\KitServicioItemRepository;
 use App\Repositories\MovimientoEquipoRepository;
 use App\Repositories\MovimientoFerreteriaCentralRepository;
 use App\Repositories\MovimientoFerreteriaRepository;
 use App\Repositories\StockFerreteriaCentralRepository;
 use App\Repositories\StockFerreteriaUsuarioRepository;
 use App\Repositories\TipoEquipoRepository;
-use App\Repositories\TipoServicioRepository;
 use App\Repositories\UsuarioRepository;
 
 /**
@@ -46,8 +44,6 @@ final class BodegaService
     private StockFerreteriaCentralRepository $stockFerreteriaCentral;
     private MovimientoFerreteriaCentralRepository $movimientosFerreteriaCentral;
     private UsuarioRepository $usuarios;
-    private KitServicioItemRepository $kits;
-    private TipoServicioRepository $tiposServicio;
 
     public function __construct()
     {
@@ -62,8 +58,6 @@ final class BodegaService
         $this->stockFerreteriaCentral = new StockFerreteriaCentralRepository();
         $this->movimientosFerreteriaCentral = new MovimientoFerreteriaCentralRepository();
         $this->usuarios = new UsuarioRepository();
-        $this->kits = new KitServicioItemRepository();
-        $this->tiposServicio = new TipoServicioRepository();
     }
 
     public function listarBodegas(): array
@@ -82,6 +76,50 @@ final class BodegaService
         }
         $id = $this->bodegas->crear($nombre);
         return $this->bodegas->find($id);
+    }
+
+    /**
+     * Alta de un tipo de equipo nuevo en el catálogo (pedido: "en bodega se
+     * puedan agregar nuevos items" — hasta ahora solo se podía dar de alta
+     * una SERIE de un tipo que ya existía; crear el tipo en sí requería
+     * tocar la base a mano).
+     */
+    public function crearTipoEquipo(string $codigo, string $nombre): array
+    {
+        $codigo = trim($codigo);
+        $nombre = trim($nombre);
+        if ($codigo === '' || !preg_match('/^[a-z0-9_]+$/', $codigo)) {
+            throw new ValidationException('El código debe tener solo minúsculas, números o guion bajo.');
+        }
+        if ($nombre === '') {
+            throw new ValidationException('El nombre no puede estar vacío.');
+        }
+        if ($this->tiposEquipo->existeCodigo($codigo)) {
+            throw new ValidationException('Ya existe un tipo de equipo con ese código.');
+        }
+        $id = $this->tiposEquipo->crear($codigo, $nombre);
+        return $this->tiposEquipo->porCodigo($codigo) ?? ['id' => $id, 'codigo' => $codigo, 'nombre' => $nombre];
+    }
+
+    /** Mismo criterio que crearTipoEquipo(), para el catálogo de ferretería. */
+    public function crearItemFerreteria(string $codigo, string $nombre, string $unidadMedida): array
+    {
+        $codigo = trim($codigo);
+        $nombre = trim($nombre);
+        if ($codigo === '' || !preg_match('/^[a-z0-9_]+$/', $codigo)) {
+            throw new ValidationException('El código debe tener solo minúsculas, números o guion bajo.');
+        }
+        if ($nombre === '') {
+            throw new ValidationException('El nombre no puede estar vacío.');
+        }
+        if (!in_array($unidadMedida, ['unidad', 'metro'], true)) {
+            throw new ValidationException('Unidad de medida inválida (debe ser "unidad" o "metro").');
+        }
+        if ($this->itemsFerreteria->existeCodigo($codigo)) {
+            throw new ValidationException('Ya existe un ítem de ferretería con ese código.');
+        }
+        $id = $this->itemsFerreteria->crear($codigo, $nombre, $unidadMedida);
+        return $this->itemsFerreteria->find($id);
     }
 
     private function requerirBodega(int $bodegaId): array
@@ -442,44 +480,6 @@ final class BodegaService
             $this->entregasFerreteriaPendientes->marcarResuelta($entregaId, 'rechazada', $observacion);
             return $this->entregasFerreteriaPendientes->find($entregaId);
         });
-    }
-
-    public function obtenerKit(string $tipoServicioCodigo): array
-    {
-        $tipo = $this->tiposServicio->findByCodigo($tipoServicioCodigo);
-        if (!$tipo) {
-            throw new ValidationException('Tipo de servicio desconocido: ' . $tipoServicioCodigo);
-        }
-        return $this->kits->paraTipoServicio((int) $tipo['id']);
-    }
-
-    /**
-     * Reemplaza el kit completo — igual que el paso 4 del wizard, se manda
-     * la lista entera, no un diff. { items: [{ item_codigo, cantidad_estandar }] }
-     */
-    public function actualizarKit(string $tipoServicioCodigo, array $items): array
-    {
-        $tipo = $this->tiposServicio->findByCodigo($tipoServicioCodigo);
-        if (!$tipo) {
-            throw new ValidationException('Tipo de servicio desconocido: ' . $tipoServicioCodigo);
-        }
-
-        $itemsResueltos = [];
-        foreach ($items as $item) {
-            $codigo = (string) ($item['item_codigo'] ?? '');
-            $itemFerreteria = $this->itemsFerreteria->porCodigo($codigo);
-            if (!$itemFerreteria) {
-                throw new ValidationException('Ítem de ferretería desconocido: ' . $codigo);
-            }
-            $cantidad = (float) ($item['cantidad_estandar'] ?? -1);
-            if ($cantidad < 0) {
-                throw new ValidationException("Cantidad inválida para el ítem $codigo.");
-            }
-            $itemsResueltos[] = ['item_ferreteria_id' => $itemFerreteria['id'], 'cantidad_estandar' => $cantidad];
-        }
-
-        $this->kits->reemplazarKit((int) $tipo['id'], $itemsResueltos);
-        return $this->kits->paraTipoServicio((int) $tipo['id']);
     }
 
     private function requerirEquipo(int $equipoId): array

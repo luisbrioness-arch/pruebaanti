@@ -27,6 +27,25 @@ final class AdminBodegaController
         Response::json(['items' => (new ItemFerreteriaRepository())->all()]);
     }
 
+    /** Alta de catálogo (pedido: "en bodega se puedan agregar nuevos items") — ver BodegaService::crearTipoEquipo. */
+    public function crearTipoEquipo(Request $req): void
+    {
+        Auth::requireAdmin();
+        $tipo = (new BodegaService())->crearTipoEquipo(
+            (string) $req->input('codigo', ''), (string) $req->input('nombre', '')
+        );
+        Response::json(['tipos_equipo' => (new TipoEquipoRepository())->all(), 'creado' => $tipo], 201);
+    }
+
+    public function crearItemFerreteria(Request $req): void
+    {
+        Auth::requireAdmin();
+        $item = (new BodegaService())->crearItemFerreteria(
+            (string) $req->input('codigo', ''), (string) $req->input('nombre', ''), (string) $req->input('unidad_medida', 'unidad')
+        );
+        Response::json(['items' => (new ItemFerreteriaRepository())->all(), 'creado' => $item], 201);
+    }
+
     public function listarEquipos(Request $req): void
     {
         Auth::requireAdmin();
@@ -204,20 +223,5 @@ final class AdminBodegaController
     {
         $admin = Auth::requireAdmin();
         Response::json((new BodegaService())->cancelarEntregaFerreteria((int) $req->param('id'), (int) $admin['id']));
-    }
-
-    public function obtenerKit(Request $req): void
-    {
-        Auth::requireAdmin();
-        Response::json(['kit' => (new BodegaService())->obtenerKit((string) $req->param('tipoServicio'))]);
-    }
-
-    public function actualizarKit(Request $req): void
-    {
-        Auth::requireAdmin();
-        $items = $req->input('items', []);
-        Response::json(['kit' => (new BodegaService())->actualizarKit(
-            (string) $req->param('tipoServicio'), is_array($items) ? $items : []
-        )]);
     }
 }

@@ -128,15 +128,42 @@ devolverlo, sin tener que volver a preguntarlo (`BodegaService::asignarAMaleta`
 guarda el `bodega_id` de origen; `cancelarTraspasoEquipo`/`rechazarEquipo`
 solo lo leen de vuelta).
 
-Panel admin → **Bodega → Bodegas**: crear más bodegas físicas (ej. si abren
-sucursal en otra ciudad). Al dar de alta un equipo o hacer un ingreso de
-ferretería, ahora hay que elegir a cuál bodega entra.
+Panel admin → **Bodega → Ubicaciones** (antes "Bodegas" — se renombró para
+no confundirse con el nombre de la sección entera, ver "Reorganización de
+menús" más abajo): crear más bodegas físicas (ej. si abren sucursal en otra
+ciudad). Al dar de alta un equipo o hacer un ingreso de ferretería, ahora
+hay que elegir a cuál bodega entra.
 
-Panel admin → **Bodega → Bodegas de técnicos**: elegís un técnico y ves de
-un vistazo su maleta completa (equipos) y su stock de ferretería ya
-confirmado — reusa los mismos endpoints que ya existían
+Panel admin → **Bodega técnicos** (antes una pestaña más dentro de
+"Bodega", ahora su propio ítem de nav — ver más abajo): elegís un técnico
+y ves de un vistazo su maleta completa (equipos) y su stock de ferretería
+ya confirmado — reusa los mismos endpoints que ya existían
 (`GET /admin/equipos?estado=maleta&tecnico_id=`,
 `GET /admin/ferreteria/stock?tecnico_id=`), sin backend nuevo.
+
+## Reorganización de menús (pedido: "mejora estos menus que sean mas
+intuitivos y que arriba solo sea bodega - bodega tecnicos")
+
+El nav de arriba tenía un solo ítem "Bodega" con seis pestañas debajo
+(Equipos, Ferretería, Kits estándar, Buscar por serie, Bodegas, Bodegas de
+técnicos) — mezclaba inventario general con la pregunta "¿qué tiene ESTE
+técnico?", que es un punto de partida distinto. Quedó así:
+
+- **"Bodega técnicos"** pasa a ser su propio ítem de nav, junto a "Bodega"
+  (antes era la pestaña "Bodegas de técnicos"). Vive en
+  `admin/js/views/bodega-tecnicos.js`, misma lógica de siempre.
+- **"Catálogo"** (pestaña nueva dentro de Bodega): antes no había forma de
+  crear un tipo de equipo o ítem de ferretería nuevo sin tocar la base a
+  mano — solo se podía dar de alta una serie/cantidad de un tipo que YA
+  existía. Ver `docs/admin-api.md`.
+- **"Asignar a técnicos"** (pestaña nueva): el "Enviar"/"Traspasar" que
+  antes vivía embebido en cada fila de Equipos se saca de ahí — Equipos
+  pasa a ser solo inventario (ver, filtrar, dar de alta, falla de fábrica),
+  y asignar/traspasar (con selección masiva) vive en un solo lugar.
+- **"Bodegas" → "Ubicaciones"**: mismo contenido, nombre menos confuso
+  junto al "Bodega" del nav de arriba.
+- **"Kits estándar" desapareció** — pedido aparte, ver "Kit estándar" en
+  `docs/admin-api.md`.
 
 ## Stock de ferretería central, trackeado de verdad (antes no existía)
 
@@ -171,7 +198,7 @@ como un documento tributario (no reemplaza una guía SII real si algún día
 hiciera falta transportar mercadería comercialmente — este sistema no tiene
 ni necesita ese circuito).
 
-Desde **Bodega → Bodegas de técnicos**, al elegir un técnico aparece "Ver
+Desde **Bodega técnicos**, al elegir un técnico aparece "Ver
 guía de despacho pendiente" → `#guia?tecnicoId=N` (`admin/js/views/guia.js`),
 que lista TODO lo que ese técnico tiene pendiente de confirmar en ese
 momento (equipos `en_transito` + ferretería pendiente — mismo shape que

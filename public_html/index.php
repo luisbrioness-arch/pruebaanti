@@ -132,6 +132,8 @@ $router->post('/api/admin/reportes/{id}/resolver', fn(Request $r) => (new AdminR
 // Bodega — catálogos para los formularios
 $router->get('/api/admin/catalogo/tipos-equipo', fn(Request $r) => (new AdminBodegaController())->catalogoTiposEquipo($r));
 $router->get('/api/admin/catalogo/items-ferreteria', fn(Request $r) => (new AdminBodegaController())->catalogoItemsFerreteria($r));
+$router->post('/api/admin/catalogo/tipos-equipo', fn(Request $r) => (new AdminBodegaController())->crearTipoEquipo($r));
+$router->post('/api/admin/catalogo/items-ferreteria', fn(Request $r) => (new AdminBodegaController())->crearItemFerreteria($r));
 
 // Bodega — equipos
 $router->get('/api/admin/equipos', fn(Request $r) => (new AdminBodegaController())->listarEquipos($r));
@@ -144,7 +146,7 @@ $router->post('/api/admin/equipos/{id}/cancelar-traspaso', fn(Request $r) => (ne
 $router->post('/api/admin/equipos/{id}/falla-fabrica', fn(Request $r) => (new AdminBodegaController())->fallaFabrica($r));
 $router->post('/api/admin/equipos/{id}/ingreso-bodega', fn(Request $r) => (new AdminBodegaController())->ingresoBodega($r));
 
-// Bodega — ferretería y kits
+// Bodega — ferretería
 $router->get('/api/admin/ferreteria/stock', fn(Request $r) => (new AdminBodegaController())->stockFerreteria($r));
 $router->post('/api/admin/ferreteria/entregar', fn(Request $r) => (new AdminBodegaController())->entregarFerreteria($r));
 $router->get('/api/admin/ferreteria/pendientes', fn(Request $r) => (new AdminBodegaController())->entregasFerreteriaPendientes($r));
@@ -156,8 +158,6 @@ $router->post('/api/admin/ferreteria/ingreso', fn(Request $r) => (new AdminBodeg
 $router->get('/api/admin/bodegas', fn(Request $r) => (new AdminBodegaController())->listarBodegas($r));
 $router->post('/api/admin/bodegas', fn(Request $r) => (new AdminBodegaController())->crearBodega($r));
 $router->get('/api/admin/tecnicos/{tecnicoId}/traspasos-pendientes', fn(Request $r) => (new AdminBodegaController())->traspasosPendientesDeTecnico($r));
-$router->get('/api/admin/kits/{tipoServicio}', fn(Request $r) => (new AdminBodegaController())->obtenerKit($r));
-$router->put('/api/admin/kits/{tipoServicio}', fn(Request $r) => (new AdminBodegaController())->actualizarKit($r));
 
 try {
     $router->dispatch(new Request());

@@ -141,7 +141,8 @@ async function refrescarCatalogos() {
     const { items } = await api('/catalogo/items-ferreteria');
     setCatalogoFerreteria(items);
   } catch {
-    // idem — el paso 4 sigue funcionando, solo sin la opción de "agregar
-    // fuera del kit" hasta que se cachee con señal al menos una vez.
+    // idem — el paso 4 sigue funcionando, solo sin el buscador de
+    // ferretería (no hay de dónde sacar los nombres) hasta que se cachee
+    // con señal al menos una vez.
   }
 }

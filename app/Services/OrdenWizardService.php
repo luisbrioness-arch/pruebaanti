@@ -13,7 +13,6 @@ use App\Repositories\ComisionPlanRepository;
 use App\Repositories\ConflictoSincronizacionRepository;
 use App\Repositories\EquipoRepository;
 use App\Repositories\ItemFerreteriaRepository;
-use App\Repositories\KitServicioItemRepository;
 use App\Repositories\MovimientoEquipoRepository;
 use App\Repositories\MovimientoFerreteriaRepository;
 use App\Repositories\OrdenFerreteriaRepository;
@@ -59,7 +58,6 @@ final class OrdenWizardService
     private EquipoRepository $equipos;
     private MovimientoEquipoRepository $movimientosEquipo;
     private ItemFerreteriaRepository $itemsFerreteria;
-    private KitServicioItemRepository $kits;
     private StockFerreteriaUsuarioRepository $stockFerreteria;
     private MovimientoFerreteriaRepository $movimientosFerreteria;
     private UsuarioRepository $usuarios;
@@ -79,7 +77,6 @@ final class OrdenWizardService
         $this->equipos = new EquipoRepository();
         $this->movimientosEquipo = new MovimientoEquipoRepository();
         $this->itemsFerreteria = new ItemFerreteriaRepository();
-        $this->kits = new KitServicioItemRepository();
         $this->stockFerreteria = new StockFerreteriaUsuarioRepository();
         $this->movimientosFerreteria = new MovimientoFerreteriaRepository();
         $this->usuarios = new UsuarioRepository();
@@ -225,16 +222,18 @@ final class OrdenWizardService
     }
 
     /**
-     * Paso 4. Si el celular no manda ajustes, se aplica el kit estándar tal
-     * cual. Siempre queda cantidad_estandar y cantidad_final guardadas,
-     * haya ajuste o no — así el histórico es parejo para el control de stock.
+     * Paso 4. El técnico manda exactamente lo que usó (puede ser nada) — ya
+     * no hay kit estándar que precargar (ver resolverItemsFerreteria).
+     * Siempre queda cantidad_estandar y cantidad_final guardadas, aunque la
+     * primera ahora sea siempre 0, para que el histórico de orden_ferreteria
+     * mantenga la misma forma de siempre.
      */
     public function registrarFerreteria(int $tecnicoId, string $uuid, array $items): array
     {
         $orden = $this->obtenerOrdenDelTecnico($tecnicoId, $uuid, soloEditable: true);
         $this->verificarConsumoNoConfirmado($orden);
 
-        $resueltos = $this->resolverItemsFerreteria((int) $orden['tipo_servicio_id'], $items);
+        $resueltos = $this->resolverItemsFerreteria($items);
 
         $this->ordenFerreteria->eliminarDeOrden($orden['id']); // idempotente ante un reenvío del paso 4
         foreach ($resueltos as $item) {
@@ -255,7 +254,7 @@ final class OrdenWizardService
         $orden = $this->obtenerOrdenDelTecnico($tecnicoId, $uuid, soloEditable: true);
 
         $campos = array_intersect_key($datos, array_flip([
-            'senal_porcentaje', 'calidad_porcentaje', 'satelite', 'metros_cable',
+            'senal_porcentaje', 'calidad_porcentaje', 'metros_cable',
             'observaciones', 'latitud', 'longitud',
         ]));
         foreach (['senal_porcentaje', 'calidad_porcentaje'] as $campoPorcentaje) {
@@ -501,11 +500,11 @@ final class OrdenWizardService
             $materialesValidados[] = ['equipo_id' => (int) $equipo['id'], 'accion' => $accion];
         }
 
-        $itemsFerreteria = $this->resolverItemsFerreteria((int) $tipoServicio['id'], $datos['ferreteria'] ?? []);
+        $itemsFerreteria = $this->resolverItemsFerreteria($datos['ferreteria'] ?? []);
 
         $fechaTrabajoSql = date('Y-m-d H:i:s', $timestampTrabajo);
         $camposCierre = array_intersect_key($datos, array_flip([
-            'senal_porcentaje', 'calidad_porcentaje', 'satelite', 'metros_cable', 'observaciones',
+            'senal_porcentaje', 'calidad_porcentaje', 'metros_cable', 'observaciones',
         ]));
 
         // La tarifa vigente NO se valida acá arriba a propósito — se valida
@@ -637,27 +636,21 @@ final class OrdenWizardService
     }
 
     /**
-     * Normaliza los ítems de ferretería de una orden: si no llega ninguno,
-     * aplica el kit estándar del tipo de servicio tal cual; si llegan,
-     * valida cada ítem y calcula si hubo ajuste manual respecto del kit.
-     * Compartido entre el paso 4 del wizard y el registro retroactivo.
+     * Normaliza los ítems de ferretería de una orden. Ya no existe un "kit
+     * estándar" que precargar (pedido: "eliminar el kit standar de todo el
+     * proyecto que no exista" — el wizard del técnico ya venía sin usarlo
+     * desde antes, ver paso4-cierre.js: busca y agrega uno por uno lo que
+     * usó). Si no llega ningún ítem, la orden simplemente no consumió
+     * ferretería — no es un error ni se completa con nada de oficio; hay
+     * tipos de servicio (soporte sin cambio de equipo, por ejemplo) que de
+     * verdad no gastan nada. `cantidad_estandar` queda en 0 y
+     * `ajustado_manualmente` siempre en true — todo lo que llega acá lo
+     * eligió el técnico a mano, no hay una referencia contra la cual medir
+     * "ajuste". Compartido entre el paso 4 del wizard y el registro
+     * retroactivo.
      */
-    private function resolverItemsFerreteria(int $tipoServicioId, array $itemsSolicitados): array
+    private function resolverItemsFerreteria(array $itemsSolicitados): array
     {
-        $kit = $this->kits->paraTipoServicio($tipoServicioId);
-
-        $cantidadEstandarPorItem = [];
-        foreach ($kit as $k) {
-            $cantidadEstandarPorItem[(int) $k['item_ferreteria_id']] = (float) $k['cantidad_estandar'];
-        }
-
-        if (empty($itemsSolicitados)) {
-            $itemsSolicitados = array_map(static fn(array $k) => [
-                'item_ferreteria_id' => (int) $k['item_ferreteria_id'],
-                'cantidad_final' => (float) $k['cantidad_estandar'],
-            ], $kit);
-        }
-
         $resueltos = [];
         foreach ($itemsSolicitados as $item) {
             $itemId = (int) ($item['item_ferreteria_id'] ?? 0);
@@ -668,12 +661,11 @@ final class OrdenWizardService
             if ($cantidadFinal < 0) {
                 throw new ValidationException("Cantidad inválida para el ítem $itemId.");
             }
-            $cantidadEstandar = $cantidadEstandarPorItem[$itemId] ?? 0.0;
             $resueltos[] = [
                 'item_ferreteria_id' => $itemId,
-                'cantidad_estandar' => $cantidadEstandar,
+                'cantidad_estandar' => 0.0,
                 'cantidad_final' => $cantidadFinal,
-                'ajustado_manualmente' => abs($cantidadFinal - $cantidadEstandar) > 0.001,
+                'ajustado_manualmente' => true,
             ];
         }
         return $resueltos;

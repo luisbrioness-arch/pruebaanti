@@ -17,7 +17,7 @@ import { colaAgregar, colaListar, colaEliminar, colaContar, colaEliminarPorTipoY
 
 const TIPOS_COALESCIBLES = new Set([
   'editar_tarifa', 'eliminar_tarifa', 'editar_comision', 'editar_tarifa_instalacion', 'eliminar_tarifa_instalacion',
-  'actualizar_kit', 'cambiar_activo_plan',
+  'cambiar_activo_plan',
 ]);
 
 const listeners = new Set();
@@ -52,7 +52,8 @@ const RUTAS = {
   crear_plan: (p) => ({ path: '/admin/planes', method: 'POST', body: { codigo: p.codigo, nombre: p.nombre, comision_inicial: p.comision_inicial } }),
   cambiar_activo_plan: (p) => ({ path: `/admin/planes/${encodeURIComponent(p.codigo)}/activo`, method: 'PUT', body: { activo: p.activo } }),
   cancelar_entrega_ferreteria: (p) => ({ path: `/admin/ferreteria/pendientes/${p.id}/cancelar`, method: 'POST', body: {} }),
-  actualizar_kit: (p) => ({ path: `/admin/kits/${encodeURIComponent(p.codigo)}`, method: 'PUT', body: { items: p.items } }),
+  crear_tipo_equipo: (p) => ({ path: '/admin/catalogo/tipos-equipo', method: 'POST', body: { codigo: p.codigo, nombre: p.nombre } }),
+  crear_item_ferreteria: (p) => ({ path: '/admin/catalogo/items-ferreteria', method: 'POST', body: { codigo: p.codigo, nombre: p.nombre, unidad_medida: p.unidad_medida } }),
   crear_usuario: (p) => ({ path: '/admin/usuarios', method: 'POST', body: p }),
   cerrar_periodo: (p) => ({ path: `/admin/billetera/${p.tecnicoId}/cerrar`, method: 'POST', body: { observaciones: p.observaciones } }),
   registrar_pago: (p) => ({ path: `/admin/billetera/${p.tecnicoId}/pago`, method: 'POST', body: { monto: p.monto, observacion: p.observacion } }),
@@ -68,7 +69,7 @@ const ETIQUETAS = {
   ingreso_bodega: 'ingreso a bodega', entregar_ferreteria: 'entregar ferretería', cancelar_entrega_ferreteria: 'cancelar entrega de ferretería',
   ingreso_ferreteria_central: 'ingreso de ferretería a bodega', crear_bodega: 'crear bodega', crear_plan: 'crear plan',
   cambiar_activo_plan: 'activar/desactivar plan',
-  actualizar_kit: 'actualizar kit',
+  crear_tipo_equipo: 'crear tipo de equipo', crear_item_ferreteria: 'crear ítem de ferretería',
   cerrar_periodo: 'cerrar período de liquidación', registrar_pago: 'registrar pago', registrar_ajuste: 'registrar ajuste',
   reportar: 'enviar reporte', crear_usuario: 'crear usuario',
 };
@@ -76,7 +77,7 @@ const ETIQUETAS = {
 /**
  * Intenta la llamada real primero; si falla por falta de conexión, la
  * encola para más tarde. `clave` solo importa para los tipos coalescibles
- * (tarifas/comisiones/kits) — identifica QUÉ fila se está editando, para
+ * (tarifas/comisiones) — identifica QUÉ fila se está editando, para
  * que una segunda edición mientras la primera sigue en la cola reemplace a
  * la anterior en vez de acumularse.
  */

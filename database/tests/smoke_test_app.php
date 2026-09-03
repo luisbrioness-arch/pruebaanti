@@ -29,7 +29,6 @@ $clases = [
     App\Repositories\TarifaServicioRepository::class,
     App\Repositories\EquipoRepository::class,
     App\Repositories\ItemFerreteriaRepository::class,
-    App\Repositories\KitServicioItemRepository::class,
     App\Repositories\StockFerreteriaUsuarioRepository::class,
     App\Repositories\OrdenRepository::class,
     App\Repositories\OrdenMaterialRepository::class,

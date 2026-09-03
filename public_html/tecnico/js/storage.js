@@ -14,7 +14,6 @@ const K_CATALOGO_FERRETERIA = NS + 'catalogo_ferreteria';
 const K_MALETA = NS + 'maleta';
 const K_BORRADORES = NS + 'borradores';
 const K_ORDEN_LOCAL_PREFIJO = NS + 'orden_';
-const K_KIT_PREFIJO = NS + 'kit_';
 
 function leer(clave, porDefecto) {
   try {
@@ -41,7 +40,7 @@ export function setCatalogo(tiposServicio) {
   escribir(K_CATALOGO, tiposServicio);
 }
 
-/** Catálogo completo de ferretería (no solo el kit de un tipo de servicio) — ver "Agregar ítem fuera del kit" en paso4-cierre.js. */
+/** Catálogo completo de ferretería — de acá sale el buscador del paso 4 (ver paso4-cierre.js). */
 export function getCatalogoFerreteria() {
   return leer(K_CATALOGO_FERRETERIA, null);
 }
@@ -90,17 +89,4 @@ export function obtenerOrdenLocal(uuid) {
 }
 export function eliminarOrdenLocal(uuid) {
   try { localStorage.removeItem(K_ORDEN_LOCAL_PREFIJO + uuid); } catch { /* nada que limpiar */ }
-}
-
-/**
- * El kit estándar de un tipo de servicio, cacheado la primera vez que el
- * paso 4 lo pidió con señal. Sin esto, entrar al paso 4 sin conexión y sin
- * haber pasado antes por él (con señal) para ESE tipo de servicio deja la
- * ferretería vacía — ver docs/tecnico-app.md.
- */
-export function guardarKitCache(tipoServicioId, ferreteria) {
-  escribir(K_KIT_PREFIJO + tipoServicioId, ferreteria);
-}
-export function obtenerKitCache(tipoServicioId) {
-  return leer(K_KIT_PREFIJO + tipoServicioId, null);
 }

@@ -170,6 +170,8 @@ GET  /api/admin/tecnicos/{id}/traspasos-pendientes                              
 GET  /api/admin/indicadores                                                          → alimenta la pantalla de Inicio (#inicio, nueva pantalla de aterrizaje)
 ```
 
+**Tiles de Inicio — actualizado** (pedido: *"que aqui sean botones accionables y que diga instalaciones este mes y otro ventas este mes eliminar rechazadas y a la derecha el valor en dinero que lo que llevamos"*). `instalaciones_mes` y `ventas_mes` (`{ n, monto }`) son nuevos: `instalaciones_mes` cuenta órdenes de `instalacion_nueva` creadas este mes con estado `aprobada`/`liquidada` (una rechazada no suma — por eso ya no hace falta un tile aparte de "Rechazadas") y `monto` es la suma de `monto_bruto` de esas mismas; `ventas_mes.n` cuenta TODAS las ventas registradas este mes (actividad de venta) pero `ventas_mes.monto` solo suma `monto_comision` de las ya instaladas (una venta `registrada` todavía no tiene comisión confirmada). Cada tile del panel es ahora un link a Historial, no un `<div>` decorativo.
+
 **`asignar`/`traspasar` ya no aplican al toque — quedan pendientes de que el técnico confirme** (ver [bodegas-traspasos.md](bodegas-traspasos.md) para el diseño completo). El equipo pasa a `en_transito` con `usuario_actual_id` ya apuntando al técnico destino (se ve "en camino" en la tabla) hasta que él lo acepta o lo rechaza desde `/api/mis-traspasos/*`. `cancelar-traspaso` es la salida del admin si se equivocó de técnico y todavía no confirmó nada.
 
 `ingreso-bodega` es deliberadamente una acción separada de la orden de retiro: el momento en que el técnico saca el equipo de la casa del cliente y el momento en que ese equipo llega físicamente a la bodega son dos eventos reales, no uno (puede pasar días después, cuando junta varios retiros en un viaje).
@@ -180,7 +182,7 @@ GET  /api/admin/indicadores                                                     
 
 **Selección múltiple + acción masiva** (reporte #5) — checkbox por fila en `bodega` o `maleta` (no en `en_transito`: ya está en camino, no hay nada que seleccionar); al seleccionar aparece una barra con la acción que corresponde (Enviar si todos están en `bodega`, Traspasar si todos están en `maleta`) y un único selector de técnico destino para todos. No hay endpoint masivo real en el servidor — se manda una llamada por equipo, una por una (cada una pasa igual por la cola offline si hace falta, y cada una queda pendiente de confirmación por separado); si se mezclan estados en la selección, la barra avisa que no se pueden mover juntos en vez de ofrecer una acción que no tiene sentido.
 
-## Bodega — ferretería y kits
+## Bodega — ferretería
 
 ```
 GET  /api/admin/ferreteria/stock?tecnico_id=2                      → stock YA CONFIRMADO por cada técnico
@@ -189,14 +191,22 @@ POST /api/admin/ferreteria/ingreso              { item_codigo, bodega_id, cantid
 POST /api/admin/ferreteria/entregar             { item_codigo, tecnico_id, cantidad, bodega_id }   → descuenta el stock central YA (reserva); queda pendiente hasta que el técnico confirma
 GET  /api/admin/ferreteria/pendientes                              → todo lo pendiente, de cualquier técnico
 POST /api/admin/ferreteria/pendientes/{id}/cancelar                → el admin cancela y reingresa el stock a la bodega
-
-GET  /api/admin/kits/{tipoServicioCodigo}
-PUT  /api/admin/kits/{tipoServicioCodigo}       { items: [{ item_codigo, cantidad_estandar }] }
 ```
 
 `entregar` ya no acredita nada al técnico al toque — crea una fila en `entregas_ferreteria_pendientes` y recién se aplica a `stock_ferreteria_usuario`/`movimientos_ferreteria` cuando el técnico confirma la cantidad recibida desde `/api/mis-traspasos/ferreteria/{id}/aceptar`. Pero el stock **central** sí se descuenta al crear la entrega (no al confirmarla) — ver [bodegas-traspasos.md](bodegas-traspasos.md) para por qué la asimetría con el flujo de equipos. Si el técnico rechaza o el admin cancela, se reingresa a la misma bodega.
 
-**El kit estándar (`/admin/kits/*`) ya no lo aplica el wizard del técnico solo** (ver `tecnico-app.md`, paso 4) — sigue existiendo como referencia editable acá, pero el técnico busca y agrega cada ítem a mano.
+**Kit estándar — eliminado del proyecto entero** (pedido: *"eliminar el kit standar de todo el proyecto que no exista"*). Ya no existe `kits_servicio_item`, ni `/admin/kits/*`, ni la pestaña "Kits estándar" del panel — el wizard del técnico venía sin usarlo desde antes (busca y agrega cada ítem a mano, ver `tecnico-app.md` paso 4) y esto era el resto sin limpiar. `OrdenWizardService::resolverItemsFerreteria` ya no tiene ningún fallback: si no llega ningún ítem, la orden simplemente no consumió ferretería.
+
+## Catálogo — tipos de equipo e ítems de ferretería
+
+```
+GET  /api/admin/catalogo/tipos-equipo
+POST /api/admin/catalogo/tipos-equipo           { codigo, nombre }                    → 201
+GET  /api/admin/catalogo/items-ferreteria
+POST /api/admin/catalogo/items-ferreteria       { codigo, nombre, unidad_medida? }    → 201, unidad_medida: "unidad"|"metro" (default "unidad")
+```
+
+Pedido: *"en bodega se puedan agregar nuevos items"* — antes solo se podía dar de alta una serie (equipo) o cargar cantidad (ferretería) de un tipo/ítem que YA existía en el catálogo; crear el tipo/ítem en sí exigía tocar la base a mano. Pestaña "Catálogo" en el panel, dentro de Bodega. `codigo` valida contra `^[a-z0-9_]+$` y tiene que ser único, mismo criterio que los planes del tarifario.
 
 ## Usuarios
 
@@ -207,8 +217,6 @@ POST /api/admin/usuarios   { nombre, usuario, password, rol?, email?, porcentaje
 
 El alta de técnicos (y de otros admins) ya no requiere tocar la base de datos a mano — antes era el único método (ver `docs/despliegue.md`, sección 5, que sigue aplicando solo para sembrar el PRIMER admin, porque para usar este endpoint hace falta ya estar logueado como uno). `usuario` se valida contra `^[a-z0-9_.]+$` (minúsculas, números, punto, guion bajo — el mismo formato con el que se loguea) y tiene que ser único; `password` se hashea con `password_hash()` antes de guardarse, nunca en claro. `rol` por defecto `'tecnico'`; `porcentaje_reparto` por defecto `100`.
 
-El kit **no se versiona** como el tarifario — es una plantilla de lo que el wizard debería precargar, no un monto ya cobrado. Las órdenes ya enviadas guardan su propio `orden_ferreteria` con `cantidad_estandar`/`cantidad_final` congeladas y no dependen de esta tabla después de creadas.
-
 ## Registro retroactivo (respuesta 12)
 
 ```
@@ -216,8 +224,8 @@ POST /api/admin/ordenes/retroactiva
 {
   tecnico_id, folio, tipo_servicio, fecha_trabajo,
   materiales: [{ numero_serie, accion: "instalado"|"retirado" }],
-  ferreteria?: [{ item_ferreteria_id, cantidad_final }],   // vacío → kit estándar
-  venta_id?, senal_porcentaje?, calidad_porcentaje?, satelite?, metros_cable?, observaciones?
+  ferreteria?: [{ item_ferreteria_id, cantidad_final }],   // vacío → sin ferretería consumida
+  venta_id?, senal_porcentaje?, calidad_porcentaje?, metros_cable?, observaciones?
 }
 → 201 orden completa (estado 'enviada' o 'conflicto')
 
@@ -225,7 +233,7 @@ GET  /api/admin/ventas/pendientes?tecnico_id=2   → ventas 'registrada' de ESE 
 GET  /api/admin/ventas/pendientes-instalar       → TODAS las ventas 'registrada', de cualquier técnico, ordenadas por fecha_instalacion_solicitada (las sin fecha van al final) — alimenta "Ventas pendientes de instalar" en Inicio
 ```
 
-Para cuando el técnico hizo el trabajo sin pasar por el wizard del celular (se le cayó la app, se olvidó el teléfono, reporte en papel) y Edwin lo carga después desde el PC. Implementado en `OrdenWizardService::crearRetroactiva()`, compartiendo con `enviar()` — nunca duplicando — las mismas reglas sobre maleta, kit de ferretería, tarifa vigente, folio en conflicto y confirmación de venta.
+Para cuando el técnico hizo el trabajo sin pasar por el wizard del celular (se le cayó la app, se olvidó el teléfono, reporte en papel) y Edwin lo carga después desde el PC. Implementado en `OrdenWizardService::crearRetroactiva()`, compartiendo con `enviar()` — nunca duplicando — las mismas reglas sobre maleta, ferretería, tarifa vigente, folio en conflicto y confirmación de venta.
 
 Decisiones de diseño:
 
@@ -246,7 +254,7 @@ Mismo mecanismo que la app técnico (ver [tecnico-app.md](tecnico-app.md)), adap
 
 **Diferencia clave con el técnico:** acá TODAS las escrituras se pueden encolar sin excepción. El técnico tenía un caso irresoluble (escanear "retirar" sin poder confirmar el `equipo_id` contra ninguna caché local); el admin no — cada acción de escritura apunta a un id que ya está en pantalla (la fila ya se cargó con señal), así que no hay nada que preguntarle al servidor para saber "a qué le estoy escribiendo".
 
-Cubre las 16 acciones de escritura del panel: aprobar, aprobar en lote, rechazar, observar, reabrir (Auditoría) · resolver conflicto (Conflictos) · editar tarifa, editar comisión (Tarifario) · alta de equipo, asignar, traspasar, falla de fábrica, ingreso a bodega, entregar ferretería, actualizar kit (Bodega) · cerrar período, registrar pago, registrar ajuste (Billetera, ver [liquidacion-billetera.md](liquidacion-billetera.md)). Tarifas/comisiones/kits se coalescen por código (editar dos veces sin conexión antes de que la primera se mande reemplaza a la anterior, no se apila) — el resto, incluidas las tres de Billetera, son acciones de una sola vez que nunca se pisan entre sí.
+Cubre las acciones de escritura del panel — entre ellas: editar/eliminar tarifa, editar/eliminar comisión, editar/eliminar instalación por plan, crear/desactivar plan (Tarifario) · alta de equipo, asignar, traspasar, falla de fábrica, ingreso a bodega, entregar ferretería, crear tipo de equipo, crear ítem de ferretería (Bodega) · cerrar período, registrar pago, registrar ajuste (Billetera, ver [liquidacion-billetera.md](liquidacion-billetera.md)). Nota: esta lista no se actualiza en cada cambio — ver `TIPOS_COALESCIBLES`/`RUTAS` en `public_html/admin/js/offline.js` para la lista real y vigente. Tarifas/comisiones se coalescen por código (editar dos veces sin conexión antes de que la primera se mande reemplaza a la anterior, no se apila) — el resto, incluidas las tres de Billetera, son acciones de una sola vez que nunca se pisan entre sí.
 
 **Optimista, pero simple a propósito:** en vez de reconstruir el objeto exacto que devolvería el servidor (anomalías recalculadas, estados derivados, etc. — lo que sí hizo falta en el wizard porque el técnico no puede avanzar sin esos datos), acá alcanza con sacar la fila resuelta de la lista actual o marcarla "pendiente" — el admin no está bloqueado por ningún flujo secuencial, solo necesita saber "esto ya lo mandé, seguirá cuando vuelva la señal" y poder seguir trabajando el resto de la cola en pantalla.
 

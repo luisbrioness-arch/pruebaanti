@@ -57,7 +57,7 @@ export async function colaEliminar(id) {
   });
 }
 
-/** Para tarifas/comisiones/kits: solo importa mandar la ÚLTIMA edición de una misma clave (ej. el mismo tipo de servicio), no cada paso intermedio. */
+/** Para tarifas/comisiones: solo importa mandar la ÚLTIMA edición de una misma clave (ej. el mismo tipo de servicio), no cada paso intermedio. */
 export async function colaEliminarPorTipoYClave(tipo, clave) {
   const items = await colaListar();
   for (const item of items.filter((i) => i.tipo === tipo && i.clave === clave)) {

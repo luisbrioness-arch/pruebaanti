@@ -19,7 +19,6 @@ usuarios ──┬─< equipos (usuario_actual_id)
 
 tipos_servicio ──┬─< tarifas_servicio (versionado)
                  ├─< tipos_servicio_foto_requisito
-                 ├─< kits_servicio_item ─> items_ferreteria
                  └─< ordenes
 
 tipos_equipo ──< equipos ──┬─< movimientos_equipo
@@ -27,7 +26,6 @@ tipos_equipo ──< equipos ──┬─< movimientos_equipo
 
 items_ferreteria ──┬─< stock_ferreteria_usuario
                     ├─< movimientos_ferreteria
-                    ├─< kits_servicio_item
                     └─< orden_ferreteria >── ordenes
 
 planes ──< comisiones_plan (versionado, mismo patrón que tarifas_servicio)
