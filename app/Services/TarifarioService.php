@@ -149,4 +149,21 @@ final class TarifarioService
         });
         return $this->tarifasInstalacionPlan->vigentePara((int) $plan['id']);
     }
+
+    /**
+     * "Eliminar" la instalación por plan de un plan puntual (pedido: "que
+     * aplique a todos los planes o instalaciones de tarifario") — deja de
+     * tener fila vigente, así que esa instalación vuelve al monto plano.
+     * No borra el plan en sí (eso es cambiarActivoPlan) ni su historial de
+     * montos — ver TarifaInstalacionPlanRepository::cerrarSinCrear.
+     */
+    public function eliminarTarifaInstalacion(string $planCodigo): array
+    {
+        $plan = $this->planes->porCodigoCualquiera($planCodigo);
+        if (!$plan) {
+            throw new ValidationException('Plan desconocido: ' . $planCodigo);
+        }
+        $this->tarifasInstalacionPlan->cerrarSinCrear((int) $plan['id']);
+        return $this->tarifasInstalacionPlan->todasVigentes();
+    }
 }

@@ -89,4 +89,13 @@ final class AdminTarifarioController
             (string) $req->param('plan'), (float) $monto, (int) $admin['id']
         ));
     }
+
+    /** "Eliminar" una fila de instalación por plan — ver TarifarioService::eliminarTarifaInstalacion. */
+    public function eliminarTarifaInstalacion(Request $req): void
+    {
+        Auth::requireAdmin();
+        Response::json(['tarifas_instalacion' => (new TarifarioService())->eliminarTarifaInstalacion(
+            (string) $req->param('plan')
+        )]);
+    }
 }

@@ -131,8 +131,9 @@ PUT  /api/admin/comisiones/{planCodigo}        { monto }
 POST /api/admin/planes                         { codigo, nombre, comision_inicial }   → 201, alta de plan nuevo
 PUT  /api/admin/planes/{planCodigo}/activo     { activo: true|false }   → "borrar"/reactivar un plan
 
-GET  /api/admin/tarifas-instalacion
-PUT  /api/admin/tarifas-instalacion/{planCodigo}   { monto }
+GET    /api/admin/tarifas-instalacion
+PUT    /api/admin/tarifas-instalacion/{planCodigo}   { monto }
+DELETE /api/admin/tarifas-instalacion/{planCodigo}   → cierra la fila vigente sin reemplazarla
 ```
 
 Editar **nunca** hace `UPDATE` sobre el monto vigente: cierra la fila (`vigente_hasta = ahora`) y crea una nueva. Se probó explícitamente que una orden ya aprobada conserva su `monto_bruto` original después de subir el precio — es la garantía central del versionado.
@@ -141,7 +142,10 @@ Editar **nunca** hace `UPDATE` sobre el monto vigente: cierra la fila (`vigente_
 
 **Alta de planes** (pedido: *"que al elegir el plan venga los planes que hay"* — antes solo existía `plan_full`, sembrado en el schema, sin ninguna forma de agregar otro salvo tocar la base a mano). `POST /admin/planes` crea el plan Y su primera comisión vigente en la misma transacción — un plan sin comisión no podría confirmar el monto de ninguna venta que lo use. Formulario "Nuevo plan" en el panel, dentro de la misma pantalla de Tarifario. Recién ahí aparece en `GET /catalogo/planes`, el selector que usa `venta.js` del técnico.
 
-**"Borrar" planes** (pedido: *"falta opcion de borrar planes"*) es en realidad desactivar (`planes.activo`, columna que ya existía en el schema pero nada la exponía) — un `DELETE` de verdad chocaría contra `comisiones_plan`/`tarifas_instalacion_plan` (todo plan tiene al menos una fila ahí desde que se crea) y contra `ventas.plan_id` si alguna vez se usó, mismo criterio que `usuarios.activo` para no perder plata ni historia real. `PUT /admin/planes/{planCodigo}/activo` con `{activo: false}` lo saca de `GET /catalogo/planes` (el selector de "Registrar venta" del técnico, vía `PlanRepository::activos()`) pero lo deja intacto en Tarifario — `GET /admin/comisiones` sigue listándolo (con `plan_activo` en la fila) para poder reactivarlo con `{activo: true}` desde el mismo botón. Un plan desactivado no se puede editar por `PUT /admin/comisiones/{codigo}` (`PlanRepository::porCodigo` sigue filtrando `activo = 1`) — hay que reactivarlo primero.
+**"Borrar" planes** (pedido: *"falta opcion de borrar planes"*, después *"que aplique a todos los planes o instalaciones de tarifario"*) es en realidad desactivar/cerrar, nunca un `DELETE` real de la fila — chocaría contra `comisiones_plan`/`tarifas_instalacion_plan` (todo plan tiene al menos una fila ahí desde que se crea) y contra `ventas.plan_id` si alguna vez se usó. Dos botones separados, ambos rojos y al lado de "Guardar" en su fila:
+
+- **Comisiones por plan** ("Eliminar" con modal de confirmación, "Reactivar" sin ella): `PUT /admin/planes/{planCodigo}/activo` con `{activo: false|true}` — desactiva/reactiva el plan entero (`planes.activo`, columna que ya existía en el schema pero nada la exponía). Desactivado, sale de `GET /catalogo/planes` (el selector de "Registrar venta" del técnico, vía `PlanRepository::activos()`) pero sigue intacto en Tarifario — `GET /admin/comisiones` sigue listándolo (con `plan_activo` en la fila) para poder reactivarlo. Un plan desactivado no se puede editar por `PUT /admin/comisiones/{codigo}` (`PlanRepository::porCodigo` sigue filtrando `activo = 1`) — hay que reactivarlo primero.
+- **Instalación por plan** ("Eliminar", sin modal — es reversible con solo volver a usar "Agregar / actualizar"): `DELETE /admin/tarifas-instalacion/{planCodigo}` cierra la fila vigente de `tarifas_instalacion_plan` sin crear otra (`TarifaInstalacionPlanRepository::cerrarSinCrear`) — no toca el plan en sí, solo hace que esa instalación vuelva a cobrar el monto plano de `tarifas_servicio` hasta que alguien cargue un monto nuevo.
 
 ## Bodega — equipos
 

@@ -100,6 +100,22 @@ export async function renderTarifario(container) {
         nombreCampo: 'plan_nombre',
         endpoint: (codigo) => `/admin/tarifas-instalacion/${encodeURIComponent(codigo)}`,
         tipoAccion: 'editar_tarifa_instalacion',
+        // Pedido: "que aplique a todos los planes o instalaciones de
+        // tarifario" — acá "eliminar" cierra la fila vigente sin
+        // reemplazarla: esa instalación vuelve a cobrar el monto plano.
+        onEliminar: async (codigo, nombre) => {
+          const { encolado } = await conColaSiHaceFalta(
+            'eliminar_tarifa_instalacion', { codigo },
+            () => api(`/admin/tarifas-instalacion/${encodeURIComponent(codigo)}`, { method: 'DELETE' }),
+            codigo
+          );
+          if (encolado) {
+            toast(`${nombre}: guardado sin conexión — se aplicará al recuperar señal.`, 'neutro');
+          } else {
+            toast(`Instalación por plan de "${nombre}" eliminada — vuelve a cobrar el monto plano.`, 'neutro');
+            await cargarInstalacionPlan();
+          }
+        },
       });
     } catch (e) {
       $instalacionPlan.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
@@ -177,10 +193,13 @@ export async function renderTarifario(container) {
           <td class="celda-monto">${formatMoney(fila.monto)}</td>
           <td class="celda-desde">${formatDateTime(fila.vigente_desde)}</td>
           <td>
-            <form class="form-inline">
-              <input type="number" name="monto" min="1" step="1" placeholder="Nuevo monto" required>
-              <button type="submit" class="btn btn--secundario btn--chico">Guardar</button>
-            </form>
+            <div class="celda-acciones">
+              <form class="form-inline">
+                <input type="number" name="monto" min="1" step="1" placeholder="Nuevo monto" required>
+                <button type="submit" class="btn btn--secundario btn--chico">Guardar</button>
+              </form>
+              ${cfg.onEliminar ? '<button type="button" class="btn btn--malo btn--chico" data-eliminar>Eliminar</button>' : ''}
+            </div>
           </td>
         </tr>
       `);
@@ -212,6 +231,15 @@ export async function renderTarifario(container) {
         } catch (e) {
           toast(e.message, 'malo');
           boton.disabled = false;
+        }
+      });
+      tr.querySelector('[data-eliminar]')?.addEventListener('click', async (ev) => {
+        ev.target.disabled = true;
+        try {
+          await cfg.onEliminar(codigo, fila[cfg.nombreCampo]);
+        } catch (e) {
+          toast(e.message, 'malo');
+          ev.target.disabled = false;
         }
       });
       $tbody.appendChild(tr);
@@ -246,12 +274,14 @@ export async function renderTarifario(container) {
           <td>${activo ? '<span class="badge badge--ok">Activo</span>' : '<span class="badge badge--neutro">Desactivado</span>'}</td>
           <td class="celda-monto">${formatMoney(fila.monto)}</td>
           <td class="celda-desde">${formatDateTime(fila.vigente_desde)}</td>
-          <td class="celda-acciones-plan">
-            <form class="form-inline">
-              <input type="number" name="monto" min="1" step="1" placeholder="Nuevo monto" required>
-              <button type="submit" class="btn btn--secundario btn--chico">Guardar</button>
-            </form>
-            <button type="button" class="btn btn--texto btn--chico" data-toggle-activo>${activo ? 'Eliminar' : 'Reactivar'}</button>
+          <td>
+            <div class="celda-acciones">
+              <form class="form-inline">
+                <input type="number" name="monto" min="1" step="1" placeholder="Nuevo monto" required>
+                <button type="submit" class="btn btn--secundario btn--chico">Guardar</button>
+              </form>
+              <button type="button" class="btn btn--chico ${activo ? 'btn--malo' : 'btn--ok'}" data-toggle-activo>${activo ? 'Eliminar' : 'Reactivar'}</button>
+            </div>
           </td>
         </tr>
       `);

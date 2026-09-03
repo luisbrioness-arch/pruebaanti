@@ -15,7 +15,10 @@ import { api, ApiError } from './api.js';
 import { toast } from './toast.js';
 import { colaAgregar, colaListar, colaEliminar, colaContar, colaEliminarPorTipoYClave } from './db.js';
 
-const TIPOS_COALESCIBLES = new Set(['editar_tarifa', 'editar_comision', 'editar_tarifa_instalacion', 'actualizar_kit', 'cambiar_activo_plan']);
+const TIPOS_COALESCIBLES = new Set([
+  'editar_tarifa', 'editar_comision', 'editar_tarifa_instalacion', 'eliminar_tarifa_instalacion',
+  'actualizar_kit', 'cambiar_activo_plan',
+]);
 
 const listeners = new Set();
 /** @param {() => void} fn se llama cada vez que la cola cambia (para refrescar el contador del topbar). */
@@ -35,6 +38,7 @@ const RUTAS = {
   editar_tarifa: (p) => ({ path: `/admin/tarifas/${encodeURIComponent(p.codigo)}`, method: 'PUT', body: { monto: p.monto } }),
   editar_comision: (p) => ({ path: `/admin/comisiones/${encodeURIComponent(p.codigo)}`, method: 'PUT', body: { monto: p.monto } }),
   editar_tarifa_instalacion: (p) => ({ path: `/admin/tarifas-instalacion/${encodeURIComponent(p.codigo)}`, method: 'PUT', body: { monto: p.monto } }),
+  eliminar_tarifa_instalacion: (p) => ({ path: `/admin/tarifas-instalacion/${encodeURIComponent(p.codigo)}`, method: 'DELETE' }),
   alta_equipo: (p) => ({ path: '/admin/equipos', method: 'POST', body: { tipo_equipo: p.tipo_equipo, numero_serie: p.numero_serie, bodega_id: p.bodega_id } }),
   asignar_equipo: (p) => ({ path: `/admin/equipos/${p.id}/asignar`, method: 'POST', body: { tecnico_id: p.tecnico_id } }),
   traspasar_equipo: (p) => ({ path: `/admin/equipos/${p.id}/traspasar`, method: 'POST', body: { tecnico_destino_id: p.tecnico_destino_id } }),
@@ -56,7 +60,8 @@ const RUTAS = {
 };
 
 const ETIQUETAS = {
-  editar_tarifa: 'editar tarifa', editar_comision: 'editar comisión', editar_tarifa_instalacion: 'editar instalación por plan', alta_equipo: 'alta de equipo',
+  editar_tarifa: 'editar tarifa', editar_comision: 'editar comisión', editar_tarifa_instalacion: 'editar instalación por plan',
+  eliminar_tarifa_instalacion: 'eliminar instalación por plan', alta_equipo: 'alta de equipo',
   asignar_equipo: 'enviar equipo a técnico', traspasar_equipo: 'traspasar equipo', cancelar_traspaso_equipo: 'cancelar envío de equipo',
   falla_fabrica: 'marcar falla de fábrica',
   ingreso_bodega: 'ingreso a bodega', entregar_ferreteria: 'entregar ferretería', cancelar_entrega_ferreteria: 'cancelar entrega de ferretería',

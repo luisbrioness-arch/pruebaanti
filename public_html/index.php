@@ -109,6 +109,7 @@ $router->post('/api/admin/planes', fn(Request $r) => (new AdminTarifarioControll
 $router->put('/api/admin/planes/{plan}/activo', fn(Request $r) => (new AdminTarifarioController())->cambiarActivoPlan($r));
 $router->get('/api/admin/tarifas-instalacion', fn(Request $r) => (new AdminTarifarioController())->listarTarifasInstalacion($r));
 $router->put('/api/admin/tarifas-instalacion/{plan}', fn(Request $r) => (new AdminTarifarioController())->editarTarifaInstalacion($r));
+$router->delete('/api/admin/tarifas-instalacion/{plan}', fn(Request $r) => (new AdminTarifarioController())->eliminarTarifaInstalacion($r));
 
 // Usuarios
 $router->get('/api/admin/usuarios', fn(Request $r) => (new AdminUsuarioController())->listar($r));
