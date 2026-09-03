@@ -8,7 +8,6 @@ import { el, escapeHtml, formatMoney } from '../utils.js';
 
 const ACCESOS = [
   { ruta: 'auditoria', icono: '📋', etiqueta: 'Auditoría' },
-  { ruta: 'conflictos', icono: '⚠️', etiqueta: 'Conflictos' },
   { ruta: 'tarifario', icono: '💲', etiqueta: 'Tarifario' },
   { ruta: 'bodega', icono: '📦', etiqueta: 'Bodega' },
   { ruta: 'billetera', icono: '👛', etiqueta: 'Billetera' },
@@ -53,7 +52,7 @@ function pintarAlertas($div, r) {
       texto: `${r.pendientes_auditoria} orden(es) esperando auditoría`, ruta: 'auditoria', tono: 'alerta',
     },
     r.conflictos_abiertos > 0 && {
-      texto: `${r.conflictos_abiertos} orden(es) en conflicto sin resolver`, ruta: 'conflictos', tono: 'malo',
+      texto: `${r.conflictos_abiertos} orden(es) en conflicto sin resolver`, ruta: 'auditoria', tono: 'malo',
     },
     r.traspasos_equipo_viejos > 0 && {
       texto: `${r.traspasos_equipo_viejos} traspaso(s) de equipo llevan 3+ días sin confirmar`, ruta: 'bodega', tono: 'malo',

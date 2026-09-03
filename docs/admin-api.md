@@ -58,6 +58,14 @@ Un reenvío tras reabrir **no vuelve a descontar stock ni a duplicar movimientos
 
 ## Conflictos de sincronización
 
+**Sin pestaña propia en el panel** (pedido: *"elimina la parte de
+conflictos"* — se quitó `admin/js/views/conflictos.js`, el link de nav y la
+ruta `#conflictos`; el endpoint y la lógica de abajo siguen intactos). Una
+orden que cae en `conflicto` sigue existiendo — se ve y se filtra desde
+Auditoría (`estado=conflicto`) — pero ya no hay una pantalla dedicada con
+los botones "Invalidar"/"Aceptar"; resolver uno de estos, hoy, es trabajo
+directo sobre la base o un ajuste a mano.
+
 ```
 GET  /api/admin/conflictos                     → pendientes, con folio y técnico ya resueltos
 POST /api/admin/conflictos/{id}/resolver        { accion: "invalidar" | "aceptar", comentario? }
