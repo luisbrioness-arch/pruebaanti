@@ -56,6 +56,25 @@ final class IndicadoresService
             "SELECT COUNT(*) FROM reportes WHERE estado = 'abierto'"
         )->fetchColumn();
 
+        // Estos dos NO se limitan al mes — son la cola de trabajo real de
+        // Edwin ahora mismo, no un indicador histórico (una orden enviada
+        // hace 5 semanas sigue esperando auditoría igual que una de hoy).
+        $pendientesAuditoria = (int) $pdo->query(
+            "SELECT COUNT(*) FROM ordenes WHERE estado = 'enviada'"
+        )->fetchColumn();
+        $conflictosAbiertos = (int) $pdo->query(
+            "SELECT COUNT(*) FROM ordenes WHERE estado = 'conflicto'"
+        )->fetchColumn();
+
+        // Traspasos/entregas que llevan 3+ días sin que el técnico confirme
+        // (mismo umbral que el aviso visual de Bodega, ver bodega.js).
+        $traspasosEquipoViejos = (int) $pdo->query(
+            "SELECT COUNT(*) FROM equipos WHERE estado = 'en_transito' AND actualizado_en < DATE_SUB(NOW(), INTERVAL 3 DAY)"
+        )->fetchColumn();
+        $entregasFerreteriaViejas = (int) $pdo->query(
+            "SELECT COUNT(*) FROM entregas_ferreteria_pendientes WHERE estado = 'pendiente' AND creado_en < DATE_SUB(NOW(), INTERVAL 3 DAY)"
+        )->fetchColumn();
+
         return [
             'ordenes_por_estado_mes' => $ordenesPorEstadoMes,
             'liquidado_mes' => $liquidadoMes,
@@ -65,6 +84,10 @@ final class IndicadoresService
             'traspasos_rechazados_30d' => $traspasosRechazados30d,
             'entregas_rechazadas_30d' => $entregasRechazadas30d,
             'reportes_abiertos' => $reportesAbiertos,
+            'pendientes_auditoria' => $pendientesAuditoria,
+            'conflictos_abiertos' => $conflictosAbiertos,
+            'traspasos_equipo_viejos' => $traspasosEquipoViejos,
+            'entregas_ferreteria_viejas' => $entregasFerreteriaViejas,
         ];
     }
 }

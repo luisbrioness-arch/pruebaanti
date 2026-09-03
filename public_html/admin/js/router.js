@@ -8,10 +8,10 @@ export function route(name, handler) {
 }
 
 export function currentRoute() {
-  const hash = location.hash.replace(/^#/, '') || 'auditoria';
+  const hash = location.hash.replace(/^#/, '') || 'inicio';
   const [name, query] = hash.split('?');
   const params = Object.fromEntries(new URLSearchParams(query || ''));
-  return { name: routes[name] ? name : 'auditoria', params };
+  return { name: routes[name] ? name : 'inicio', params };
 }
 
 export function irA(nombre, params = {}) {

@@ -98,7 +98,7 @@ POST /api/admin/equipos/{id}/ingreso-bodega     { bodega_id }                   
 GET  /api/admin/bodegas                                                              → bodegas físicas activas
 POST /api/admin/bodegas                        { nombre }                            → crear una nueva
 GET  /api/admin/tecnicos/{id}/traspasos-pendientes                                   → base de la guía de despacho (ver bodegas-traspasos.md)
-GET  /api/admin/indicadores                                                          → dashboard de indicadores
+GET  /api/admin/indicadores                                                          → alimenta la pantalla de Inicio (#inicio, nueva pantalla de aterrizaje)
 ```
 
 **`asignar`/`traspasar` ya no aplican al toque — quedan pendientes de que el técnico confirme** (ver [bodegas-traspasos.md](bodegas-traspasos.md) para el diseño completo). El equipo pasa a `en_transito` con `usuario_actual_id` ya apuntando al técnico destino (se ve "en camino" en la tabla) hasta que él lo acepta o lo rechaza desde `/api/mis-traspasos/*`. `cancelar-traspaso` es la salida del admin si se equivocó de técnico y todavía no confirmó nada.

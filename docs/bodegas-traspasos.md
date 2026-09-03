@@ -175,15 +175,27 @@ No se modeló como un "pedido" con snapshot fijo (ver más arriba, "Por qué NO
 es un pedido atómico") — la guía siempre muestra el estado ACTUAL de lo
 pendiente, no una foto congelada del momento en que se imprimió.
 
-## Dashboard de indicadores
+## Dashboard de indicadores → pantalla de Inicio
 
 `GET /admin/indicadores` (`IndicadoresService`) — agregados de solo lectura
 sobre tablas que ya existían (`COUNT`/`SUM` directos, sin tabla nueva):
 órdenes del mes por estado, liquidado del mes, saldo total a favor de los
 técnicos, equipos por estado, ferretería pendiente de confirmar, traspasos y
-entregas rechazados en los últimos 30 días. Pestaña **Indicadores** en el
-panel — es un resumen, no reemplaza Auditoría/Bodega/Billetera para el
-trabajo del día a día.
+entregas rechazados en los últimos 30 días, más dos contadores que NO son
+del mes sino de la cola de trabajo real ahora mismo (órdenes esperando
+auditoría, conflictos sin resolver) y los mismos avisos de "3+ días sin
+confirmar" que ya se ven en Bodega.
+
+Nació como una pestaña separada "Indicadores" y se fusionó en **Inicio**
+(pedido: *"falta una pantalla de inicio con accesos a las otras partes y con
+información importante"*) — ahora es la pantalla de aterrizaje por defecto
+(`admin/js/views/inicio.js`, ruta `#inicio`, reemplaza a `#auditoria` como
+default en `router.js` y como destino de `topbar-marca`). Combina accesos
+directos a cada sección (tarjetas grandes) con una lista de alertas
+accionables (solo se muestran las que tienen algo pendiente, cada una linkea
+a la pantalla que corresponde) y un resumen chico del mes — no reemplaza
+Auditoría/Bodega/Billetera para el trabajo del día a día, es el primer
+vistazo antes de entrar a cualquiera de ellas.
 
 ## Avisos de traspasos que llevan mucho tiempo sin confirmar
 

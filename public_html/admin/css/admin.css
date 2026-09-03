@@ -383,3 +383,23 @@ body.reportar-eligiendo, body.reportar-eligiendo * { cursor: crosshair !importan
   body, main#view { background: #fff; }
   .guia-despacho { max-width: none; }
 }
+
+/* ---------- Inicio ---------- */
+.accesos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+.acceso-tarjeta {
+  background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio);
+  padding: 18px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  text-decoration: none; color: var(--tinta); font-weight: 600; font-size: .85rem; text-align: center;
+}
+.acceso-tarjeta:hover { border-color: var(--acento); background: var(--acento-suave); }
+.acceso-icono { font-size: 1.6rem; }
+
+.alertas-lista { display: flex; flex-direction: column; gap: 8px; }
+.alerta-fila {
+  display: block; padding: 10px 14px; border-radius: var(--radio); text-decoration: none; font-weight: 600; font-size: .88rem;
+  border: 1px solid transparent;
+}
+.alerta-fila--alerta { background: var(--alerta-suave); color: var(--alerta); border-color: var(--alerta); }
+.alerta-fila--malo { background: var(--malo-suave); color: var(--malo); border-color: var(--malo); }
+.alerta-fila--neutro { background: var(--neutro-suave); color: var(--neutro); border-color: var(--borde); }
+.alerta-fila:hover { filter: brightness(0.97); }
