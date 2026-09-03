@@ -21,9 +21,17 @@ try {
     if ($idsUsuario) {
         $m = implode(',', array_fill(0, count($idsUsuario), '?'));
         $pdo->prepare("DELETE FROM movimientos_ferreteria WHERE usuario_id IN ($m)")->execute($idsUsuario);
+        // Primero los movimientos_ferreteria_central que apuntan a estas entregas (FK), recién después las entregas.
+        $idsEntrega = $pdo->query(
+            "SELECT id FROM entregas_ferreteria_pendientes WHERE tecnico_id IN (" . implode(',', $idsUsuario) . ") OR creado_por IN (" . implode(',', $idsUsuario) . ")"
+        )->fetchAll(PDO::FETCH_COLUMN);
+        if ($idsEntrega) {
+            $me = implode(',', array_fill(0, count($idsEntrega), '?'));
+            $pdo->prepare("DELETE FROM movimientos_ferreteria_central WHERE entrega_pendiente_id IN ($me)")->execute($idsEntrega);
+        }
+        $pdo->prepare("DELETE FROM movimientos_ferreteria_central WHERE creado_por IN ($m)")->execute($idsUsuario);
         $pdo->prepare("DELETE FROM entregas_ferreteria_pendientes WHERE tecnico_id IN ($m) OR creado_por IN ($m)")->execute(array_merge($idsUsuario, $idsUsuario));
         $pdo->prepare("DELETE FROM stock_ferreteria_usuario WHERE usuario_id IN ($m)")->execute($idsUsuario);
-        $pdo->prepare("DELETE FROM movimientos_ferreteria_central WHERE creado_por IN ($m)")->execute($idsUsuario);
         $pdo->prepare("DELETE FROM usuarios WHERE id IN ($m)")->execute($idsUsuario);
         echo 'Usuarios de prueba borrados: ' . count($idsUsuario) . "\n";
     }
