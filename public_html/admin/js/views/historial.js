@@ -58,8 +58,12 @@ export async function renderHistorial(container) {
   const $form = container.querySelector('#form-filtros');
 
   try {
+    // Pedido: "edwin tambien es un tecnico que recibe los equipos de
+    // bodega central" — filtrar por rol==='tecnico' dejaba a Edwin (admin)
+    // afuera del selector, aunque tiene sus propias órdenes/ventas reales
+    // (las ve como cualquier técnico). Se listan todos los usuarios.
     const { usuarios } = await api('/admin/usuarios');
-    for (const u of usuarios.filter((u) => u.rol === 'tecnico')) {
+    for (const u of usuarios) {
       $selectTecnico.appendChild(el(`<option value="${u.id}">${escapeHtml(u.nombre)}</option>`));
     }
   } catch { /* el filtro por técnico queda solo con "Todos" si esto falla */ }

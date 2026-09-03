@@ -52,7 +52,13 @@ export async function renderBodega(container, params = {}) {
     api('/admin/catalogo/items-ferreteria'),
     api('/admin/bodegas'),
   ]);
-  const tecnicos = () => usuarios.filter((u) => u.rol === 'tecnico');
+  // Pedido: "edwin tambien es un tecnico que recibe los equipos de bodega
+  // central" — el selector de "Bodega técnicos" no puede filtrar por
+  // rol==='tecnico', porque un admin (Edwin) puede perfectamente tener
+  // equipos en su propia maleta igual que cualquiera. Mismo criterio que
+  // ya usa opcionesUsuarios() para asignar/traspasar: cualquier usuario
+  // activo puede terminar con equipos encima, sea cual sea su rol.
+  const tecnicos = () => usuarios;
 
   function opcionesUsuarios(seleccionado, excluirId) {
     return usuarios
