@@ -140,6 +140,11 @@ export async function renderTraspasos(container) {
           <span>Qué encontraste</span>
           <textarea name="observacion" rows="3" required placeholder="Ej: la serie no coincide con la que me mandaron…" autofocus></textarea>
         </label>
+        <div class="motivos-rapidos" id="motivos-rapidos">
+          <button type="button" class="chip-motivo" data-texto="La serie no coincide con lo que me mandaron.">Serie no coincide</button>
+          <button type="button" class="chip-motivo" data-texto="No llegó nada.">No llegó nada</button>
+          <button type="button" class="chip-motivo" data-texto="Llegó incompleto (falta cantidad o algún equipo).">Llegó incompleto</button>
+        </div>
         <p class="campo-error" id="rechazo-error" hidden></p>
         <div class="modal-acciones">
           <button type="button" class="btn btn--secundario" id="btn-cancelar">Cancelar</button>
@@ -147,6 +152,17 @@ export async function renderTraspasos(container) {
         </div>
       </form>
     `);
+    // Motivos rápidos: escriben el texto en el campo, el técnico lo puede
+    // editar o completar después — no cambian la validación (sigue exigiendo
+    // observación no vacía), solo evitan escribir lo mismo siempre a mano
+    // en el celular.
+    const $textarea = root.querySelector('textarea[name="observacion"]');
+    root.querySelectorAll('.chip-motivo').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        $textarea.value = btn.dataset.texto;
+        $textarea.focus();
+      });
+    });
     root.querySelector('#btn-cancelar').addEventListener('click', cerrar);
     root.querySelector('#form-rechazo').addEventListener('submit', async (ev) => {
       ev.preventDefault();

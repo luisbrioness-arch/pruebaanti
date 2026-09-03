@@ -8,6 +8,7 @@ use App\Controllers\AdminAuditoriaController;
 use App\Controllers\AdminBilleteraController;
 use App\Controllers\AdminBodegaController;
 use App\Controllers\AdminConflictoController;
+use App\Controllers\AdminIndicadoresController;
 use App\Controllers\AdminOrdenController;
 use App\Controllers\AdminReporteController;
 use App\Controllers\AdminTarifarioController;
@@ -73,6 +74,9 @@ $router->post('/api/mis-traspasos/ferreteria/{id}/rechazar', fn(Request $r) => (
 $router->post('/api/reportes', fn(Request $r) => (new ReporteController())->crear($r));
 
 // --- Panel admin (ver docs/admin-api.md) ------------------------------------
+// Indicadores (mejora 7)
+$router->get('/api/admin/indicadores', fn(Request $r) => (new AdminIndicadoresController())->resumen($r));
+
 // Auditoría
 $router->get('/api/admin/ordenes', fn(Request $r) => (new AdminAuditoriaController())->listar($r));
 $router->get('/api/admin/ordenes/{id}', fn(Request $r) => (new AdminAuditoriaController())->detalle($r));
@@ -120,6 +124,8 @@ $router->get('/api/admin/catalogo/items-ferreteria', fn(Request $r) => (new Admi
 // Bodega — equipos
 $router->get('/api/admin/equipos', fn(Request $r) => (new AdminBodegaController())->listarEquipos($r));
 $router->post('/api/admin/equipos', fn(Request $r) => (new AdminBodegaController())->altaEquipo($r));
+$router->get('/api/admin/equipos/buscar', fn(Request $r) => (new AdminBodegaController())->buscarEquipos($r));
+$router->get('/api/admin/equipos/{id}/historial', fn(Request $r) => (new AdminBodegaController())->historialEquipo($r));
 $router->post('/api/admin/equipos/{id}/asignar', fn(Request $r) => (new AdminBodegaController())->asignarEquipo($r));
 $router->post('/api/admin/equipos/{id}/traspasar', fn(Request $r) => (new AdminBodegaController())->traspasarEquipo($r));
 $router->post('/api/admin/equipos/{id}/cancelar-traspaso', fn(Request $r) => (new AdminBodegaController())->cancelarTraspasoEquipo($r));
@@ -131,6 +137,13 @@ $router->get('/api/admin/ferreteria/stock', fn(Request $r) => (new AdminBodegaCo
 $router->post('/api/admin/ferreteria/entregar', fn(Request $r) => (new AdminBodegaController())->entregarFerreteria($r));
 $router->get('/api/admin/ferreteria/pendientes', fn(Request $r) => (new AdminBodegaController())->entregasFerreteriaPendientes($r));
 $router->post('/api/admin/ferreteria/pendientes/{id}/cancelar', fn(Request $r) => (new AdminBodegaController())->cancelarEntregaFerreteria($r));
+$router->get('/api/admin/ferreteria/stock-central', fn(Request $r) => (new AdminBodegaController())->stockCentral($r));
+$router->post('/api/admin/ferreteria/ingreso', fn(Request $r) => (new AdminBodegaController())->ingresoFerreteriaCentral($r));
+
+// Bodegas físicas (mejora 9) y guía de despacho (mejora: "generar guías de despacho")
+$router->get('/api/admin/bodegas', fn(Request $r) => (new AdminBodegaController())->listarBodegas($r));
+$router->post('/api/admin/bodegas', fn(Request $r) => (new AdminBodegaController())->crearBodega($r));
+$router->get('/api/admin/tecnicos/{tecnicoId}/traspasos-pendientes', fn(Request $r) => (new AdminBodegaController())->traspasosPendientesDeTecnico($r));
 $router->get('/api/admin/kits/{tipoServicio}', fn(Request $r) => (new AdminBodegaController())->obtenerKit($r));
 $router->put('/api/admin/kits/{tipoServicio}', fn(Request $r) => (new AdminBodegaController())->actualizarKit($r));
 

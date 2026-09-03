@@ -20,6 +20,22 @@ final class MovimientoEquipoRepository
         return (bool) $stmt->fetchColumn();
     }
 
+    /** Línea de tiempo completa de un equipo — para el buscador por serie del admin. */
+    public function historialDeEquipo(int $equipoId): array
+    {
+        $stmt = Database::connection()->prepare(
+            "SELECT m.*, uo.nombre AS origen_nombre, ud.nombre AS destino_nombre, o.folio AS orden_folio
+             FROM movimientos_equipo m
+             LEFT JOIN usuarios uo ON uo.id = m.usuario_origen_id
+             LEFT JOIN usuarios ud ON ud.id = m.usuario_destino_id
+             LEFT JOIN ordenes o ON o.id = m.orden_id
+             WHERE m.equipo_id = ?
+             ORDER BY m.creado_en DESC, m.id DESC"
+        );
+        $stmt->execute([$equipoId]);
+        return $stmt->fetchAll();
+    }
+
     public function crear(
         int $equipoId,
         string $tipoMovimiento,

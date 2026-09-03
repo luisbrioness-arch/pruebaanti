@@ -1,8 +1,15 @@
 import { api } from '../api.js';
 import { toast } from '../toast.js';
 import { conColaSiHaceFalta } from '../offline.js';
-import { badge, escapeHtml, el } from '../utils.js';
+import { badge, escapeHtml, el, formatDateTime } from '../utils.js';
 import { abrirScanner } from '../scanner.js';
+
+/** Días corridos desde una fecha del servidor (formato "YYYY-MM-DD HH:mm:ss") — para los avisos de "esto lleva mucho esperando" (mejora 3). */
+function diasDesde(fechaServidor) {
+  const ms = Date.now() - new Date(String(fechaServidor).replace(' ', 'T')).getTime();
+  return Math.floor(ms / (1000 * 60 * 60 * 24));
+}
+const DIAS_AVISO_PENDIENTE = 3;
 
 export async function renderBodega(container) {
   container.appendChild(el(`
@@ -11,6 +18,9 @@ export async function renderBodega(container) {
         <button type="button" class="subtab subtab--activo" data-tab="equipos">Equipos</button>
         <button type="button" class="subtab" data-tab="ferreteria">Ferretería</button>
         <button type="button" class="subtab" data-tab="kits">Kits estándar</button>
+        <button type="button" class="subtab" data-tab="buscar">Buscar por serie</button>
+        <button type="button" class="subtab" data-tab="bodegas">Bodegas</button>
+        <button type="button" class="subtab" data-tab="tecnicos">Bodegas de técnicos</button>
       </nav>
       <div id="bodega-contenido"><p class="vacio">Cargando…</p></div>
     </section>
@@ -19,13 +29,15 @@ export async function renderBodega(container) {
   const $contenido = container.querySelector('#bodega-contenido');
   const $tabs = Array.from(container.querySelectorAll('.subtab'));
 
-  // Catálogos compartidos por las tres pestañas — se piden una sola vez.
-  const [{ usuarios }, { tipos_equipo: tiposEquipo }, { items }, { tipos_servicio: tiposServicio }] = await Promise.all([
+  // Catálogos compartidos por todas las pestañas — se piden una sola vez.
+  let [{ usuarios }, { tipos_equipo: tiposEquipo }, { items }, { tipos_servicio: tiposServicio }, { bodegas }] = await Promise.all([
     api('/admin/usuarios'),
     api('/admin/catalogo/tipos-equipo'),
     api('/admin/catalogo/items-ferreteria'),
     api('/catalogo/tipos-servicio'),
+    api('/admin/bodegas'),
   ]);
+  const tecnicos = () => usuarios.filter((u) => u.rol === 'tecnico');
 
   function opcionesUsuarios(seleccionado, excluirId) {
     return usuarios
@@ -34,12 +46,21 @@ export async function renderBodega(container) {
       .join('');
   }
 
+  function opcionesBodegas(seleccionado) {
+    return bodegas
+      .map((b) => `<option value="${b.id}" ${String(b.id) === String(seleccionado) ? 'selected' : ''}>${escapeHtml(b.nombre)}</option>`)
+      .join('');
+  }
+
   async function activarTab(nombre) {
     $tabs.forEach((t) => t.classList.toggle('subtab--activo', t.dataset.tab === nombre));
     $contenido.innerHTML = '<p class="vacio">Cargando…</p>';
     if (nombre === 'equipos') await renderEquipos();
     else if (nombre === 'ferreteria') await renderFerreteria();
-    else await renderKits();
+    else if (nombre === 'kits') await renderKits();
+    else if (nombre === 'buscar') await renderBuscar();
+    else if (nombre === 'bodegas') await renderBodegas();
+    else await renderTecnicos();
   }
   $tabs.forEach((t) => t.addEventListener('click', () => activarTab(t.dataset.tab)));
 
@@ -56,6 +77,10 @@ export async function renderBodega(container) {
         <label class="campo campo--inline">
           <span>N° de serie</span>
           <input type="text" name="numero_serie" id="input-numero-serie" placeholder="Ej: 8934221100561" required>
+        </label>
+        <label class="campo campo--inline">
+          <span>Bodega</span>
+          <select name="bodega_id" required>${opcionesBodegas()}</select>
         </label>
         <button type="button" class="btn btn--secundario" id="btn-escanear-serie" title="Escanear código de barras">📷 Escanear</button>
         <button type="submit" class="btn btn--primario">Dar de alta en bodega</button>
@@ -88,7 +113,7 @@ export async function renderBodega(container) {
     $contenido.querySelector('#form-alta').addEventListener('submit', async (ev) => {
       ev.preventDefault();
       const fd = new FormData(ev.target);
-      const payload = { tipo_equipo: fd.get('tipo_equipo'), numero_serie: fd.get('numero_serie').trim() };
+      const payload = { tipo_equipo: fd.get('tipo_equipo'), numero_serie: fd.get('numero_serie').trim(), bodega_id: Number(fd.get('bodega_id')) };
       try {
         const { datos, encolado } = await conColaSiHaceFalta('alta_equipo', payload, () => api('/admin/equipos', { method: 'POST', body: payload }));
         ev.target.reset();
@@ -131,7 +156,7 @@ export async function renderBodega(container) {
       $tabla.innerHTML = `
         <div id="acciones-masivas" class="acciones-masivas" hidden></div>
         <table class="tabla">
-          <thead><tr><th></th><th>Serie</th><th>Tipo</th><th>Estado</th><th>Técnico</th><th>Acciones</th></tr></thead>
+          <thead><tr><th></th><th>Serie</th><th>Tipo</th><th>Estado</th><th>Técnico / Bodega</th><th>Acciones</th></tr></thead>
           <tbody></tbody>
         </table>
       `;
@@ -214,7 +239,7 @@ export async function renderBodega(container) {
             <td class="celda-mono">${escapeHtml(e.numero_serie)}</td>
             <td>${escapeHtml(e.tipo_equipo_nombre)}</td>
             <td>${badge(e.estado)}</td>
-            <td>${escapeHtml(e.tecnico_nombre || '—')}</td>
+            <td>${escapeHtml(e.tecnico_nombre || e.bodega_nombre || '—')}</td>
             <td class="celda-acciones"></td>
           </tr>
         `);
@@ -280,7 +305,11 @@ export async function renderBodega(container) {
           $acciones.appendChild(form);
         }
         if (e.estado === 'en_transito') {
-          const $chip = el(`<span class="chip chip--alerta">⏳ Esperando que ${escapeHtml(e.tecnico_nombre || 'el técnico')} confirme</span>`);
+          const dias = diasDesde(e.actualizado_en);
+          const texto = dias >= DIAS_AVISO_PENDIENTE
+            ? `⚠ Esperando hace ${dias} días que ${escapeHtml(e.tecnico_nombre || 'el técnico')} confirme`
+            : `⏳ Esperando que ${escapeHtml(e.tecnico_nombre || 'el técnico')} confirme`;
+          const $chip = el(`<span class="chip ${dias >= DIAS_AVISO_PENDIENTE ? 'chip--malo' : 'chip--alerta'}">${texto}</span>`);
           const btnCancelar = el('<button type="button" class="btn btn--secundario btn--chico">Cancelar envío</button>');
           btnCancelar.addEventListener('click', async () => {
             try {
@@ -296,10 +325,18 @@ export async function renderBodega(container) {
           $acciones.append($chip, btnCancelar);
         }
         if (e.estado === 'retirado') {
-          const btn = el('<button type="button" class="btn btn--secundario btn--chico">Ingresó a bodega</button>');
-          btn.addEventListener('click', async () => {
+          const form = el(`
+            <form class="form-inline">
+              <select name="bodega_id" required>${opcionesBodegas()}</select>
+              <button type="submit" class="btn btn--secundario btn--chico">Ingresó a bodega</button>
+            </form>
+          `);
+          form.addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            const bodegaId = Number(new FormData(ev.target).get('bodega_id'));
+            const payload = { id: e.id, bodega_id: bodegaId };
             try {
-              const { encolado } = await conColaSiHaceFalta('ingreso_bodega', { id: e.id }, () => api(`/admin/equipos/${e.id}/ingreso-bodega`, { method: 'POST' }));
+              const { encolado } = await conColaSiHaceFalta('ingreso_bodega', payload, () => api(`/admin/equipos/${e.id}/ingreso-bodega`, { method: 'POST', body: { bodega_id: bodegaId } }));
               if (encolado) {
                 toast(`${e.numero_serie}: guardado sin conexión — se registrará el ingreso al recuperar señal.`, 'neutro');
                 marcarFilaPendiente('ingreso pendiente');
@@ -309,7 +346,7 @@ export async function renderBodega(container) {
               }
             } catch (err) { toast(err.message, 'malo'); }
           });
-          $acciones.appendChild(btn);
+          $acciones.appendChild(form);
         }
         if (!['falla_fabrica', 'devuelto_tuves', 'perdido'].includes(e.estado)) {
           const btnFalla = el('<button type="button" class="btn btn--malo btn--chico">Falla de fábrica</button>');
@@ -337,10 +374,32 @@ export async function renderBodega(container) {
   // ---------------------------------------------------------- Ferretería --
   async function renderFerreteria() {
     $contenido.innerHTML = `
+      <h3>Ingreso a bodega (compra / recepción de TuVes)</h3>
+      <form id="form-ingreso-central" class="form-fila">
+        <label class="campo campo--inline">
+          <span>Ítem</span>
+          <select name="item_codigo" required>${items.map((i) => `<option value="${i.codigo}">${escapeHtml(i.nombre)}</option>`).join('')}</select>
+        </label>
+        <label class="campo campo--inline">
+          <span>Bodega</span>
+          <select name="bodega_id" required>${opcionesBodegas()}</select>
+        </label>
+        <label class="campo campo--inline">
+          <span>Cantidad</span>
+          <input type="number" name="cantidad" min="0.01" step="0.01" required>
+        </label>
+        <button type="submit" class="btn btn--secundario">Ingresar</button>
+      </form>
+
+      <h3>Entregar a un técnico</h3>
       <form id="form-entrega" class="form-fila">
         <label class="campo campo--inline">
           <span>Ítem</span>
           <select name="item_codigo" required>${items.map((i) => `<option value="${i.codigo}">${escapeHtml(i.nombre)}</option>`).join('')}</select>
+        </label>
+        <label class="campo campo--inline">
+          <span>Bodega</span>
+          <select name="bodega_id" required>${opcionesBodegas()}</select>
         </label>
         <label class="campo campo--inline">
           <span>Técnico</span>
@@ -356,15 +415,41 @@ export async function renderBodega(container) {
       <h3>Pendientes de confirmar</h3>
       <div id="tabla-pendientes-ferreteria"><p class="vacio">Cargando…</p></div>
 
+      <h3>Stock por bodega</h3>
+      <div id="tabla-stock-central"><p class="vacio">Cargando…</p></div>
+
       <h3>Stock confirmado por técnico</h3>
       <div id="tabla-stock"><p class="vacio">Cargando…</p></div>
     `;
+
+    $contenido.querySelector('#form-ingreso-central').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const fd = new FormData(ev.target);
+      const payload = {
+        item_codigo: fd.get('item_codigo'),
+        bodega_id: Number(fd.get('bodega_id')),
+        cantidad: Number(fd.get('cantidad')),
+      };
+      try {
+        const { encolado } = await conColaSiHaceFalta('ingreso_ferreteria_central', payload, () => api('/admin/ferreteria/ingreso', { method: 'POST', body: payload }));
+        ev.target.reset();
+        if (encolado) {
+          toast('Guardado sin conexión — el ingreso se registrará al recuperar señal.', 'neutro');
+        } else {
+          toast('Ingreso registrado.', 'ok');
+          await cargarStockCentral();
+        }
+      } catch (e) {
+        toast(e.message, 'malo');
+      }
+    });
 
     $contenido.querySelector('#form-entrega').addEventListener('submit', async (ev) => {
       ev.preventDefault();
       const fd = new FormData(ev.target);
       const payload = {
         item_codigo: fd.get('item_codigo'),
+        bodega_id: Number(fd.get('bodega_id')),
         tecnico_id: Number(fd.get('tecnico_id')),
         cantidad: Number(fd.get('cantidad')),
       };
@@ -375,14 +460,14 @@ export async function renderBodega(container) {
           toast('Guardado sin conexión — la entrega se registrará al recuperar señal.', 'neutro');
         } else {
           toast('Entrega enviada — queda pendiente hasta que el técnico confirme la cantidad recibida.', 'ok');
-          await Promise.all([cargarStock(), cargarPendientesFerreteria()]);
+          await Promise.all([cargarStock(), cargarPendientesFerreteria(), cargarStockCentral()]);
         }
       } catch (e) {
         toast(e.message, 'malo');
       }
     });
 
-    await Promise.all([cargarStock(), cargarPendientesFerreteria()]);
+    await Promise.all([cargarStock(), cargarPendientesFerreteria(), cargarStockCentral()]);
   }
 
   async function cargarPendientesFerreteria() {
@@ -395,17 +480,22 @@ export async function renderBodega(container) {
       }
       $tabla.innerHTML = `
         <table class="tabla">
-          <thead><tr><th>Técnico</th><th>Ítem</th><th>Cantidad</th><th></th></tr></thead>
+          <thead><tr><th>Técnico</th><th>Ítem</th><th>Cantidad</th><th>Esperando</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       `;
       const $tbody = $tabla.querySelector('tbody');
       for (const p of pendientes) {
+        const dias = diasDesde(p.creado_en);
+        const esperando = dias >= DIAS_AVISO_PENDIENTE
+          ? `<span class="chip chip--malo">⚠ ${dias} días</span>`
+          : `<span class="chip chip--alerta">${dias === 0 ? 'hoy' : dias + ' día' + (dias === 1 ? '' : 's')}</span>`;
         const tr = el(`
           <tr>
             <td>${escapeHtml(p.tecnico_nombre)}</td>
             <td>${escapeHtml(p.item_nombre)}</td>
             <td>${p.cantidad} ${escapeHtml(p.unidad_medida)}</td>
+            <td>${esperando}</td>
             <td class="celda-acciones"></td>
           </tr>
         `);
@@ -417,13 +507,40 @@ export async function renderBodega(container) {
               toast('Guardado sin conexión — se cancelará al recuperar señal.', 'neutro');
             } else {
               toast('Entrega cancelada.', 'ok');
-              await cargarPendientesFerreteria();
+              await Promise.all([cargarPendientesFerreteria(), cargarStockCentral()]);
             }
           } catch (err) { toast(err.message, 'malo'); }
         });
         tr.querySelector('.celda-acciones').appendChild(btn);
         $tbody.appendChild(tr);
       }
+    } catch (e) {
+      $tabla.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
+    }
+  }
+
+  async function cargarStockCentral() {
+    const $tabla = $contenido.querySelector('#tabla-stock-central');
+    try {
+      const { stock } = await api('/admin/ferreteria/stock-central');
+      if (!stock.length) {
+        $tabla.innerHTML = '<p class="vacio">Todavía no se ha ingresado ferretería a ninguna bodega.</p>';
+        return;
+      }
+      $tabla.innerHTML = `
+        <table class="tabla">
+          <thead><tr><th>Bodega</th><th>Ítem</th><th>Cantidad actual</th></tr></thead>
+          <tbody>
+            ${stock.map((s) => `
+              <tr>
+                <td>${escapeHtml(s.bodega_nombre)}</td>
+                <td>${escapeHtml(s.item_nombre)}</td>
+                <td class="${Number(s.cantidad_actual) < 0 ? 'celda-negativa' : ''}">${s.cantidad_actual} ${escapeHtml(s.unidad_medida)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
     } catch (e) {
       $tabla.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
     }
@@ -557,6 +674,185 @@ export async function renderBodega(container) {
         toast(e.message, 'malo');
       }
     });
+  }
+
+  // -------------------------------------------------------- Buscar por serie --
+  async function renderBuscar() {
+    $contenido.innerHTML = `
+      <form id="form-buscar-serie" class="form-fila">
+        <label class="campo campo--inline" style="flex: 1;">
+          <span>N° de serie (parcial o completo)</span>
+          <input type="text" name="q" placeholder="Ej: 89342" required>
+        </label>
+        <button type="submit" class="btn btn--primario">Buscar</button>
+      </form>
+      <div id="resultado-buscar"></div>
+    `;
+    const $resultado = $contenido.querySelector('#resultado-buscar');
+    $contenido.querySelector('#form-buscar-serie').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const q = new FormData(ev.target).get('q').trim();
+      if (!q) return;
+      $resultado.innerHTML = '<p class="vacio">Buscando…</p>';
+      try {
+        const { equipos } = await api(`/admin/equipos/buscar?q=${encodeURIComponent(q)}`);
+        if (!equipos.length) {
+          $resultado.innerHTML = '<p class="vacio">No hay ningún equipo con esa serie.</p>';
+          return;
+        }
+        $resultado.innerHTML = `
+          <table class="tabla">
+            <thead><tr><th>Serie</th><th>Tipo</th><th>Estado</th><th>Técnico</th><th></th></tr></thead>
+            <tbody>
+              ${equipos.map((e) => `
+                <tr data-id="${e.id}">
+                  <td class="celda-mono">${escapeHtml(e.numero_serie)}</td>
+                  <td>${escapeHtml(e.tipo_equipo_nombre)}</td>
+                  <td>${badge(e.estado)}</td>
+                  <td>${escapeHtml(e.tecnico_nombre || '—')}</td>
+                  <td class="celda-acciones"><button type="button" class="btn btn--secundario btn--chico btn-historial">Ver historial</button></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div id="historial-equipo"></div>
+        `;
+        $resultado.querySelectorAll('.btn-historial').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const id = Number(btn.closest('tr').dataset.id);
+            cargarHistorial(id);
+          });
+        });
+      } catch (e) {
+        $resultado.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
+      }
+    });
+
+    async function cargarHistorial(equipoId) {
+      const $historial = $resultado.querySelector('#historial-equipo');
+      $historial.innerHTML = '<p class="vacio">Cargando…</p>';
+      try {
+        const { equipo, movimientos } = await api(`/admin/equipos/${equipoId}/historial`);
+        $historial.innerHTML = `
+          <h3>Historial de ${escapeHtml(equipo.numero_serie)}</h3>
+          ${movimientos.length ? `
+            <table class="tabla">
+              <thead><tr><th>Fecha</th><th>Movimiento</th><th>De</th><th>A</th><th>Orden</th><th>Observación</th></tr></thead>
+              <tbody>
+                ${movimientos.map((m) => `
+                  <tr>
+                    <td>${formatDateTime(m.creado_en)}</td>
+                    <td>${escapeHtml(MOVIMIENTO_EQUIPO_LABEL[m.tipo_movimiento] || m.tipo_movimiento)}</td>
+                    <td>${escapeHtml(m.origen_nombre || '—')}</td>
+                    <td>${escapeHtml(m.destino_nombre || '—')}</td>
+                    <td>${escapeHtml(m.orden_folio || '—')}</td>
+                    <td>${escapeHtml(m.observacion || '—')}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          ` : '<p class="vacio">Sin movimientos registrados.</p>'}
+        `;
+      } catch (e) {
+        $historial.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
+      }
+    }
+  }
+
+  // ------------------------------------------------------------ Bodegas --
+  async function renderBodegas() {
+    $contenido.innerHTML = `
+      <form id="form-nueva-bodega" class="form-fila">
+        <label class="campo campo--inline">
+          <span>Nombre de la bodega</span>
+          <input type="text" name="nombre" placeholder="Ej: Bodega Valparaíso" required>
+        </label>
+        <button type="submit" class="btn btn--primario">Crear bodega</button>
+      </form>
+      <div id="tabla-bodegas"></div>
+    `;
+    $contenido.querySelector('#form-nueva-bodega').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const nombre = new FormData(ev.target).get('nombre').trim();
+      try {
+        const { encolado } = await conColaSiHaceFalta('crear_bodega', { nombre }, () => api('/admin/bodegas', { method: 'POST', body: { nombre } }));
+        ev.target.reset();
+        if (encolado) {
+          toast(`Bodega "${nombre}" guardada sin conexión — se creará al recuperar señal.`, 'neutro');
+        } else {
+          toast(`Bodega "${nombre}" creada.`, 'ok');
+          const { bodegas: actualizadas } = await api('/admin/bodegas');
+          bodegas = actualizadas;
+          pintarTablaBodegas();
+        }
+      } catch (e) {
+        toast(e.message, 'malo');
+      }
+    });
+    pintarTablaBodegas();
+  }
+
+  function pintarTablaBodegas() {
+    const $tabla = $contenido.querySelector('#tabla-bodegas');
+    if (!$tabla) return;
+    $tabla.innerHTML = `
+      <table class="tabla">
+        <thead><tr><th>Nombre</th></tr></thead>
+        <tbody>${bodegas.map((b) => `<tr><td>${escapeHtml(b.nombre)}</td></tr>`).join('')}</tbody>
+      </table>
+    `;
+  }
+
+  // ------------------------------------------------- Bodegas de técnicos --
+  async function renderTecnicos() {
+    $contenido.innerHTML = `
+      <label class="campo campo--inline">
+        <span>Técnico</span>
+        <select id="select-tecnico-bodega">
+          <option value="">Elegí un técnico…</option>
+          ${tecnicos().map((t) => `<option value="${t.id}">${escapeHtml(t.nombre)}</option>`).join('')}
+        </select>
+      </label>
+      <div id="contenido-tecnico"></div>
+    `;
+    $contenido.querySelector('#select-tecnico-bodega').addEventListener('change', (ev) => {
+      const id = ev.target.value;
+      if (id) cargarBodegaTecnico(Number(id));
+      else $contenido.querySelector('#contenido-tecnico').innerHTML = '';
+    });
+  }
+
+  async function cargarBodegaTecnico(tecnicoId) {
+    const $div = $contenido.querySelector('#contenido-tecnico');
+    $div.innerHTML = '<p class="vacio">Cargando…</p>';
+    try {
+      const [{ equipos: equiposTecnico }, { stock }] = await Promise.all([
+        api(`/admin/equipos?estado=maleta&tecnico_id=${tecnicoId}`),
+        api(`/admin/ferreteria/stock?tecnico_id=${tecnicoId}`),
+      ]);
+      $div.innerHTML = `
+        <div class="form-fila" style="margin: 10px 0;">
+          <a href="#guia?tecnicoId=${tecnicoId}" class="btn btn--secundario">🖨 Ver guía de despacho pendiente</a>
+        </div>
+        <h3>Equipos en su maleta (${equiposTecnico.length})</h3>
+        ${equiposTecnico.length ? `
+          <table class="tabla">
+            <thead><tr><th>Serie</th><th>Tipo</th></tr></thead>
+            <tbody>${equiposTecnico.map((e) => `<tr><td class="celda-mono">${escapeHtml(e.numero_serie)}</td><td>${escapeHtml(e.tipo_equipo_nombre)}</td></tr>`).join('')}</tbody>
+          </table>
+        ` : '<p class="vacio">No tiene equipos en su maleta.</p>'}
+
+        <h3>Ferretería confirmada</h3>
+        ${stock.length ? `
+          <table class="tabla">
+            <thead><tr><th>Ítem</th><th>Cantidad</th></tr></thead>
+            <tbody>${stock.map((s) => `<tr><td>${escapeHtml(s.item_nombre)}</td><td class="${Number(s.cantidad_actual) < 0 ? 'celda-negativa' : ''}">${s.cantidad_actual} ${escapeHtml(s.unidad_medida)}</td></tr>`).join('')}</tbody>
+          </table>
+        ` : '<p class="vacio">Sin ferretería confirmada.</p>'}
+      `;
+    } catch (e) {
+      $div.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
+    }
   }
 
   await activarTab('equipos');

@@ -79,6 +79,21 @@ export const ESTADO_TONO = {
   perdido: 'malo',
 };
 
+/** Para la línea de tiempo del buscador por serie (Bodega → Buscar por serie). */
+export const MOVIMIENTO_EQUIPO_LABEL = {
+  ingreso_bodega: 'Ingreso a bodega',
+  asignacion_maleta: 'Asignado a maleta',
+  traspaso: 'Traspaso confirmado',
+  traspaso_pendiente: 'Envío pendiente de confirmar',
+  traspaso_rechazado: 'Traspaso rechazado',
+  traspaso_cancelado: 'Envío cancelado por el admin',
+  instalacion: 'Instalado en una orden',
+  retiro: 'Retirado en una orden',
+  falla_fabrica: 'Marcado como falla de fábrica',
+  devolucion_tuves: 'Devuelto a TuVes',
+  ajuste_descuadre: 'Ajuste manual',
+};
+
 export const ANOMALIA_LABEL = {
   serie_ingresada_a_mano: 'Serie ingresada a mano',
   folio_en_conflicto: 'Folio en conflicto',

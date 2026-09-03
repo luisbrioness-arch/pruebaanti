@@ -1,30 +1,26 @@
-// Paso 4 — ferretería consumida + datos de cierre técnico. El kit estándar
-// se precarga llamando a /ferreteria con items:[] apenas se entra a este
-// paso (si todavía no hay nada guardado) — el servidor lo resuelve y desde
-// ahí el técnico solo ajusta cantidades (ver wizard-api.md: el paso
-// "reemplaza siempre el conjunto completo", nunca hace diff).
-//
-// Sin conexión: se usa el último kit de ESTE tipo de servicio que se haya
-// visto con señal (ver storage.js: guardarKitCache) — si nunca se entró acá
-// con señal para este tipo de servicio, no hay de dónde sacarlo, y queda
-// documentado como límite conocido (ver docs/tecnico-app.md).
+// Paso 4 — ferretería consumida + datos de cierre técnico. Ya NO se
+// precarga ningún "kit estándar" — cada orden nace sin ferretería y el
+// técnico busca y agrega uno por uno lo que realmente usó (pedido: "eliminar
+// stock básico de cada trabajo y tener un buscador de ítem y agregar
+// cantidad"). El catálogo completo se cachea igual que antes (getCatalogoFerreteria)
+// para que el buscador funcione aunque se pierda la señal en este paso.
 import { api, ApiError } from '../../api.js';
 import { el, escapeHtml } from '../../utils.js';
 import { toast } from '../../toast.js';
 import { encolar } from '../../offline.js';
-import { guardarKitCache, obtenerKitCache, getCatalogoFerreteria } from '../../storage.js';
+import { getCatalogoFerreteria } from '../../storage.js';
 
 export async function renderPaso4(container, ctx) {
   const seccion = el(`
     <div style="display: contents;">
     <section class="wizard-paso">
       <h2>Ferretería usada</h2>
-      <p class="wizard-paso-intro" id="ferreteria-intro">Cargando el kit estándar…</p>
+      <p class="wizard-paso-intro" id="ferreteria-intro">Busca y agrega lo que usaste en este trabajo.</p>
       <div class="lista-ferreteria" id="lista-ferreteria"></div>
 
-      <div class="campo campo--inline" id="agregar-ferreteria" hidden>
-        <select id="select-item-ferreteria"></select>
-        <button type="button" class="btn btn--secundario" id="btn-agregar-ferreteria">+ Agregar</button>
+      <div class="campo" id="agregar-ferreteria" hidden style="position: relative;">
+        <input type="text" id="buscar-item-ferreteria" placeholder="Busca un ítem (ej: grampa, conector…)" autocomplete="off">
+        <div class="resultados-buscador" id="resultados-item-ferreteria" hidden></div>
       </div>
 
       <h2>Cierre técnico</h2>
@@ -73,32 +69,61 @@ export async function renderPaso4(container, ctx) {
   const $error = seccion.querySelector('#paso4-error');
   const $siguiente = seccion.querySelector('#paso4-siguiente');
   const $agregar = seccion.querySelector('#agregar-ferreteria');
-  const $selectAgregar = seccion.querySelector('#select-item-ferreteria');
-  const $btnAgregar = seccion.querySelector('#btn-agregar-ferreteria');
+  const $buscar = seccion.querySelector('#buscar-item-ferreteria');
+  const $resultados = seccion.querySelector('#resultados-item-ferreteria');
 
   let items = []; // [{item_ferreteria_id, item_nombre, unidad_medida, cantidad_final}]
-  // Catálogo completo (no solo el kit) — permite agregar algo que el kit por
-  // defecto no trae. Si no hay señal ni caché todavía, simplemente no se
-  // ofrece la opción: el técnico sigue pudiendo ajustar lo que el kit sí
-  // trajo (ver docs/tecnico-app.md, "Agregar ítem fuera del kit").
+  // Catálogo completo — de acá sale todo lo que el técnico puede agregar,
+  // ya no hay un "kit por defecto" que lo precargue. Si no hay señal ni
+  // caché todavía (getCatalogoFerreteria vacío), simplemente no se ofrece
+  // el buscador — no hay de dónde sacar los nombres (ver docs/tecnico-app.md).
   const catalogoFerreteria = getCatalogoFerreteria() || [];
 
-  function pintarSelectAgregar() {
+  function agregarItem(elegido) {
+    items.push({
+      item_ferreteria_id: elegido.id,
+      item_nombre: elegido.nombre,
+      unidad_medida: elegido.unidad_medida,
+      cantidad_final: elegido.unidad_medida === 'metro' ? 0.5 : 1,
+    });
+    $buscar.value = '';
+    $resultados.hidden = true;
+    pintarFerreteria();
+  }
+
+  function pintarResultadosBuscador() {
+    const texto = $buscar.value.trim().toLowerCase();
     if (!catalogoFerreteria.length) {
       $agregar.hidden = true;
       return;
     }
-    const idsEnUso = new Set(items.map((i) => i.item_ferreteria_id));
-    const disponibles = catalogoFerreteria.filter((c) => !idsEnUso.has(c.id));
-    if (!disponibles.length) {
-      $agregar.hidden = true;
+    $agregar.hidden = false;
+    if (!texto) {
+      $resultados.hidden = true;
+      $resultados.innerHTML = '';
       return;
     }
-    $agregar.hidden = false;
-    $selectAgregar.innerHTML = disponibles
-      .map((c) => `<option value="${c.id}">${escapeHtml(c.nombre)}</option>`)
+    const idsEnUso = new Set(items.map((i) => i.item_ferreteria_id));
+    const coincidencias = catalogoFerreteria
+      .filter((c) => !idsEnUso.has(c.id) && c.nombre.toLowerCase().includes(texto))
+      .slice(0, 8);
+    if (!coincidencias.length) {
+      $resultados.hidden = false;
+      $resultados.innerHTML = '<p class="vacio" style="padding: 8px 12px;">Sin coincidencias.</p>';
+      return;
+    }
+    $resultados.hidden = false;
+    $resultados.innerHTML = coincidencias
+      .map((c) => `<button type="button" class="resultado-buscador-item" data-id="${c.id}">${escapeHtml(c.nombre)}</button>`)
       .join('');
+    $resultados.querySelectorAll('.resultado-buscador-item').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const elegido = catalogoFerreteria.find((c) => c.id === Number(btn.dataset.id));
+        if (elegido) agregarItem(elegido);
+      });
+    });
   }
+  $buscar.addEventListener('input', pintarResultadosBuscador);
 
   function pintarFerreteria() {
     if (!items.length) {
@@ -134,73 +159,33 @@ export async function renderPaso4(container, ctx) {
         fila.querySelector('.item-ferreteria-quitar').addEventListener('click', () => {
           items = items.filter((i) => i !== item);
           pintarFerreteria();
-          pintarSelectAgregar();
         });
         $lista.appendChild(fila);
       }
     }
-    pintarSelectAgregar();
+    pintarResultadosBuscador();
   }
-
-  $btnAgregar.addEventListener('click', () => {
-    const id = Number($selectAgregar.value);
-    const elegido = catalogoFerreteria.find((c) => c.id === id);
-    if (!elegido) return;
-    items.push({
-      item_ferreteria_id: elegido.id,
-      item_nombre: elegido.nombre,
-      unidad_medida: elegido.unidad_medida,
-      cantidad_final: elegido.unidad_medida === 'metro' ? 0.5 : 1,
-    });
-    pintarFerreteria();
-  });
 
   function redondear(n, paso) {
     return Math.round(n / paso) * paso;
   }
 
-  async function cargarFerreteria() {
+  function cargarFerreteria() {
+    // Ya no hay ninguna llamada al servidor acá: sin kit que precargar no
+    // hace falta ir a buscar nada antes de mostrar la pantalla. Si el
+    // técnico ya había guardado ferretería en un paso anterior de ESTA
+    // orden (volvió atrás y avanzó de nuevo), se respeta lo que ya eligió.
     const orden = ctx.getOrden();
-    if (orden.ferreteria.length) {
-      items = orden.ferreteria.map((f) => ({
-        item_ferreteria_id: f.item_ferreteria_id, item_nombre: f.item_nombre,
-        unidad_medida: f.unidad_medida, cantidad_final: Number(f.cantidad_final),
-      }));
-      $intro.textContent = 'Ajusta las cantidades si usaste más o menos que el kit estándar.';
-      pintarFerreteria();
-      return;
+    items = orden.ferreteria.map((f) => ({
+      item_ferreteria_id: f.item_ferreteria_id, item_nombre: f.item_nombre,
+      unidad_medida: f.unidad_medida, cantidad_final: Number(f.cantidad_final),
+    }));
+    if (!catalogoFerreteria.length) {
+      $intro.textContent = 'Sin catálogo de ferretería en caché todavía (hace falta haber entrado acá alguna vez con señal) — puedes seguir sin agregar nada; se ajusta después con el administrador si hace falta.';
     }
-
-    try {
-      const ordenActualizada = await api(`/ordenes/${encodeURIComponent(ctx.uuid)}/ferreteria`, { method: 'POST', body: { items: [] } });
-      ctx.setOrden(ordenActualizada);
-      items = ordenActualizada.ferreteria.map((f) => ({
-        item_ferreteria_id: f.item_ferreteria_id, item_nombre: f.item_nombre,
-        unidad_medida: f.unidad_medida, cantidad_final: Number(f.cantidad_final),
-      }));
-      if (items.length) {
-        guardarKitCache(orden.tipo_servicio_id, items.map((i) => ({ ...i, cantidad_estandar: i.cantidad_final })));
-      }
-      $intro.textContent = 'Ajusta las cantidades si usaste más o menos que el kit estándar.';
-      pintarFerreteria();
-    } catch (e) {
-      if (!(e instanceof ApiError && e.code === 'sin_conexion')) {
-        $intro.textContent = '';
-        $lista.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
-        return;
-      }
-      const kitCacheado = obtenerKitCache(orden.tipo_servicio_id);
-      if (kitCacheado && kitCacheado.length) {
-        items = kitCacheado.map((k) => ({ ...k, cantidad_final: k.cantidad_estandar }));
-        $intro.textContent = 'Sin conexión — se precargó el último kit guardado para este tipo de servicio. Se confirma al recuperar señal.';
-        pintarFerreteria();
-      } else {
-        $intro.textContent = 'Sin conexión y sin un kit guardado de antes para este tipo de servicio — puedes seguir sin ferretería; se ajusta después con el administrador si hace falta.';
-        pintarFerreteria();
-      }
-    }
+    pintarFerreteria();
   }
-  await cargarFerreteria();
+  cargarFerreteria();
 
   seccion.querySelector('#paso4-atras').addEventListener('click', () => ctx.irPaso(3));
 

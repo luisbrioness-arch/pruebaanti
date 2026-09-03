@@ -8,12 +8,15 @@ use App\Core\Database;
 use App\Exceptions\ApiException;
 use App\Exceptions\NotFoundException;
 use App\Exceptions\ValidationException;
+use App\Repositories\BodegaRepository;
 use App\Repositories\EntregaFerreteriaPendienteRepository;
 use App\Repositories\EquipoRepository;
 use App\Repositories\ItemFerreteriaRepository;
 use App\Repositories\KitServicioItemRepository;
 use App\Repositories\MovimientoEquipoRepository;
+use App\Repositories\MovimientoFerreteriaCentralRepository;
 use App\Repositories\MovimientoFerreteriaRepository;
+use App\Repositories\StockFerreteriaCentralRepository;
 use App\Repositories\StockFerreteriaUsuarioRepository;
 use App\Repositories\TipoEquipoRepository;
 use App\Repositories\TipoServicioRepository;
@@ -39,6 +42,9 @@ final class BodegaService
     private StockFerreteriaUsuarioRepository $stockFerreteria;
     private MovimientoFerreteriaRepository $movimientosFerreteria;
     private EntregaFerreteriaPendienteRepository $entregasFerreteriaPendientes;
+    private BodegaRepository $bodegas;
+    private StockFerreteriaCentralRepository $stockFerreteriaCentral;
+    private MovimientoFerreteriaCentralRepository $movimientosFerreteriaCentral;
     private UsuarioRepository $usuarios;
     private KitServicioItemRepository $kits;
     private TipoServicioRepository $tiposServicio;
@@ -52,22 +58,68 @@ final class BodegaService
         $this->stockFerreteria = new StockFerreteriaUsuarioRepository();
         $this->movimientosFerreteria = new MovimientoFerreteriaRepository();
         $this->entregasFerreteriaPendientes = new EntregaFerreteriaPendienteRepository();
+        $this->bodegas = new BodegaRepository();
+        $this->stockFerreteriaCentral = new StockFerreteriaCentralRepository();
+        $this->movimientosFerreteriaCentral = new MovimientoFerreteriaCentralRepository();
         $this->usuarios = new UsuarioRepository();
         $this->kits = new KitServicioItemRepository();
         $this->tiposServicio = new TipoServicioRepository();
     }
 
-    public function listarEquipos(?string $estado, ?int $tecnicoId): array
+    public function listarBodegas(): array
     {
-        return $this->equipos->listar($estado, $tecnicoId);
+        return $this->bodegas->activas();
     }
 
-    public function altaEquipo(string $tipoEquipoCodigo, string $numeroSerie): array
+    public function crearBodega(string $nombre): array
+    {
+        $nombre = trim($nombre);
+        if ($nombre === '') {
+            throw new ValidationException('El nombre de la bodega no puede estar vacío.');
+        }
+        if ($this->bodegas->existeNombre($nombre)) {
+            throw new ValidationException('Ya existe una bodega con ese nombre.');
+        }
+        $id = $this->bodegas->crear($nombre);
+        return $this->bodegas->find($id);
+    }
+
+    private function requerirBodega(int $bodegaId): array
+    {
+        $bodega = $this->bodegas->find($bodegaId);
+        if (!$bodega) {
+            throw new ValidationException('Bodega inexistente.');
+        }
+        return $bodega;
+    }
+
+    public function listarEquipos(?string $estado, ?int $tecnicoId, ?int $bodegaId = null): array
+    {
+        return $this->equipos->listar($estado, $tecnicoId, $bodegaId);
+    }
+
+    /** Buscador por serie (parcial) — para saber "¿dónde ha estado este equipo?" sin recorrer las tablas por estado. */
+    public function buscarEquiposPorSerie(string $q): array
+    {
+        return $this->equipos->buscarPorSerie($q);
+    }
+
+    public function historialEquipo(int $equipoId): array
+    {
+        $equipo = $this->requerirEquipo($equipoId);
+        return [
+            'equipo' => $equipo,
+            'movimientos' => $this->movimientosEquipo->historialDeEquipo($equipoId),
+        ];
+    }
+
+    public function altaEquipo(string $tipoEquipoCodigo, string $numeroSerie, int $bodegaId): array
     {
         $tipo = $this->tiposEquipo->porCodigo($tipoEquipoCodigo);
         if (!$tipo) {
             throw new ValidationException('Tipo de equipo desconocido: ' . $tipoEquipoCodigo);
         }
+        $this->requerirBodega($bodegaId);
         $numeroSerie = trim($numeroSerie);
         if ($numeroSerie === '') {
             throw new ValidationException('El número de serie no puede estar vacío.');
@@ -76,7 +128,7 @@ final class BodegaService
             throw new ValidationException('Ya existe un equipo registrado con esa serie.');
         }
 
-        $id = $this->equipos->crear((int) $tipo['id'], $numeroSerie);
+        $id = $this->equipos->crear((int) $tipo['id'], $numeroSerie, $bodegaId);
         $this->movimientosEquipo->crear($id, 'ingreso_bodega', null, null, null, 'Alta inicial en bodega');
         return $this->equipos->find($id);
     }
@@ -101,7 +153,10 @@ final class BodegaService
             throw new ValidationException('Técnico inexistente.');
         }
 
-        $this->equipos->actualizarEstado($equipoId, 'en_transito', $tecnicoId, null, null);
+        // Se conserva la bodega de origen (no se limpia) — así, si el
+        // técnico lo rechaza, cancelarTraspasoEquipo/rechazarEquipo saben a
+        // cuál devolverlo sin tener que volver a preguntarlo.
+        $this->equipos->actualizarEstado($equipoId, 'en_transito', $tecnicoId, null, null, $equipo['bodega_id'] !== null ? (int) $equipo['bodega_id'] : null);
         $this->movimientosEquipo->crear($equipoId, 'traspaso_pendiente', null, $tecnicoId, null);
         return $this->equipos->find($equipoId);
     }
@@ -138,7 +193,7 @@ final class BodegaService
             throw new ValidationException('Técnico de destino inexistente.');
         }
 
-        $this->equipos->actualizarEstado($equipoId, 'en_transito', $tecnicoDestinoId, null, $tecnicoOrigenId);
+        $this->equipos->actualizarEstado($equipoId, 'en_transito', $tecnicoDestinoId, null, $tecnicoOrigenId, null);
         $this->movimientosEquipo->crear($equipoId, 'traspaso_pendiente', $tecnicoOrigenId, $tecnicoDestinoId, null);
         return $this->equipos->find($equipoId);
     }
@@ -156,11 +211,12 @@ final class BodegaService
             }
             $tecnicoDestinoId = (int) $equipo['usuario_actual_id'];
             $origenId = $equipo['origen_pendiente_id'] !== null ? (int) $equipo['origen_pendiente_id'] : null;
+            $bodegaId = $equipo['bodega_id'] !== null ? (int) $equipo['bodega_id'] : null;
 
             if ($origenId === null) {
-                $this->equipos->actualizarEstado($equipoId, 'bodega', null, null, null);
+                $this->equipos->actualizarEstado($equipoId, 'bodega', null, null, null, $bodegaId);
             } else {
-                $this->equipos->actualizarEstado($equipoId, 'maleta', $origenId, null, null);
+                $this->equipos->actualizarEstado($equipoId, 'maleta', $origenId, null, null, null);
             }
             $this->movimientosEquipo->crear($equipoId, 'traspaso_cancelado', $tecnicoDestinoId, $origenId, null, 'Cancelado por el admin antes de que el técnico confirmara.');
             return $this->equipos->find($equipoId);
@@ -186,7 +242,7 @@ final class BodegaService
             }
             $origenId = $equipo['origen_pendiente_id'] !== null ? (int) $equipo['origen_pendiente_id'] : null;
 
-            $this->equipos->actualizarEstado($equipoId, 'maleta', $tecnicoId, null, null);
+            $this->equipos->actualizarEstado($equipoId, 'maleta', $tecnicoId, null, null, null);
             $this->movimientosEquipo->crear(
                 $equipoId,
                 $origenId === null ? 'asignacion_maleta' : 'traspaso',
@@ -210,11 +266,12 @@ final class BodegaService
                 throw new ApiException('Este equipo no está esperando tu confirmación.', 409, 'estado_invalido');
             }
             $origenId = $equipo['origen_pendiente_id'] !== null ? (int) $equipo['origen_pendiente_id'] : null;
+            $bodegaId = $equipo['bodega_id'] !== null ? (int) $equipo['bodega_id'] : null;
 
             if ($origenId === null) {
-                $this->equipos->actualizarEstado($equipoId, 'bodega', null, null, null);
+                $this->equipos->actualizarEstado($equipoId, 'bodega', null, null, null, $bodegaId);
             } else {
-                $this->equipos->actualizarEstado($equipoId, 'maleta', $origenId, null, null);
+                $this->equipos->actualizarEstado($equipoId, 'maleta', $origenId, null, null, null);
             }
             $this->movimientosEquipo->crear($equipoId, 'traspaso_rechazado', $tecnicoId, $origenId, null, $observacion);
             return $this->equipos->find($equipoId);
@@ -227,7 +284,7 @@ final class BodegaService
         $equipo = $this->requerirEquipo($equipoId);
         $tecnicoActual = $equipo['usuario_actual_id'] !== null ? (int) $equipo['usuario_actual_id'] : null;
 
-        $this->equipos->actualizarEstado($equipoId, 'falla_fabrica', null, null);
+        $this->equipos->actualizarEstado($equipoId, 'falla_fabrica', null, null, null, null);
         $this->movimientosEquipo->crear($equipoId, 'falla_fabrica', $tecnicoActual, null, null, $observacion);
         return $this->equipos->find($equipoId);
     }
@@ -236,9 +293,12 @@ final class BodegaService
      * El retorno físico a bodega tras un retiro es un evento propio, no
      * parte de la orden de retiro (ver docs/modelo-datos-fase1.md) — puede
      * pasar días después, cuando el técnico junta varios retiros en un viaje.
+     * El admin elige a QUÉ bodega física vuelve (puede ser distinta de la
+     * que lo mandó originalmente).
      */
-    public function ingresoABodega(int $equipoId): array
+    public function ingresoABodega(int $equipoId, int $bodegaId): array
     {
+        $this->requerirBodega($bodegaId);
         $equipo = $this->requerirEquipo($equipoId);
         if ($equipo['estado'] !== 'retirado') {
             throw new ApiException(
@@ -249,7 +309,7 @@ final class BodegaService
         }
         $tecnicoActual = $equipo['usuario_actual_id'] !== null ? (int) $equipo['usuario_actual_id'] : null;
 
-        $this->equipos->actualizarEstado($equipoId, 'bodega', null, null);
+        $this->equipos->actualizarEstado($equipoId, 'bodega', null, null, null, $bodegaId);
         $this->movimientosEquipo->crear($equipoId, 'ingreso_bodega', $tecnicoActual, null, null);
         return $this->equipos->find($equipoId);
     }
@@ -259,12 +319,39 @@ final class BodegaService
         return $this->stockFerreteria->listar($tecnicoId);
     }
 
+    /** Stock real de ferretería en las bodegas físicas (mejora 8: antes esto ni se guardaba). */
+    public function listarStockCentral(?int $bodegaId): array
+    {
+        return $this->stockFerreteriaCentral->listar($bodegaId);
+    }
+
+    /** Ingreso real a una bodega (compra, recepción de TuVes) — lo único que hace crecer el stock central. */
+    public function ingresarFerreteriaCentral(string $itemCodigo, int $bodegaId, float $cantidad, ?string $observacion, int $creadoPorId): array
+    {
+        $item = $this->itemsFerreteria->porCodigo($itemCodigo);
+        if (!$item) {
+            throw new ValidationException('Ítem de ferretería desconocido: ' . $itemCodigo);
+        }
+        if ($cantidad <= 0) {
+            throw new ValidationException('La cantidad a ingresar debe ser mayor que cero.');
+        }
+        $this->requerirBodega($bodegaId);
+
+        $this->stockFerreteriaCentral->ajustar($bodegaId, (int) $item['id'], $cantidad);
+        $this->movimientosFerreteriaCentral->crear($bodegaId, (int) $item['id'], 'ingreso', $cantidad, null, $observacion, $creadoPorId);
+        return ['item' => $item, 'bodega_id' => $bodegaId, 'cantidad_ingresada' => $cantidad];
+    }
+
     /**
-     * Entrega de ferretería de bodega a un técnico. Igual que con los
-     * equipos, ya no se aplica al stock al toque: queda pendiente hasta que
-     * el técnico confirma la cantidad recibida (ver aceptarFerreteria).
+     * Entrega de ferretería de UNA bodega física a un técnico. El stock
+     * central se descuenta (reserva) YA, en este mismo momento — no al
+     * aceptar — para que dos entregas casi simultáneas del mismo ítem no
+     * alcancen a mandar más de lo que hay de verdad. Al técnico todavía no
+     * le llega nada a SU stock hasta que confirma la cantidad recibida (ver
+     * aceptarFerreteria); si rechaza o el admin cancela, se reingresa a la
+     * misma bodega (ver rechazarFerreteria/cancelarEntregaFerreteria).
      */
-    public function entregarFerreteria(string $itemCodigo, int $tecnicoId, float $cantidad, int $creadoPorId): array
+    public function entregarFerreteria(string $itemCodigo, int $tecnicoId, float $cantidad, int $creadoPorId, int $bodegaId): array
     {
         $item = $this->itemsFerreteria->porCodigo($itemCodigo);
         if (!$item) {
@@ -276,22 +363,44 @@ final class BodegaService
         if (!$this->usuarios->find($tecnicoId)) {
             throw new ValidationException('Técnico inexistente.');
         }
+        $this->requerirBodega($bodegaId);
 
-        $id = $this->entregasFerreteriaPendientes->crear((int) $item['id'], $tecnicoId, $cantidad, $creadoPorId);
-        return $this->entregasFerreteriaPendientes->find($id);
+        return Database::transaction(function () use ($item, $tecnicoId, $cantidad, $creadoPorId, $bodegaId) {
+            $itemId = (int) $item['id'];
+            if (!$this->stockFerreteriaCentral->debitarSiAlcanza($bodegaId, $itemId, $cantidad)) {
+                throw new ApiException('No hay suficiente stock en esa bodega para entregar esa cantidad.', 409, 'stock_insuficiente');
+            }
+            $entregaId = $this->entregasFerreteriaPendientes->crear($itemId, $tecnicoId, $cantidad, $creadoPorId, $bodegaId);
+            $this->movimientosFerreteriaCentral->crear($bodegaId, $itemId, 'egreso_pendiente', -$cantidad, $entregaId, null, $creadoPorId);
+            return $this->entregasFerreteriaPendientes->find($entregaId);
+        });
     }
 
-    /** El admin cancela una entrega que el técnico todavía no confirmó. */
-    public function cancelarEntregaFerreteria(int $entregaId): array
+    /** El admin cancela una entrega que el técnico todavía no confirmó — reingresa el stock a la bodega de origen. */
+    public function cancelarEntregaFerreteria(int $entregaId, int $canceladoPorId): array
     {
-        return Database::transaction(function () use ($entregaId) {
+        return Database::transaction(function () use ($entregaId, $canceladoPorId) {
             $entrega = $this->entregasFerreteriaPendientes->find($entregaId, bloqueando: true);
             if (!$entrega || $entrega['estado'] !== 'pendiente') {
                 throw new ApiException('Esta entrega no está pendiente de cancelar.', 409, 'estado_invalido');
             }
+            $this->reingresarABodega($entrega, $canceladoPorId, 'Cancelada por el admin antes de que el técnico confirmara.');
             $this->entregasFerreteriaPendientes->marcarResuelta($entregaId, 'rechazada', 'Cancelada por el admin antes de que el técnico confirmara.');
             return $this->entregasFerreteriaPendientes->find($entregaId);
         });
+    }
+
+    /** Reingresa a la bodega que la había debitado — si la entrega es de antes de que existiera bodega_id, no hay a dónde devolverla y se deja constancia. */
+    private function reingresarABodega(array $entrega, int $creadoPorId, string $observacion): void
+    {
+        if ($entrega['bodega_id'] === null) {
+            return;
+        }
+        $bodegaId = (int) $entrega['bodega_id'];
+        $itemId = (int) $entrega['item_ferreteria_id'];
+        $cantidad = (float) $entrega['cantidad'];
+        $this->stockFerreteriaCentral->ajustar($bodegaId, $itemId, $cantidad);
+        $this->movimientosFerreteriaCentral->crear($bodegaId, $itemId, 'reingreso_rechazo', $cantidad, (int) $entrega['id'], $observacion, $creadoPorId);
     }
 
     /** Entregas de ferretería esperando que $tecnicoId confirme la cantidad recibida. */
@@ -321,7 +430,7 @@ final class BodegaService
         });
     }
 
-    /** El técnico contó y la cantidad no coincide — no se aplica nada al stock. */
+    /** El técnico contó y la cantidad no coincide — se reingresa a la bodega que la había debitado, nada queda en su stock. */
     public function rechazarFerreteria(int $entregaId, int $tecnicoId, string $observacion): array
     {
         return Database::transaction(function () use ($entregaId, $tecnicoId, $observacion) {
@@ -329,6 +438,7 @@ final class BodegaService
             if (!$entrega || $entrega['estado'] !== 'pendiente' || (int) $entrega['tecnico_id'] !== $tecnicoId) {
                 throw new ApiException('Esta entrega no está esperando tu confirmación.', 409, 'estado_invalido');
             }
+            $this->reingresarABodega($entrega, $tecnicoId, 'Rechazada por el técnico: ' . $observacion);
             $this->entregasFerreteriaPendientes->marcarResuelta($entregaId, 'rechazada', $observacion);
             return $this->entregasFerreteriaPendientes->find($entregaId);
         });

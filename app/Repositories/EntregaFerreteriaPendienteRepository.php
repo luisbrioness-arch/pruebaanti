@@ -25,13 +25,13 @@ final class EntregaFerreteriaPendienteRepository
         return $stmt->fetch() ?: null;
     }
 
-    public function crear(int $itemFerreteriaId, int $tecnicoId, float $cantidad, int $creadoPorId): int
+    public function crear(int $itemFerreteriaId, int $tecnicoId, float $cantidad, int $creadoPorId, int $bodegaId): int
     {
         $stmt = Database::connection()->prepare(
-            'INSERT INTO entregas_ferreteria_pendientes (item_ferreteria_id, tecnico_id, cantidad, creado_por)
-             VALUES (?, ?, ?, ?)'
+            'INSERT INTO entregas_ferreteria_pendientes (item_ferreteria_id, tecnico_id, cantidad, creado_por, bodega_id)
+             VALUES (?, ?, ?, ?, ?)'
         );
-        $stmt->execute([$itemFerreteriaId, $tecnicoId, $cantidad, $creadoPorId]);
+        $stmt->execute([$itemFerreteriaId, $tecnicoId, $cantidad, $creadoPorId, $bodegaId]);
         return (int) Database::connection()->lastInsertId();
     }
 

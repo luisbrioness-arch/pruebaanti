@@ -278,6 +278,23 @@ button { font: inherit; }
 .item-material-meta { font-size: .78rem; color: var(--tinta-3); }
 .item-material .btn-icono { color: var(--malo); flex-shrink: 0; }
 .celda-mono { font-family: var(--fuente-mono); }
+.motivos-rapidos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -4px; }
+.chip-motivo {
+  border: 1.5px solid var(--borde-fuerte); background: var(--superficie); color: var(--tinta-2);
+  border-radius: 999px; padding: 6px 12px; font-size: .8rem; min-height: 0;
+}
+.chip-motivo:active { background: var(--bg); }
+.resultados-buscador {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 5;
+  background: var(--superficie); border: 1px solid var(--borde-fuerte); border-radius: var(--radio-chico);
+  box-shadow: var(--sombra-flotante); max-height: 240px; overflow-y: auto;
+}
+.resultado-buscador-item {
+  display: block; width: 100%; text-align: left; padding: 10px 12px; border: none; border-bottom: 1px solid var(--borde);
+  background: var(--superficie); color: var(--tinta); font-size: .92rem;
+}
+.resultado-buscador-item:last-child { border-bottom: none; }
+.resultado-buscador-item:active { background: var(--superficie-2); }
 
 .pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
 .pill--ok { background: var(--ok-suave); color: var(--ok); }

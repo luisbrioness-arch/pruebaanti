@@ -615,6 +615,76 @@ CREATE TABLE entregas_ferreteria_pendientes (
     KEY idx_entregaferrpend_tecnico (tecnico_id, estado)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- BODEGAS FÍSICAS — hasta acá había UNA bodega central implícita
+-- (equipos.estado='bodega', sin distinguir de dónde). Si el negocio abre
+-- una segunda bodega (otra ciudad), hace falta saber cuál es cuál. Se
+-- siembra 'Bodega Central' para que las instalaciones existentes no
+-- necesiten elegir nada — es la que ya tenían de hecho.
+CREATE TABLE bodegas (
+    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    nombre      VARCHAR(80)  NOT NULL,
+    activa      TINYINT(1)   NOT NULL DEFAULT 1,
+    creado_en   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_bodegas_nombre (nombre)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO bodegas (nombre) VALUES ('Bodega Central');
+
+-- Solo tiene sentido mientras el equipo está físicamente en una bodega
+-- (estado 'bodega', o 'en_transito' con origen_pendiente_id NULL — viene de
+-- una bodega, no de otro técnico). Se conserva sin tocar mientras el equipo
+-- pasa por otros estados, así que al cancelar/rechazar un envío que salió de
+-- bodega, ya está el dato de a cuál volver sin tener que preguntarlo de nuevo.
+ALTER TABLE equipos
+    ADD COLUMN bodega_id INT UNSIGNED NULL AFTER origen_pendiente_id,
+    ADD CONSTRAINT fk_equipo_bodega FOREIGN KEY (bodega_id) REFERENCES bodegas(id);
+
+UPDATE equipos SET bodega_id = (SELECT id FROM bodegas WHERE nombre = 'Bodega Central') WHERE estado = 'bodega';
+
+-- Stock central de ferretería, real y trackeado (antes no existía en la
+-- base — "confiaba" en que Edwin supiera cuánto tenía). Mismo patrón que
+-- stock_ferreteria_usuario: materializada por rendimiento, reconstruible
+-- sumando movimientos_ferreteria_central.
+CREATE TABLE stock_ferreteria_central (
+    id                  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    bodega_id           INT UNSIGNED   NOT NULL,
+    item_ferreteria_id  INT UNSIGNED   NOT NULL,
+    cantidad_actual     DECIMAL(10,2)  NOT NULL DEFAULT 0,
+    actualizado_en      DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                        ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_stockcentral (bodega_id, item_ferreteria_id),
+    CONSTRAINT fk_stockcentral_bodega FOREIGN KEY (bodega_id) REFERENCES bodegas(id),
+    CONSTRAINT fk_stockcentral_item FOREIGN KEY (item_ferreteria_id) REFERENCES items_ferreteria(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE movimientos_ferreteria_central (
+    id                      BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    bodega_id               INT UNSIGNED   NOT NULL,
+    item_ferreteria_id      INT UNSIGNED   NOT NULL,
+    tipo_movimiento         ENUM(
+                                'ingreso',            -- compra/recepción real a la bodega
+                                'egreso_pendiente',    -- se reservó para una entrega a un técnico (todavía sin confirmar)
+                                'reingreso_rechazo',   -- el técnico rechazó la entrega, vuelve a la bodega
+                                'ajuste_descuadre'
+                            ) NOT NULL,
+    cantidad                DECIMAL(10,2)  NOT NULL,   -- positivo = entra, negativo = sale
+    entrega_pendiente_id    INT UNSIGNED   NULL,
+    observacion             VARCHAR(255)   NULL,
+    creado_por              INT UNSIGNED   NOT NULL,
+    creado_en               DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_movferrcentral_bodega FOREIGN KEY (bodega_id) REFERENCES bodegas(id),
+    CONSTRAINT fk_movferrcentral_item FOREIGN KEY (item_ferreteria_id) REFERENCES items_ferreteria(id),
+    CONSTRAINT fk_movferrcentral_entrega FOREIGN KEY (entrega_pendiente_id) REFERENCES entregas_ferreteria_pendientes(id),
+    CONSTRAINT fk_movferrcentral_creadopor FOREIGN KEY (creado_por) REFERENCES usuarios(id),
+    KEY idx_movferrcentral (bodega_id, item_ferreteria_id, creado_en)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Qué bodega debitó cada entrega pendiente — para poder reingresarle el
+-- stock a la MISMA bodega si el técnico la rechaza.
+ALTER TABLE entregas_ferreteria_pendientes
+    ADD COLUMN bodega_id INT UNSIGNED NULL AFTER tecnico_id,
+    ADD CONSTRAINT fk_entregaferrpend_bodega FOREIGN KEY (bodega_id) REFERENCES bodegas(id);
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================================

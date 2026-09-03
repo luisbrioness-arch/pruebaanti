@@ -29,23 +29,44 @@ final class EquipoRepository
         return $stmt->fetch() ?: null;
     }
 
+    /** Buscador del admin — coincidencia parcial, no hace falta la serie exacta. */
+    public function buscarPorSerie(string $q): array
+    {
+        $stmt = Database::connection()->prepare(
+            "SELECT e.*, te.nombre AS tipo_equipo_nombre, u.nombre AS tecnico_nombre
+             FROM equipos e
+             JOIN tipos_equipo te ON te.id = e.tipo_equipo_id
+             LEFT JOIN usuarios u ON u.id = e.usuario_actual_id
+             WHERE e.numero_serie LIKE ?
+             ORDER BY e.numero_serie ASC
+             LIMIT 30"
+        );
+        $stmt->execute(['%' . $q . '%']);
+        return $stmt->fetchAll();
+    }
+
     /**
      * @param int|null $origenPendienteId Solo tiene sentido junto con
-     *   estado 'en_transito': de dónde salió, para poder devolverlo ahí si
-     *   el técnico lo rechaza (NULL = bodega central). Se limpia (pasando
-     *   null) en cuanto el equipo sale de 'en_transito', para cualquier lado.
+     *   estado 'en_transito' cuando vino de OTRO TÉCNICO: de dónde salió,
+     *   para poder devolverlo ahí si lo rechaza (NULL = vino de una bodega,
+     *   o no aplica). Se limpia (pasando null) en cuanto el equipo sale de
+     *   'en_transito', para cualquier lado.
+     * @param int|null $bodegaId Qué bodega física lo tiene — el llamador es
+     *   responsable de pasar el valor correcto en cada transición (ver
+     *   BodegaService, cada método explica de dónde sale el suyo).
      */
     public function actualizarEstado(
         int $id,
         string $estado,
         ?int $usuarioActualId,
         ?int $ordenInstalacionId,
-        ?int $origenPendienteId = null
+        ?int $origenPendienteId = null,
+        ?int $bodegaId = null
     ): void {
         $stmt = Database::connection()->prepare(
-            'UPDATE equipos SET estado = ?, usuario_actual_id = ?, orden_instalacion_id = ?, origen_pendiente_id = ? WHERE id = ?'
+            'UPDATE equipos SET estado = ?, usuario_actual_id = ?, orden_instalacion_id = ?, origen_pendiente_id = ?, bodega_id = ? WHERE id = ?'
         );
-        $stmt->execute([$estado, $usuarioActualId, $ordenInstalacionId, $origenPendienteId, $id]);
+        $stmt->execute([$estado, $usuarioActualId, $ordenInstalacionId, $origenPendienteId, $bodegaId, $id]);
     }
 
     /** Equipos en camino hacia este técnico, esperando que los confirme (ver docs/bodegas-traspasos.md). */
@@ -63,22 +84,23 @@ final class EquipoRepository
         return $stmt->fetchAll();
     }
 
-    /** Alta en bodega — siempre nace en estado 'bodega', sin dueño. */
-    public function crear(int $tipoEquipoId, string $numeroSerie): int
+    /** Alta en bodega — siempre nace en estado 'bodega', sin dueño, en la bodega física que eligió el admin. */
+    public function crear(int $tipoEquipoId, string $numeroSerie, int $bodegaId): int
     {
         $stmt = Database::connection()->prepare(
-            "INSERT INTO equipos (tipo_equipo_id, numero_serie, estado) VALUES (?, ?, 'bodega')"
+            "INSERT INTO equipos (tipo_equipo_id, numero_serie, estado, bodega_id) VALUES (?, ?, 'bodega', ?)"
         );
-        $stmt->execute([$tipoEquipoId, $numeroSerie]);
+        $stmt->execute([$tipoEquipoId, $numeroSerie, $bodegaId]);
         return (int) Database::connection()->lastInsertId();
     }
 
-    public function listar(?string $estado, ?int $tecnicoId): array
+    public function listar(?string $estado, ?int $tecnicoId, ?int $bodegaId = null): array
     {
-        $sql = "SELECT e.*, te.codigo AS tipo_equipo_codigo, te.nombre AS tipo_equipo_nombre, u.nombre AS tecnico_nombre
+        $sql = "SELECT e.*, te.codigo AS tipo_equipo_codigo, te.nombre AS tipo_equipo_nombre, u.nombre AS tecnico_nombre, b.nombre AS bodega_nombre
                 FROM equipos e
                 JOIN tipos_equipo te ON te.id = e.tipo_equipo_id
                 LEFT JOIN usuarios u ON u.id = e.usuario_actual_id
+                LEFT JOIN bodegas b ON b.id = e.bodega_id
                 WHERE 1=1";
         $params = [];
         if ($estado !== null) {
@@ -88,6 +110,10 @@ final class EquipoRepository
         if ($tecnicoId !== null) {
             $sql .= ' AND e.usuario_actual_id = :tecnico_id';
             $params['tecnico_id'] = $tecnicoId;
+        }
+        if ($bodegaId !== null) {
+            $sql .= ' AND e.bodega_id = :bodega_id';
+            $params['bodega_id'] = $bodegaId;
         }
         $sql .= ' ORDER BY e.creado_en DESC';
         $stmt = Database::connection()->prepare($sql);

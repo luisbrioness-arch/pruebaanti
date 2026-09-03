@@ -8,6 +8,8 @@ import { renderTarifario } from './views/tarifario.js';
 import { renderBodega } from './views/bodega.js';
 import { renderBilletera } from './views/billetera.js';
 import { renderUsuarios } from './views/usuarios.js';
+import { renderGuia } from './views/guia.js';
+import { renderIndicadores } from './views/indicadores.js';
 import { initModoReportar } from './reportar.js';
 
 route('auditoria', renderAuditoria);
@@ -16,6 +18,8 @@ route('tarifario', renderTarifario);
 route('bodega', renderBodega);
 route('billetera', renderBilletera);
 route('usuarios', renderUsuarios);
+route('guia', renderGuia);
+route('indicadores', renderIndicadores);
 
 const $shell = document.getElementById('shell');
 const $loginScreen = document.getElementById('login-screen');
