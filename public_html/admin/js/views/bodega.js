@@ -83,22 +83,26 @@ export async function renderBodega(container, params = {}) {
   $vistas.forEach((v) => v.addEventListener('click', () => activarVista(v.dataset.vista)));
 
   // --------------------------------------------- "Bodega técnicos" (submenú) --
+  // Pedido: "que los tecnicos como son pocos aparezcan en pestañas
+  // seleccionables y que ahi se despliegue su bodega" — reemplaza el
+  // <select> por una pestaña por técnico (mismo patrón visual que las demás
+  // sub-navegaciones de este archivo: .subtabs / .subtab).
   async function renderVistaTecnicos() {
+    const lista = tecnicos();
     $nivel2.innerHTML = `
-      <label class="campo campo--inline">
-        <span>Técnico</span>
-        <select id="select-tecnico-bodega">
-          <option value="">Elegí un técnico…</option>
-          ${tecnicos().map((t) => `<option value="${t.id}">${escapeHtml(t.nombre)}</option>`).join('')}
-        </select>
-      </label>
+      <nav class="subtabs subtabs--tecnicos">
+        ${lista.map((t) => `<button type="button" class="subtab" data-tecnico-id="${t.id}">${escapeHtml(t.nombre)}</button>`).join('')}
+      </nav>
       <div id="contenido-tecnico"></div>
     `;
-    $nivel2.querySelector('#select-tecnico-bodega').addEventListener('change', (ev) => {
-      const id = ev.target.value;
-      if (id) cargarBodegaTecnico(Number(id));
-      else $nivel2.querySelector('#contenido-tecnico').innerHTML = '';
+    const $botones = Array.from($nivel2.querySelectorAll('.subtabs--tecnicos .subtab'));
+    $botones.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        $botones.forEach((b) => b.classList.toggle('subtab--activo', b === btn));
+        cargarBodegaTecnico(Number(btn.dataset.tecnicoId));
+      });
     });
+    if (lista.length === 1) $botones[0].click();
   }
 
   async function cargarBodegaTecnico(tecnicoId) {

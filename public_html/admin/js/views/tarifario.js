@@ -244,11 +244,18 @@ export async function renderTarifario(container) {
   }
 
   // ---------------------------------------------------- Comisiones por plan --
-  function renderTablaComisiones(comisiones) {
+  // Pedido: "que no aparezca este plan" (sobre un plan Desactivado listado
+  // acá) — los planes desactivados dejan de listarse en esta tabla. Ya no
+  // hay forma de reactivarlos desde el panel (ver confirmarEliminarPlan),
+  // así que mostrarlos acá era ruido puro: el historial de sus comisiones
+  // e instalaciones sigue intacto en la base, solo no aparece más en esta
+  // vista de "planes disponibles hoy".
+  function renderTablaComisiones(comisionesTodas) {
+    const comisiones = comisionesTodas.filter((f) => Number(f.plan_activo) === 1);
     $comisiones.innerHTML = `
       ${comisiones.length ? `
         <table class="tabla tabla--editable">
-          <thead><tr><th>Nombre</th><th>Estado</th><th>Monto vigente</th><th>Desde</th><th>Editar</th></tr></thead>
+          <thead><tr><th>Nombre</th><th>Monto vigente</th><th>Desde</th><th>Editar</th></tr></thead>
           <tbody></tbody>
         </table>
       ` : '<p class="vacio">Nada configurado todavía.</p>'}
@@ -262,17 +269,15 @@ export async function renderTarifario(container) {
     for (const fila of comisiones) {
       const codigo = fila.plan_codigo;
       const nombre = fila.plan_nombre;
-      const activo = Number(fila.plan_activo) === 1;
       const tr = el(`
         <tr>
           <td>${escapeHtml(nombre)}</td>
-          <td>${activo ? '<span class="badge badge--ok">Activo</span>' : '<span class="badge badge--neutro">Desactivado</span>'}</td>
           <td class="celda-monto">${formatMoney(fila.monto)}</td>
           <td class="celda-desde">${formatDateTime(fila.vigente_desde)}</td>
           <td>
             <div class="fila-tarifa-acciones">
               <button type="button" class="btn btn--secundario btn--chico" data-editar>Editar</button>
-              ${activo ? '<button type="button" class="btn btn--malo btn--chico" data-eliminar-plan>Eliminar</button>' : ''}
+              <button type="button" class="btn btn--malo btn--chico" data-eliminar-plan>Eliminar</button>
             </div>
           </td>
         </tr>
@@ -301,7 +306,7 @@ export async function renderTarifario(container) {
           },
         });
       });
-      tr.querySelector('[data-eliminar-plan]')?.addEventListener('click', () => {
+      tr.querySelector('[data-eliminar-plan]').addEventListener('click', () => {
         confirmarEliminarPlan(codigo, nombre);
       });
       $tbody.appendChild(tr);
