@@ -2,7 +2,7 @@ import { api } from './api.js';
 import { route, startRouter } from './router.js';
 import { procesarCola, onColaCambio, colaContar } from './offline.js';
 import { renderLogin } from './views/login.js';
-import { renderAuditoria } from './views/auditoria.js';
+import { renderHistorial } from './views/historial.js';
 import { renderTarifario } from './views/tarifario.js';
 import { renderBodega } from './views/bodega.js';
 import { renderBilletera } from './views/billetera.js';
@@ -12,7 +12,7 @@ import { renderInicio } from './views/inicio.js';
 import { initModoReportar } from './reportar.js';
 
 route('inicio', renderInicio);
-route('auditoria', renderAuditoria);
+route('historial', renderHistorial);
 route('tarifario', renderTarifario);
 route('bodega', renderBodega);
 route('billetera', renderBilletera);

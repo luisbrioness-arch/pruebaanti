@@ -91,6 +91,10 @@ $router->post('/api/admin/ordenes/retroactiva', fn(Request $r) => (new AdminOrde
 $router->get('/api/admin/ventas/pendientes', fn(Request $r) => (new AdminOrdenController())->ventasPendientes($r));
 $router->get('/api/admin/ventas/pendientes-instalar', fn(Request $r) => (new AdminOrdenController())->ventasPendientesInstalar($r));
 
+// Historial (reemplaza a Auditoría en el nav — pedido: "elimina auditoria y
+// crea un link de historial ordenes vendidas y ordenes instaladas con fecha")
+$router->get('/api/admin/historial', fn(Request $r) => (new AdminOrdenController())->historial($r));
+
 // Conflictos de sincronización
 $router->get('/api/admin/conflictos', fn(Request $r) => (new AdminConflictoController())->listar($r));
 $router->post('/api/admin/conflictos/{id}/resolver', fn(Request $r) => (new AdminConflictoController())->resolver($r));

@@ -190,10 +190,10 @@ pendiente, no una foto congelada del momento en que se imprimió.
 sobre tablas que ya existían (`COUNT`/`SUM` directos, sin tabla nueva):
 órdenes del mes por estado, liquidado del mes, saldo total a favor de los
 técnicos, equipos por estado, ferretería pendiente de confirmar, traspasos y
-entregas rechazados en los últimos 30 días, más dos contadores que NO son
-del mes sino de la cola de trabajo real ahora mismo (órdenes esperando
-auditoría, conflictos sin resolver) y los mismos avisos de "3+ días sin
-confirmar" que ya se ven en Bodega.
+entregas rechazados en los últimos 30 días, más un contador que NO es del
+mes sino de la cola de trabajo real ahora mismo (conflictos sin resolver —
+el de "órdenes esperando auditoría" se sacó de acá, ver más abajo) y los
+mismos avisos de "3+ días sin confirmar" que ya se ven en Bodega.
 
 Nació como una pestaña separada "Indicadores" y se fusionó en **Inicio**
 (pedido: *"falta una pantalla de inicio con accesos a las otras partes y con
@@ -204,7 +204,7 @@ directos a cada sección (tarjetas grandes) con una lista de alertas
 accionables (solo se muestran las que tienen algo pendiente, cada una linkea
 a la pantalla que corresponde), una tabla de **"Ventas pendientes de
 instalar"** (ver abajo) y un resumen chico del mes — no reemplaza
-Auditoría/Bodega/Billetera para el trabajo del día a día, es el primer
+Historial/Bodega/Billetera para el trabajo del día a día, es el primer
 vistazo antes de entrar a cualquiera de ellas.
 
 ## Ventas pendientes de instalar (en Inicio)

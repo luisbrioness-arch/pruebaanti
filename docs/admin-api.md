@@ -10,7 +10,26 @@ El wizard del técnico ya validaba contra la maleta y confirmaba consumo físico
 
 Construir la auditoría real reveló además un bug de concurrencia genuino: reabrir una orden rechazada para corregirla y reenviarla habría vuelto a descontar la ferretería y duplicar los movimientos de equipo. Se corrigió bloqueando la edición de materiales/ferretería una vez confirmado el consumo físico — ver la sección "Reabrir" más abajo.
 
-## Auditoría
+## Auditoría (ya no tiene pantalla en el panel)
+
+**Sin pestaña propia** desde el pedido *"elimina auditoria y crea un link de
+historial ordenes vendidas y ordenes instaladas con fecha"* — Edwin decidió
+que el paso de revisión manual antes de pagar ya no hace falta. Desde este
+cambio, `OrdenWizardService::confirmarEnviada()` deja la orden directo en
+`aprobada` (con `fecha_auditoria` = el mismo instante del envío, `auditor_id`
+NULL — nadie la revisó a mano) en vez de dejarla `enviada` esperando cola.
+Eso también confirma de inmediato la venta enlazada y hace que la orden ya
+cuente para liquidar en Billetera. El reemplazo visual es
+[Historial](#historial) más abajo — de solo lectura, sin botones de
+aprobar/rechazar.
+
+Todo lo de acá abajo (`AuditoriaService`, `AdminAuditoriaController`, las
+rutas `/admin/ordenes/{id}/aprobar|rechazar|observar|reabrir`) **sigue
+funcionando por dentro**, para una corrección manual puntual vía API — solo
+se quitó `admin/js/views/auditoria.js` y el link de nav (mismo criterio que
+con Conflictos, más abajo). En el uso normal del día a día no se llama a
+nada de esto: toda orden que se envía sin chocar con un folio nace
+`aprobada` sola.
 
 ```
 GET  /api/admin/ordenes?estado=enviada&tecnico_id=2
@@ -56,15 +75,38 @@ Solo funciona sobre `rechazada_corregible`. Vuelve la orden a `borrador` y limpi
 
 Un reenvío tras reabrir **no vuelve a descontar stock ni a duplicar movimientos** — `enviar()` detecta que ya existe un `movimientos_equipo` para esa orden y salta ese bloque entero. Esto cubre los motivos de rechazo más comunes (foto ilegible, datos incompletos). Si el rechazo fue por `serie_incorrecta` y de verdad hay que cambiar qué equipo quedó instalado, esa corrección la hace el administrador a mano desde bodega (`falla-fabrica` + reasignación) — no está automatizada en el wizard.
 
+## Historial
+
+Reemplaza a Auditoría en el nav (mismo pedido de arriba). Pantalla de solo
+lectura en `admin/js/views/historial.js` — dos tablas, filtrables por
+técnico y por rango de fechas:
+
+```
+GET /api/admin/historial?tecnico_id=&desde=&hasta=
+→ { ventas: [{ ...venta, plan_nombre, vendedor_nombre }],
+    ordenes: [{ ...orden, tecnico_nombre, tipo_servicio_nombre, venta_cliente_nombre }] }
+```
+
+`tecnico_id` filtra a la vez vendedor (ventas) y técnico ejecutor (órdenes)
+— son la misma persona en este sistema. `desde`/`hasta` son `YYYY-MM-DD`
+(`422 validacion` si no matchean ese formato); ambos opcionales, y cuando
+faltan no se filtra por fecha. **Ventas** se filtra por fecha de venta
+(`creado_en`) — la fecha de instalación pedida se muestra como columna
+aparte, no como filtro. **Órdenes** se filtra por `fecha_trabajo_dispositivo`
+(la fecha real del trabajo) y **muestra cualquier estado que no sea
+`borrador`** — incluidas rechazadas y en conflicto, con su estado como
+columna: es la única visibilidad que queda sobre `conflicto` ahora que
+Auditoría no tiene pantalla (ver más abajo).
+
 ## Conflictos de sincronización
 
 **Sin pestaña propia en el panel** (pedido: *"elimina la parte de
 conflictos"* — se quitó `admin/js/views/conflictos.js`, el link de nav y la
 ruta `#conflictos`; el endpoint y la lógica de abajo siguen intactos). Una
 orden que cae en `conflicto` sigue existiendo — se ve y se filtra desde
-Auditoría (`estado=conflicto`) — pero ya no hay una pantalla dedicada con
-los botones "Invalidar"/"Aceptar"; resolver uno de estos, hoy, es trabajo
-directo sobre la base o un ajuste a mano.
+[Historial](#historial) de arriba (columna Estado) — pero ya no hay una
+pantalla dedicada con los botones "Invalidar"/"Aceptar"; resolver uno de
+estos, hoy, es trabajo directo sobre la base o un ajuste a mano.
 
 ```
 GET  /api/admin/conflictos                     → pendientes, con folio y técnico ya resueltos

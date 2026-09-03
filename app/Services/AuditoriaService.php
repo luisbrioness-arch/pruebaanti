@@ -13,9 +13,13 @@ use App\Repositories\OrdenRepository;
 
 /**
  * El módulo que mueve una orden de 'enviada' a 'aprobada' / 'rechazada'.
- * Sin esto ninguna orden avanza — es la pieza que le faltaba al sistema
- * para cerrar su propio ciclo, aunque en Fase 1 el auditor y el técnico
- * sean la misma persona (Edwin autoauditándose).
+ *
+ * SIN PANTALLA EN EL PANEL desde que se auto-aprueba al enviar (pedido:
+ * "elimina auditoria" — ver OrdenWizardService::confirmarEnviada()). Una
+ * orden ya no queda 'enviada' esperando revisión: nace 'aprobada'. Esta
+ * clase se deja intacta por si algún día hace falta una corrección manual
+ * puntual desde la API directa (aprobar/rechazar/observar/reabrir siguen
+ * andando), pero en el uso normal del día a día no se llama a nada de acá.
  */
 final class AuditoriaService
 {

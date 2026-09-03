@@ -128,7 +128,7 @@ PATCH /api/ordenes/{uuid}/cierre
 
 ```
 POST /api/ordenes/{uuid}/enviar
-→ { ...orden con estado "enviada" (o "conflicto") }
+→ { ...orden con estado "aprobada" (o "conflicto") }
 ```
 
 En una sola transacción:
@@ -136,10 +136,11 @@ En una sola transacción:
 1. **Detecta folio en conflicto.** Regla aplicada (ver `OrdenRepository::folioEnConflicto` — **asunción de negocio pendiente de confirmar con Edwin**): es conflicto si el folio ya existe en otro técnico, o en el mismo técnico el mismo día. Si el mismo técnico reutiliza el folio semanas después (posible visita de garantía), no se bloquea. Si hay conflicto, la orden queda en estado `conflicto` y el resto de este paso no ocurre — no se cobra, no se mueve inventario.
 2. Valida que existan los materiales y las fotos obligatorias para el tipo de servicio (fijas o dinámicas según `fotos_dinamicas`).
 3. Toma la tarifa vigente y el `porcentaje_reparto` del técnico, calcula y **congela** `monto_bruto` / `porcentaje_aplicado` / `monto_tecnico` en la orden. Si no hay tarifa vigente configurada: `409 sin_tarifa_vigente` (mensaje explícito para que el técnico avise, no un error genérico).
-4. Confirma el consumo físico: cada equipo pasa a `instalado` o `retirado` (con su fila en `movimientos_equipo`), y cada línea de ferretería genera su `movimientos_ferreteria` y descuenta `stock_ferreteria_usuario`. Esto ocurre **aunque la orden termine rechazada después en auditoría** — el trabajo físico ya se hizo.
+4. Confirma el consumo físico: cada equipo pasa a `instalado` o `retirado` (con su fila en `movimientos_equipo`), y cada línea de ferretería genera su `movimientos_ferreteria` y descuenta `stock_ferreteria_usuario`.
 5. Si la orden tiene `venta_id`, confirma la venta: `estado → instalada`, y congela `monto_comision` / `monto_vendedor` con la comisión vigente del plan y el `porcentaje_reparto` del vendedor.
+6. La orden queda en `aprobada` directo, con `fecha_auditoria` = este mismo instante. **Auto-aprobación** (pedido: *"elimina auditoria..."* — ver [admin-api.md](admin-api.md#auditoría-ya-no-tiene-pantalla-en-el-panel)): ya no existe el paso intermedio `enviada` esperando revisión manual de Edwin antes de contar como trabajo pagable — todo lo de este paso 5 (incluido el consumo físico del punto 4) ocurre en la misma transacción que la aprobación, no antes de ella.
 
-Después de `enviada`, la orden ya no es editable por el técnico (`409 orden_no_editable` en cualquier paso 1-4). Reabrirla tras un rechazo corregible es una acción de auditoría — no está en el alcance de este wizard técnico, se construye junto al panel admin.
+Después de `enviar()`, la orden ya no es editable por el técnico (`409 orden_no_editable` en cualquier paso 1-4). Reabrir una orden rechazada sigue siendo posible vía API directa (`AuditoriaService::reabrir`, sin pantalla en el panel) — no está en el alcance de este wizard técnico.
 
 ## Venta
 

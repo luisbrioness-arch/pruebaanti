@@ -139,8 +139,8 @@ botones de pago/ajuste, e historiales de cierres y movimientos.
 
 Las tres acciones de escritura pasan por
 `conColaSiHaceFalta(tipo, payload, llamadaOnline)`, la misma cola de
-[`offline.js`](../public_html/admin/js/offline.js) que ya usan auditoría,
-conflictos, tarifario y bodega (ver
+[`offline.js`](../public_html/admin/js/offline.js) que ya usan tarifario y
+bodega (ver
 [`admin-api.md`](admin-api.md#cola-de-escritura-offline-del-panel-admin)).
 A diferencia de tarifas/comisiones/kits, `cerrar_periodo`, `registrar_pago`
 y `registrar_ajuste` **no son coalescibles** — cada una es un evento

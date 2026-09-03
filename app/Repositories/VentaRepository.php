@@ -75,6 +75,40 @@ final class VentaRepository
         return $stmt->fetchAll();
     }
 
+    /**
+     * Historial de ventas para el panel admin (pedido: "crea un link de
+     * historial ordenes vendidas y ordenes instaladas con fecha"). Filtra
+     * por fecha de VENTA (creado_en), no por la fecha de instalación
+     * pedida — esa se muestra como columna aparte para comparar ambas.
+     * Incluye cualquier estado (registrada/instalada/anulada), a diferencia
+     * de pendientesDe()/pendientesInstalarTodas() que solo miran 'registrada'.
+     */
+    public function historial(?int $vendedorId, ?string $desde, ?string $hasta): array
+    {
+        $sql = "SELECT v.*, p.nombre AS plan_nombre, u.nombre AS vendedor_nombre
+                FROM ventas v
+                JOIN planes p ON p.id = v.plan_id
+                JOIN usuarios u ON u.id = v.vendedor_id
+                WHERE 1=1";
+        $params = [];
+        if ($vendedorId !== null) {
+            $sql .= ' AND v.vendedor_id = :vendedor_id';
+            $params['vendedor_id'] = $vendedorId;
+        }
+        if ($desde !== null) {
+            $sql .= ' AND DATE(v.creado_en) >= :desde';
+            $params['desde'] = $desde;
+        }
+        if ($hasta !== null) {
+            $sql .= ' AND DATE(v.creado_en) <= :hasta';
+            $params['hasta'] = $hasta;
+        }
+        $sql .= ' ORDER BY v.creado_en DESC';
+        $stmt = Database::connection()->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
     /** Ventas instaladas de un vendedor que todavía no entraron a ningún cierre de liquidación. */
     /** @param bool $bloqueando ver OrdenRepository::pendientesDeLiquidar — mismo motivo (doble cierre = doble pago). */
     public function pendientesDeLiquidar(int $vendedorId, bool $bloqueando = false): array

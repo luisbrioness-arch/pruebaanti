@@ -90,7 +90,7 @@ function abrirDialogoReporte(el) {
   const texto = truncar(el.textContent);
   const selector = construirSelector(el);
   const elemento = `${tag}${selector ? ` \`${selector}\`` : ''}${texto ? ` — "${texto}"` : ''}`;
-  const pantalla = location.hash || '#auditoria';
+  const pantalla = location.hash || '#inicio';
 
   const { root, cerrar } = abrirModal(`
     <h3>Reportar un problema</h3>

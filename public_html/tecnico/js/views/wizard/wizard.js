@@ -213,10 +213,14 @@ function renderEnvioPendiente(container, orden) {
 
 function renderYaCerrada(container, orden) {
   setTopbar({ titulo: `Folio ${orden.folio}`, atras: () => irA('home') });
+  // 'aprobada' es lo normal ahora: la orden se auto-aprueba al enviarse, ya
+  // no queda pendiente de revisión (ver OrdenWizardService::confirmarEnviada).
+  // 'enviada'/'observada' quedan acá solo por compatibilidad con órdenes
+  // viejas que hayan quedado en ese estado antes de este cambio.
   const estadoTexto = {
     enviada: 'Enviada — pendiente de revisión.',
     observada: 'El administrador pidió una corrección.',
-    aprobada: 'Aprobada.',
+    aprobada: 'Aprobada — ya cuenta para tu pago.',
     rechazada_corregible: 'Rechazada, pero corregible — pídele al administrador que la reabra.',
     rechazada_penalizada: 'Rechazada, sin pago.',
     conflicto: 'En conflicto de folio — el administrador la va a revisar.',
@@ -234,7 +238,7 @@ function renderYaCerrada(container, orden) {
     detalles.push(`<div class="resumen-fila"><span>Comentario</span><span>${escapeHtml(orden.comentario_auditoria)}</span></div>`);
   }
   if (orden.fecha_auditoria) {
-    detalles.push(`<div class="resumen-fila"><span>Revisada</span><span>${formatDateTime(orden.fecha_auditoria)}</span></div>`);
+    detalles.push(`<div class="resumen-fila"><span>Confirmada</span><span>${formatDateTime(orden.fecha_auditoria)}</span></div>`);
   }
 
   container.appendChild(el(`

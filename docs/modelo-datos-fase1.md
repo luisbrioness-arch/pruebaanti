@@ -110,7 +110,7 @@ Ninguna es un defecto — son el mismo tipo de decisión que ya se tomó con el 
 
 ## Índices pensados para las pantallas ya diseñadas
 
-- `idx_ordenes_tecnico_estado` — sostiene la cola de auditoría agrupada por técnico (dashboard de Edwin).
+- `idx_ordenes_tecnico_estado` — sostiene las consultas por técnico+estado: liquidación pendiente (`OrdenRepository::pendientesDeLiquidar`) y el filtro por técnico de Historial en el panel admin (ya no hay cola de auditoría — las órdenes se auto-aprueban al enviarse, ver `docs/admin-api.md`).
 - `idx_ordenes_folio` — búsqueda de folio, no unique, permite duplicados de conflicto.
 - `idx_ordenfoto_archivada` — el proceso de archivado anual barre por esta columna sin escanear toda la tabla.
 - `idx_movequipo_equipo` y `idx_movferr_usuario` — ambas ordenadas por fecha, para pintar el historial de un equipo o de una maleta sin ordenar en memoria.

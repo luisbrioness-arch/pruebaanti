@@ -7,7 +7,7 @@ import { api } from '../api.js';
 import { el, escapeHtml, formatMoney } from '../utils.js';
 
 const ACCESOS = [
-  { ruta: 'auditoria', icono: '📋', etiqueta: 'Auditoría' },
+  { ruta: 'historial', icono: '📋', etiqueta: 'Historial' },
   { ruta: 'tarifario', icono: '💲', etiqueta: 'Tarifario' },
   { ruta: 'bodega', icono: '📦', etiqueta: 'Bodega' },
   { ruta: 'billetera', icono: '👛', etiqueta: 'Billetera' },
@@ -98,11 +98,11 @@ function pintarVentasPendientes($div, ventas) {
 
 function pintarAlertas($div, r) {
   const items = [
-    r.pendientes_auditoria > 0 && {
-      texto: `${r.pendientes_auditoria} orden(es) esperando auditoría`, ruta: 'auditoria', tono: 'alerta',
-    },
+    // Ya no hay cola de auditoría manual (las órdenes se auto-aprueban al
+    // enviarse) — solo queda avisar si alguna quedó en conflicto de folio,
+    // que ahora se ve (con su estado) en Historial.
     r.conflictos_abiertos > 0 && {
-      texto: `${r.conflictos_abiertos} orden(es) en conflicto sin resolver`, ruta: 'auditoria', tono: 'malo',
+      texto: `${r.conflictos_abiertos} orden(es) en conflicto sin resolver`, ruta: 'historial', tono: 'malo',
     },
     r.traspasos_equipo_viejos > 0 && {
       texto: `${r.traspasos_equipo_viejos} traspaso(s) de equipo llevan 3+ días sin confirmar`, ruta: 'bodega', tono: 'malo',
@@ -142,9 +142,14 @@ function tile(etiqueta, valor, tono = '') {
 
 function pintarTiles($div, r) {
   const mapaOrdenes = Object.fromEntries(r.ordenes_por_estado_mes.map((o) => [o.estado, Number(o.n)]));
+  // Con la auto-aprobación al enviar, una orden ya no se queda "enviada"
+  // esperando auditoría — pasa a "aprobada" en el mismo instante. Por eso
+  // el total del mes se suma acá en vez de mostrar el bucket 'enviada'
+  // (que ahora siempre da 0).
+  const totalMes = Object.values(mapaOrdenes).reduce((a, b) => a + b, 0);
   $div.innerHTML = `
     <div class="tiles">
-      ${tile('Órdenes enviadas', mapaOrdenes.enviada || 0)}
+      ${tile('Órdenes este mes', totalMes)}
       ${tile('Aprobadas', mapaOrdenes.aprobada || 0, 'tile--ok')}
       ${tile('Rechazadas', (mapaOrdenes.rechazada_corregible || 0) + (mapaOrdenes.rechazada_penalizada || 0), 'tile--malo')}
       ${tile('Liquidado', formatMoney(r.liquidado_mes), 'tile--ok')}

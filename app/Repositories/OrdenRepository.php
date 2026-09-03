@@ -82,6 +82,44 @@ final class OrdenRepository
         return $stmt->fetchAll();
     }
 
+    /**
+     * Historial general de órdenes para el panel admin (pedido: "crea un
+     * link de historial ordenes vendidas y ordenes instaladas con fecha" —
+     * reemplaza a la cola de auditoría que ya no existe). Muestra TODO lo
+     * que pasó del paso 5 en adelante (nunca 'borrador') — incluidas
+     * rechazadas y en conflicto, con su estado como columna, para no perder
+     * la única visibilidad que quedaba sobre conflictos tras sacar
+     * Auditoría del panel. Ordenado por la fecha real de trabajo (la que
+     * dice el técnico que hizo el trabajo), más reciente primero.
+     */
+    public function historial(?int $tecnicoId, ?string $desde, ?string $hasta): array
+    {
+        $sql = "SELECT o.*, u.nombre AS tecnico_nombre, ts.nombre AS tipo_servicio_nombre,
+                       v.cliente_nombre AS venta_cliente_nombre
+                FROM ordenes o
+                JOIN usuarios u ON u.id = o.tecnico_id
+                JOIN tipos_servicio ts ON ts.id = o.tipo_servicio_id
+                LEFT JOIN ventas v ON v.id = o.venta_id
+                WHERE o.estado != 'borrador'";
+        $params = [];
+        if ($tecnicoId !== null) {
+            $sql .= ' AND o.tecnico_id = :tecnico_id';
+            $params['tecnico_id'] = $tecnicoId;
+        }
+        if ($desde !== null) {
+            $sql .= ' AND DATE(o.fecha_trabajo_dispositivo) >= :desde';
+            $params['desde'] = $desde;
+        }
+        if ($hasta !== null) {
+            $sql .= ' AND DATE(o.fecha_trabajo_dispositivo) <= :hasta';
+            $params['hasta'] = $hasta;
+        }
+        $sql .= ' ORDER BY o.fecha_trabajo_dispositivo DESC';
+        $stmt = Database::connection()->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
     public function crear(array $datos): int
     {
         $stmt = Database::connection()->prepare(

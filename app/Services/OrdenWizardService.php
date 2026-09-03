@@ -38,8 +38,10 @@ use App\Repositories\VentaRepository;
  *  - La orden existe en el servidor desde el paso 1 ('borrador'), porque las
  *    fotos empiezan a subir en segundo plano antes del envío final.
  *  - El consumo físico (equipos + ferretería) se confirma al ENVIAR
- *    (paso 5), no al aprobar — el técnico ya usó las grampas y dejó el
- *    equipo instalado, pase lo que pase después en auditoría.
+ *    (paso 5) — el técnico ya usó las grampas y dejó el equipo instalado.
+ *  - La orden que se envía sin chocar con un folio queda 'aprobada' en el
+ *    mismo instante (auto-aprobación, ver confirmarEnviada más abajo) — ya
+ *    no espera revisión manual de un administrador.
  *  - Un folio repetido no se rechaza: la orden entra en estado 'conflicto'
  *    y espera resolución del administrador.
  *  - Si la orden viene de una venta propia, la comisión se confirma en el
@@ -358,6 +360,17 @@ final class OrdenWizardService
      * el wizard los guarda en el paso 2 (antes de que exista folio en
      * conflicto o no), y crearRetroactiva() los guarda antes de decidir si
      * hubo conflicto.
+     *
+     * **Auto-aprobación** (pedido: "elimina auditoria" — Edwin decidió que
+     * el paso de revisión manual antes de pagar ya no hace falta): la orden
+     * pasa directo a 'aprobada' con `fecha_auditoria` = ahora, en vez de
+     * quedar 'enviada' esperando que alguien la audite. `auditor_id` queda
+     * NULL — nadie la revisó, se aprobó sola al enviarse. Esto también
+     * habilita de inmediato la venta enlazada (confirmarVenta más abajo) y
+     * hace que la orden ya cuente para liquidar en Billetera. El módulo de
+     * auditoría (aprobar/rechazar/observar/reabrir, ver AuditoriaService)
+     * sigue existiendo por dentro para una corrección manual puntual vía
+     * API, pero ya no tiene pantalla en el panel — ver Historial.
      */
     private function confirmarEnviada(int $ordenId, int $tecnicoId): array
     {
@@ -377,7 +390,8 @@ final class OrdenWizardService
         $porcentaje = (float) $tecnico['porcentaje_reparto'];
 
         $this->ordenes->actualizar($ordenId, [
-            'estado' => 'enviada',
+            'estado' => 'aprobada',
+            'fecha_auditoria' => date('Y-m-d H:i:s'),
             'monto_bruto' => $montoBruto,
             'porcentaje_aplicado' => $porcentaje,
             'monto_tecnico' => round($montoBruto * $porcentaje / 100),

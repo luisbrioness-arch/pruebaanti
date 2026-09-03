@@ -8,6 +8,7 @@ use App\Core\Auth;
 use App\Core\Request;
 use App\Core\Response;
 use App\Exceptions\ValidationException;
+use App\Repositories\OrdenRepository;
 use App\Repositories\VentaRepository;
 use App\Services\OrdenWizardService;
 
@@ -52,5 +53,46 @@ final class AdminOrdenController
     {
         Auth::requireAdmin();
         Response::json(['ventas' => (new VentaRepository())->pendientesInstalarTodas()]);
+    }
+
+    /**
+     * Historial (pedido: "elimina auditoria y crea un link de historial
+     * ordenes vendidas y ordenes instaladas con fecha") — reemplaza a la
+     * cola de auditoría en el nav del panel. tecnico_id filtra a la vez
+     * técnico vendedor (ventas) y técnico ejecutor (órdenes), porque son la
+     * misma persona en este sistema. desde/hasta son fechas YYYY-MM-DD.
+     */
+    public function historial(Request $req): void
+    {
+        Auth::requireAdmin();
+        [$tecnicoId, $desde, $hasta] = $this->leerFiltrosHistorial($req);
+        Response::json([
+            'ventas' => (new VentaRepository())->historial($tecnicoId, $desde, $hasta),
+            'ordenes' => (new OrdenRepository())->historial($tecnicoId, $desde, $hasta),
+        ]);
+    }
+
+    /** @return array{0: ?int, 1: ?string, 2: ?string} */
+    private function leerFiltrosHistorial(Request $req): array
+    {
+        $tecnicoIdCrudo = $req->input('tecnico_id');
+        $tecnicoId = ($tecnicoIdCrudo !== null && $tecnicoIdCrudo !== '') ? (int) $tecnicoIdCrudo : null;
+
+        $desde = $this->fechaOpcional($req, 'desde');
+        $hasta = $this->fechaOpcional($req, 'hasta');
+
+        return [$tecnicoId, $desde, $hasta];
+    }
+
+    private function fechaOpcional(Request $req, string $campo): ?string
+    {
+        $valor = trim((string) $req->input($campo, ''));
+        if ($valor === '') {
+            return null;
+        }
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $valor)) {
+            throw new ValidationException("Fecha inválida en \"$campo\": $valor");
+        }
+        return $valor;
     }
 }

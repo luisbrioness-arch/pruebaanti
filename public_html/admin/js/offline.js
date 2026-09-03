@@ -32,11 +32,6 @@ function notificar() {
 export { colaContar };
 
 const RUTAS = {
-  aprobar: (p) => ({ path: `/admin/ordenes/${p.id}/aprobar`, method: 'POST', body: {} }),
-  aprobar_masivo: (p) => ({ path: '/admin/ordenes/aprobar-masivo', method: 'POST', body: { ids: p.ids } }),
-  rechazar: (p) => ({ path: `/admin/ordenes/${p.id}/rechazar`, method: 'POST', body: { motivo: p.motivo, comentario: p.comentario, descuenta_pago: p.descuenta_pago } }),
-  observar: (p) => ({ path: `/admin/ordenes/${p.id}/observar`, method: 'POST', body: { comentario: p.comentario } }),
-  reabrir: (p) => ({ path: `/admin/ordenes/${p.id}/reabrir`, method: 'POST', body: {} }),
   editar_tarifa: (p) => ({ path: `/admin/tarifas/${encodeURIComponent(p.codigo)}`, method: 'PUT', body: { monto: p.monto } }),
   editar_comision: (p) => ({ path: `/admin/comisiones/${encodeURIComponent(p.codigo)}`, method: 'PUT', body: { monto: p.monto } }),
   editar_tarifa_instalacion: (p) => ({ path: `/admin/tarifas-instalacion/${encodeURIComponent(p.codigo)}`, method: 'PUT', body: { monto: p.monto } }),
@@ -60,8 +55,6 @@ const RUTAS = {
 };
 
 const ETIQUETAS = {
-  aprobar: 'aprobar orden', aprobar_masivo: 'aprobar en lote', rechazar: 'rechazar orden',
-  observar: 'observar orden', reabrir: 'reabrir orden',
   editar_tarifa: 'editar tarifa', editar_comision: 'editar comisión', editar_tarifa_instalacion: 'editar instalación por plan', alta_equipo: 'alta de equipo',
   asignar_equipo: 'enviar equipo a técnico', traspasar_equipo: 'traspasar equipo', cancelar_traspaso_equipo: 'cancelar envío de equipo',
   falla_fabrica: 'marcar falla de fábrica',
