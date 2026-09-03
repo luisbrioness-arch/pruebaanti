@@ -103,6 +103,105 @@ manejo de `ApiError.code === 'sin_conexion'` mostrando un mensaje de
 (que sigue vigente solo para sembrar el primer admin, porque hace falta
 estar logueado para usar este endpoint).
 
+## Bodegas físicas de verdad (segunda vuelta)
+
+Pedido posterior: *"que el administrador tenga acceso a una bodega
+principal, y que se puedan ver las bodegas de los técnicos"* + *"tenemos
+que tener 'bodegas' — una central […] y una para cada técnico"*.
+
+Se agregó la tabla `bodegas` (id, nombre, activa) — sembrada con **"Bodega
+Central"** para que la instalación existente no tuviera que elegir nada.
+Cada equipo en estado `bodega` (o `en_transito` viniendo de una bodega, no
+de otro técnico) sabe de cuál — `equipos.bodega_id`. Ese dato se **conserva
+sin tocar** mientras el equipo pasa por `en_transito`: así, si el técnico
+rechaza el envío o el admin lo cancela, ya está resuelto a cuál bodega
+devolverlo, sin tener que volver a preguntarlo (`BodegaService::asignarAMaleta`
+guarda el `bodega_id` de origen; `cancelarTraspasoEquipo`/`rechazarEquipo`
+solo lo leen de vuelta).
+
+Panel admin → **Bodega → Bodegas**: crear más bodegas físicas (ej. si abren
+sucursal en otra ciudad). Al dar de alta un equipo o hacer un ingreso de
+ferretería, ahora hay que elegir a cuál bodega entra.
+
+Panel admin → **Bodega → Bodegas de técnicos**: elegís un técnico y ves de
+un vistazo su maleta completa (equipos) y su stock de ferretería ya
+confirmado — reusa los mismos endpoints que ya existían
+(`GET /admin/equipos?estado=maleta&tecnico_id=`,
+`GET /admin/ferreteria/stock?tecnico_id=`), sin backend nuevo.
+
+## Stock de ferretería central, trackeado de verdad (antes no existía)
+
+Hasta acá, la ferretería "de bodega" no estaba en ninguna tabla — `entregar`
+simplemente le acreditaba al técnico sin descontarle a nadie, confiando en
+que Edwin llevara la cuenta de memoria. Ahora:
+
+- **`stock_ferreteria_central`** (bodega + ítem → cantidad) y
+  **`movimientos_ferreteria_central`** (ledger: `ingreso`, `egreso_pendiente`,
+  `reingreso_rechazo`, `ajuste_descuadre`) — mismo patrón de siempre
+  (materializada + historial).
+- **Ingreso real** (`POST /admin/ferreteria/ingreso`) es la ÚNICA forma de
+  hacer crecer el stock central — compra, recepción de TuVes.
+- **`entregarFerreteria` ahora descuenta del stock central AL MOMENTO DE
+  CREAR la entrega pendiente**, no al confirmarla — a diferencia de los
+  equipos (que se "reservan" solo cambiando de estado), acá no hay una fila
+  que reservar, así que el descuento tiene que pasar ya, con
+  `SELECT ... FOR UPDATE` (`StockFerreteriaCentralRepository::debitarSiAlcanza`)
+  para que dos entregas casi simultáneas del mismo ítem no manden más de lo
+  que hay. Si no alcanza, `409 stock_insuficiente` y no se crea nada.
+- Si el técnico **rechaza** o el admin **cancela**, se reingresa a la MISMA
+  bodega que lo había debitado (`entregas_ferreteria_pendientes.bodega_id`
+  guarda cuál).
+- El stock **del técnico** (`stock_ferreteria_usuario`) sigue sin tocarse
+  hasta que él confirma — eso no cambió.
+
+## Guía de despacho
+
+Pedido: *"generar guías de despacho al realizar traspaso de bodega a
+técnicos"*. Se implementó como un **comprobante interno imprimible**, no
+como un documento tributario (no reemplaza una guía SII real si algún día
+hiciera falta transportar mercadería comercialmente — este sistema no tiene
+ni necesita ese circuito).
+
+Desde **Bodega → Bodegas de técnicos**, al elegir un técnico aparece "Ver
+guía de despacho pendiente" → `#guia?tecnicoId=N` (`admin/js/views/guia.js`),
+que lista TODO lo que ese técnico tiene pendiente de confirmar en ese
+momento (equipos `en_transito` + ferretería pendiente — mismo shape que
+`/api/mis-traspasos`, pero para un `tecnico_id` arbitrario vía
+`GET /admin/tecnicos/{id}/traspasos-pendientes`, admin-only). Botón
+"Imprimir" llama `window.print()`; `@media print` en `admin.css` oculta la
+barra de navegación y deja solo el documento.
+
+No se modeló como un "pedido" con snapshot fijo (ver más arriba, "Por qué NO
+es un pedido atómico") — la guía siempre muestra el estado ACTUAL de lo
+pendiente, no una foto congelada del momento en que se imprimió.
+
+## Dashboard de indicadores
+
+`GET /admin/indicadores` (`IndicadoresService`) — agregados de solo lectura
+sobre tablas que ya existían (`COUNT`/`SUM` directos, sin tabla nueva):
+órdenes del mes por estado, liquidado del mes, saldo total a favor de los
+técnicos, equipos por estado, ferretería pendiente de confirmar, traspasos y
+entregas rechazados en los últimos 30 días. Pestaña **Indicadores** en el
+panel — es un resumen, no reemplaza Auditoría/Bodega/Billetera para el
+trabajo del día a día.
+
+## Avisos de traspasos que llevan mucho tiempo sin confirmar
+
+Sin infraestructura de notificaciones (push, email) en el sistema, el aviso
+es puramente visual: en Bodega (equipos `en_transito` y ferretería
+pendiente), un chip pasa de "⏳ esperando" (ámbar) a "⚠ esperando hace N
+días" (rojo) a partir de `DIAS_AVISO_PENDIENTE = 3` días — calculado en el
+cliente a partir de `actualizado_en`/`creado_en`, sin endpoint nuevo.
+
+## Buscador por número de serie
+
+**Bodega → Buscar por serie** — coincidencia parcial
+(`GET /admin/equipos/buscar?q=`, `LIKE '%q%'`, máx. 30 resultados) y, al
+elegir uno, su historial completo (`GET /admin/equipos/{id}/historial`) leído
+directo de `movimientos_equipo` — el dato ya existía, solo faltaba una
+pantalla para consultarlo por serie en vez de tener que saber en qué estado
+filtrar.
+
 ## Migración de esquema en producción
 
 Los cambios de esquema (columna nueva en `equipos`, valores nuevos en dos

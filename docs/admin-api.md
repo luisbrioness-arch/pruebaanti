@@ -85,13 +85,20 @@ Editar **nunca** hace `UPDATE` sobre el monto vigente: cierra la fila (`vigente_
 ## Bodega — equipos
 
 ```
-GET  /api/admin/equipos?estado=bodega&tecnico_id=2
-POST /api/admin/equipos                        { tipo_equipo, numero_serie }         → alta, nace en 'bodega'
+GET  /api/admin/equipos?estado=bodega&tecnico_id=2&bodega_id=1
+GET  /api/admin/equipos/buscar?q=8934                                                → coincidencia parcial de serie
+GET  /api/admin/equipos/{id}/historial                                               → línea de tiempo completa (movimientos_equipo)
+POST /api/admin/equipos                        { tipo_equipo, numero_serie, bodega_id } → alta, nace en 'bodega' de ESA bodega física
 POST /api/admin/equipos/{id}/asignar            { tecnico_id }                        → 'bodega' → 'en_transito'
 POST /api/admin/equipos/{id}/traspasar          { tecnico_destino_id }                → 'maleta' → 'en_transito'
 POST /api/admin/equipos/{id}/cancelar-traspaso                                        → 'en_transito' → vuelve a donde estaba
 POST /api/admin/equipos/{id}/falla-fabrica      { observacion? }                      → sale sin culpar al técnico
-POST /api/admin/equipos/{id}/ingreso-bodega                                          → 'retirado' → 'bodega'
+POST /api/admin/equipos/{id}/ingreso-bodega     { bodega_id }                          → 'retirado' → 'bodega' (la que elija el admin)
+
+GET  /api/admin/bodegas                                                              → bodegas físicas activas
+POST /api/admin/bodegas                        { nombre }                            → crear una nueva
+GET  /api/admin/tecnicos/{id}/traspasos-pendientes                                   → base de la guía de despacho (ver bodegas-traspasos.md)
+GET  /api/admin/indicadores                                                          → dashboard de indicadores
 ```
 
 **`asignar`/`traspasar` ya no aplican al toque — quedan pendientes de que el técnico confirme** (ver [bodegas-traspasos.md](bodegas-traspasos.md) para el diseño completo). El equipo pasa a `en_transito` con `usuario_actual_id` ya apuntando al técnico destino (se ve "en camino" en la tabla) hasta que él lo acepta o lo rechaza desde `/api/mis-traspasos/*`. `cancelar-traspaso` es la salida del admin si se equivocó de técnico y todavía no confirmó nada.
@@ -108,15 +115,19 @@ POST /api/admin/equipos/{id}/ingreso-bodega                                     
 
 ```
 GET  /api/admin/ferreteria/stock?tecnico_id=2                      → stock YA CONFIRMADO por cada técnico
-POST /api/admin/ferreteria/entregar             { item_codigo, tecnico_id, cantidad }   → queda pendiente, no toca el stock todavía
+GET  /api/admin/ferreteria/stock-central?bodega_id=1                → stock real en las bodegas físicas
+POST /api/admin/ferreteria/ingreso              { item_codigo, bodega_id, cantidad, observacion? }  → compra/recepción — única forma de hacer crecer el stock central
+POST /api/admin/ferreteria/entregar             { item_codigo, tecnico_id, cantidad, bodega_id }   → descuenta el stock central YA (reserva); queda pendiente hasta que el técnico confirma
 GET  /api/admin/ferreteria/pendientes                              → todo lo pendiente, de cualquier técnico
-POST /api/admin/ferreteria/pendientes/{id}/cancelar                → el admin cancela una entrega sin confirmar
+POST /api/admin/ferreteria/pendientes/{id}/cancelar                → el admin cancela y reingresa el stock a la bodega
 
 GET  /api/admin/kits/{tipoServicioCodigo}
 PUT  /api/admin/kits/{tipoServicioCodigo}       { items: [{ item_codigo, cantidad_estandar }] }
 ```
 
-Igual que con los equipos: `entregar` ya no descuenta ni acredita nada al toque — crea una fila en `entregas_ferreteria_pendientes` y recién se aplica a `stock_ferreteria_usuario`/`movimientos_ferreteria` cuando el técnico confirma la cantidad recibida desde `/api/mis-traspasos/ferreteria/{id}/aceptar`. Si rechaza, no hay nada que revertir — nunca se aplicó.
+`entregar` ya no acredita nada al técnico al toque — crea una fila en `entregas_ferreteria_pendientes` y recién se aplica a `stock_ferreteria_usuario`/`movimientos_ferreteria` cuando el técnico confirma la cantidad recibida desde `/api/mis-traspasos/ferreteria/{id}/aceptar`. Pero el stock **central** sí se descuenta al crear la entrega (no al confirmarla) — ver [bodegas-traspasos.md](bodegas-traspasos.md) para por qué la asimetría con el flujo de equipos. Si el técnico rechaza o el admin cancela, se reingresa a la misma bodega.
+
+**El kit estándar (`/admin/kits/*`) ya no lo aplica el wizard del técnico solo** (ver `tecnico-app.md`, paso 4) — sigue existiendo como referencia editable acá, pero el técnico busca y agrega cada ítem a mano.
 
 ## Usuarios
 
