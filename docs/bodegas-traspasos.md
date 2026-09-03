@@ -82,10 +82,19 @@ entrega de ferretería desde la pestaña Ferretería — nunca hay un botón que
 junte ambas cosas en un solo formulario), y las bulk actions ya mandan un
 equipo a la vez al servidor. Atarlos en un pedido único habría significado
 rediseñar esos flujos sin que el admin lo hubiera pedido. El técnico igual
-ve todo junto en una sola pantalla ("Traspasos por confirmar"), solo que
+ve todo junto en una sola pantalla ("Mi bodega" → botón "📦 Bodega" en
+Inicio, pedido explícito: *"la app de técnico tiene que tener un botón de
+bodega para revisar si hay traspasos a su bodega"*), solo que
 acepta/rechaza cada equipo y cada entrega de ferretería por su cuenta — si
 más adelante hace falta que un envío grande se acepte o rechace todo junto,
 es una tabla `traspasos` (cabecera) + líneas, sin tocar el resto del diseño.
+
+**"Mi bodega" también muestra la maleta confirmada, no solo lo pendiente**
+— debajo de "Traspasos por confirmar" hay una sección de solo lectura ("Mi
+maleta ahora mismo") con los equipos y la ferretería que ya son suyos de
+verdad. No hizo falta ningún endpoint nuevo: reusa `GET /api/maleta`
+(`CatalogoController::maleta`), que ya existía para la validación offline
+del wizard — mismo dato, una pantalla más que lo muestra.
 
 ## Por qué la aceptación del técnico NO pasa por la cola offline
 

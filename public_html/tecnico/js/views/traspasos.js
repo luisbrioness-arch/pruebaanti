@@ -1,9 +1,11 @@
-// Equipos y ferretería que el admin mandó y todavía no confirmaste. El
-// técnico verifica FÍSICAMENTE (serie por serie, cantidad por cantidad) y
-// recién ahí acepta — antes de esto, un envío se daba por recibido apenas
-// el admin lo mandaba, sin que nadie del otro lado lo comprobara. Si algo
-// no cuadra, se rechaza con una nota y vuelve a bodega (o a quien lo tenía
-// antes) para que el admin lo corrija.
+// "Mi bodega" — dos cosas en una pantalla: lo que el admin mandó y
+// todavía no confirmaste (arriba, es lo urgente) y lo que ya es tuyo de
+// verdad ahora mismo (abajo, solo para consultar). El técnico verifica
+// FÍSICAMENTE (serie por serie, cantidad por cantidad) y recién ahí acepta
+// — antes de esto, un envío se daba por recibido apenas el admin lo
+// mandaba, sin que nadie del otro lado lo comprobara. Si algo no cuadra,
+// se rechaza con una nota y vuelve a bodega (o a quien lo tenía antes)
+// para que el admin lo corrija.
 import { api, ApiError } from '../api.js';
 import { el, escapeHtml, formatDateTime } from '../utils.js';
 import { irA } from '../router.js';
@@ -12,17 +14,64 @@ import { toast } from '../toast.js';
 import { abrirModal } from '../modal.js';
 
 export async function renderTraspasos(container) {
-  setTopbar({ titulo: 'Traspasos por confirmar', atras: () => irA('home') });
+  setTopbar({ titulo: 'Mi bodega', atras: () => irA('home') });
 
   const seccion = el(`
     <section class="home">
       <div id="traspasos-contenido"><p class="vacio">Cargando…</p></div>
+      <div class="seccion-titulo" style="margin-top: 22px;"><h3>Mi maleta ahora mismo</h3></div>
+      <div id="maleta-contenido"><p class="vacio">Cargando…</p></div>
     </section>
   `);
   container.appendChild(seccion);
   const $contenido = seccion.querySelector('#traspasos-contenido');
+  const $maleta = seccion.querySelector('#maleta-contenido');
 
-  await cargar();
+  await Promise.all([cargar(), cargarMaleta()]);
+
+  async function cargarMaleta() {
+    try {
+      const { equipos, ferreteria } = await api('/maleta');
+      pintarMaleta(equipos, ferreteria);
+    } catch (e) {
+      $maleta.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
+    }
+  }
+
+  function pintarMaleta(equipos, ferreteria) {
+    if (!equipos.length && !ferreteria.length) {
+      $maleta.innerHTML = '<p class="vacio">Todavía no tienes nada confirmado en tu maleta.</p>';
+      return;
+    }
+    $maleta.innerHTML = `
+      ${equipos.length ? `
+        <p class="campo-ayuda" style="margin-bottom: 6px;">Equipos (${equipos.length})</p>
+        <div class="lista-borradores" style="margin-bottom: 14px;">
+          ${equipos.map((e) => `
+            <div class="tarjeta-borrador" style="cursor: default;">
+              <span class="tarjeta-borrador-info">
+                <span class="tarjeta-borrador-folio">${escapeHtml(e.tipo_equipo_nombre)}</span><br>
+                <span class="tarjeta-borrador-meta celda-mono">${escapeHtml(e.numero_serie)}</span>
+              </span>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+      ${ferreteria.length ? `
+        <p class="campo-ayuda" style="margin-bottom: 6px;">Ferretería (${ferreteria.length})</p>
+        <div class="lista-borradores">
+          ${ferreteria.map((f) => `
+            <div class="tarjeta-borrador" style="cursor: default;">
+              <span class="tarjeta-borrador-info">
+                <span class="tarjeta-borrador-folio">${escapeHtml(f.nombre)}</span>
+                <span style="float: right; font-weight: 700;">${f.cantidad_actual} ${escapeHtml(f.unidad_medida)}</span>
+              </span>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+    `;
+  }
 
   async function cargar() {
     try {
@@ -35,16 +84,20 @@ export async function renderTraspasos(container) {
 
   function pintar(equipos, ferreteria) {
     if (!equipos.length && !ferreteria.length) {
-      $contenido.innerHTML = '<p class="vacio">No tienes nada pendiente de confirmar por ahora.</p>';
+      $contenido.innerHTML = `
+        <div class="seccion-titulo"><h3>Traspasos por confirmar</h3></div>
+        <p class="vacio">No tienes nada pendiente de confirmar por ahora.</p>
+      `;
       return;
     }
     $contenido.innerHTML = `
+      <div class="seccion-titulo"><h3>Traspasos por confirmar</h3></div>
       ${equipos.length ? `
-        <div class="seccion-titulo"><h3>Equipos</h3></div>
+        <p class="campo-ayuda" style="margin-bottom: 6px;">Equipos</p>
         <div class="lista-borradores" id="lista-equipos"></div>
       ` : ''}
       ${ferreteria.length ? `
-        <div class="seccion-titulo" style="margin-top: 18px;"><h3>Ferretería</h3></div>
+        <p class="campo-ayuda" style="margin: 14px 0 6px;">Ferretería</p>
         <div class="lista-borradores" id="lista-ferreteria"></div>
       ` : ''}
     `;
@@ -95,7 +148,7 @@ export async function renderTraspasos(container) {
     try {
       await api(`/mis-traspasos/equipos/${eq.id}/aceptar`, { method: 'POST', body: {} });
       toast(`${eq.numero_serie} confirmado — ya está en tu maleta.`, 'ok');
-      await cargar();
+      await Promise.all([cargar(), cargarMaleta()]);
     } catch (e) {
       toast(mensajeError(e), 'malo');
       botones.forEach((b) => (b.disabled = false));
@@ -108,7 +161,7 @@ export async function renderTraspasos(container) {
     try {
       await api(`/mis-traspasos/ferreteria/${fe.id}/aceptar`, { method: 'POST', body: {} });
       toast(`${fe.item_nombre} confirmado — ya suma a tu stock.`, 'ok');
-      await cargar();
+      await Promise.all([cargar(), cargarMaleta()]);
     } catch (e) {
       toast(mensajeError(e), 'malo');
       botones.forEach((b) => (b.disabled = false));

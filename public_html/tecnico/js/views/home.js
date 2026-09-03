@@ -35,7 +35,7 @@ export async function renderHome(container) {
         <div class="lista-borradores" id="lista-borradores"></div>
       </div>
 
-      <button type="button" class="btn btn--secundario btn--ancho" id="btn-traspasos">Traspasos por confirmar <span id="badge-traspasos"></span></button>
+      <button type="button" class="btn btn--secundario btn--ancho" id="btn-traspasos">📦 Bodega <span id="badge-traspasos"></span></button>
       <button type="button" class="btn btn--secundario btn--ancho" id="btn-historial">Ver mis órdenes enviadas</button>
       <button type="button" class="btn btn--secundario btn--ancho" id="btn-billetera">Ver mi billetera</button>
     </section>
