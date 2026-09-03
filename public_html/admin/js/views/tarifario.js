@@ -272,7 +272,7 @@ export async function renderTarifario(container) {
           <td>
             <div class="fila-tarifa-acciones">
               <button type="button" class="btn btn--secundario btn--chico" data-editar>Editar</button>
-              <button type="button" class="btn btn--chico ${activo ? 'btn--malo' : 'btn--ok'}" data-toggle-activo>${activo ? 'Eliminar' : 'Reactivar'}</button>
+              ${activo ? '<button type="button" class="btn btn--malo btn--chico" data-eliminar-plan>Eliminar</button>' : ''}
             </div>
           </td>
         </tr>
@@ -301,24 +301,24 @@ export async function renderTarifario(container) {
           },
         });
       });
-      tr.querySelector('[data-toggle-activo]').addEventListener('click', () => {
-        if (activo) {
-          confirmarEliminarPlan(codigo, nombre);
-        } else {
-          cambiarActivoPlan(codigo, nombre, true);
-        }
+      tr.querySelector('[data-eliminar-plan]')?.addEventListener('click', () => {
+        confirmarEliminarPlan(codigo, nombre);
       });
       $tbody.appendChild(tr);
     }
   }
 
+  // Pedido: "que no se pueda reactivar si necesito algo lo vuelvo a
+  // ingresar no mas" — sin botón "Reactivar" en el panel; el backend
+  // (PUT /admin/planes/{codigo}/activo) todavía acepta activo:true si
+  // alguna vez hace falta destrabar esto a mano, pero la UI ya no lo ofrece.
   function confirmarEliminarPlan(codigo, nombre) {
     const { root, cerrar } = abrirModal(`
       <h3>Eliminar "${escapeHtml(nombre)}"</h3>
       <p class="modal-explicacion">
         Deja de aparecer en el selector de "Registrar venta" del técnico. No se borra nada de su historial —
-        las comisiones, la instalación por plan y las ventas ya hechas con este plan siguen intactas, y
-        podés reactivarlo cuando quieras desde acá mismo.
+        las comisiones, la instalación por plan y las ventas ya hechas con este plan siguen intactas. No hay
+        forma de reactivarlo desde acá: si más adelante hace falta de nuevo, se vuelve a crear como plan nuevo.
       </p>
       <div class="modal-acciones">
         <button type="button" class="btn btn--secundario" id="btn-cancelar">Cancelar</button>
@@ -328,21 +328,21 @@ export async function renderTarifario(container) {
     root.querySelector('#btn-cancelar').addEventListener('click', cerrar);
     root.querySelector('#btn-confirmar').addEventListener('click', () => {
       cerrar();
-      cambiarActivoPlan(codigo, nombre, false);
+      cambiarActivoPlan(codigo, nombre);
     });
   }
 
-  async function cambiarActivoPlan(codigo, nombre, activo) {
+  async function cambiarActivoPlan(codigo, nombre) {
     try {
       const { encolado } = await conColaSiHaceFalta(
-        'cambiar_activo_plan', { codigo, activo },
-        () => api(`/admin/planes/${encodeURIComponent(codigo)}/activo`, { method: 'PUT', body: { activo } }),
+        'cambiar_activo_plan', { codigo, activo: false },
+        () => api(`/admin/planes/${encodeURIComponent(codigo)}/activo`, { method: 'PUT', body: { activo: false } }),
         codigo
       );
       if (encolado) {
         toast(`${nombre}: guardado sin conexión — se aplicará al recuperar señal.`, 'neutro');
       } else {
-        toast(activo ? `${nombre} reactivado.` : `${nombre} eliminado del selector del técnico.`, activo ? 'ok' : 'neutro');
+        toast(`${nombre} eliminado del selector del técnico.`, 'neutro');
         await cargar();
       }
     } catch (e) {
