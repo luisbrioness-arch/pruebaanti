@@ -36,6 +36,19 @@ final class AdminTarifarioController
         Response::json(['comisiones' => (new TarifarioService())->listarComisiones()]);
     }
 
+    public function crearPlan(Request $req): void
+    {
+        $admin = Auth::requireAdmin();
+        $codigo = (string) $req->input('codigo', '');
+        $nombre = (string) $req->input('nombre', '');
+        $comision = $req->input('comision_inicial');
+        if ($comision === null) {
+            throw new ValidationException('Falta la comisión inicial del plan.');
+        }
+        (new TarifarioService())->crearPlan($codigo, $nombre, (float) $comision, (int) $admin['id']);
+        Response::json(['comisiones' => (new TarifarioService())->listarComisiones()], 201);
+    }
+
     public function editarComision(Request $req): void
     {
         $admin = Auth::requireAdmin();

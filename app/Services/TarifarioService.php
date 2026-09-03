@@ -57,6 +57,37 @@ final class TarifarioService
         return $this->comisiones->todasVigentes();
     }
 
+    /**
+     * Alta de un plan nuevo (pedido: "que al elegir el plan venga los
+     * planes que hay" — antes solo existía 'plan_full', sembrado en el
+     * schema, y no había forma de agregar otro sin tocar la base a mano).
+     * Nace con su propia comisión vigente — sin esto quedaría sin fila en
+     * comisiones_plan y ninguna venta con ese plan podría confirmar su monto.
+     */
+    public function crearPlan(string $codigo, string $nombre, float $comisionInicial, int $editorId): array
+    {
+        $codigo = trim($codigo);
+        $nombre = trim($nombre);
+        if ($codigo === '' || !preg_match('/^[a-z0-9_]+$/', $codigo)) {
+            throw new ValidationException('El código del plan debe tener solo minúsculas, números o guion bajo.');
+        }
+        if ($nombre === '') {
+            throw new ValidationException('El nombre del plan no puede estar vacío.');
+        }
+        if ($this->planes->existeCodigo($codigo)) {
+            throw new ValidationException('Ya existe un plan con ese código.');
+        }
+        if ($comisionInicial <= 0) {
+            throw new ValidationException('La comisión inicial debe ser mayor que cero.');
+        }
+
+        return Database::transaction(function () use ($codigo, $nombre, $comisionInicial, $editorId) {
+            $planId = $this->planes->crear($codigo, $nombre);
+            $this->comisiones->cerrarYCrear($planId, $comisionInicial, $editorId);
+            return $this->comisiones->vigentePara($planId);
+        });
+    }
+
     public function editarComision(string $planCodigo, float $monto, int $editorId): array
     {
         if ($monto <= 0) {

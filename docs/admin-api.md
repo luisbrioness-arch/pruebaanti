@@ -84,11 +84,14 @@ Recordatorio: la regla que decide qué entra a este buzón (`OrdenRepository::fo
 GET /api/admin/tarifas
 PUT /api/admin/tarifas/{tipoServicioCodigo}   { monto }
 
-GET /api/admin/comisiones
-PUT /api/admin/comisiones/{planCodigo}        { monto }
+GET  /api/admin/comisiones
+PUT  /api/admin/comisiones/{planCodigo}        { monto }
+POST /api/admin/planes                         { codigo, nombre, comision_inicial }   → 201, alta de plan nuevo
 ```
 
 Editar **nunca** hace `UPDATE` sobre el monto vigente: cierra la fila (`vigente_hasta = ahora`) y crea una nueva. Se probó explícitamente que una orden ya aprobada conserva su `monto_bruto` original después de subir el precio — es la garantía central del versionado.
+
+**Alta de planes** (pedido: *"que al elegir el plan venga los planes que hay"* — antes solo existía `plan_full`, sembrado en el schema, sin ninguna forma de agregar otro salvo tocar la base a mano). `POST /admin/planes` crea el plan Y su primera comisión vigente en la misma transacción — un plan sin comisión no podría confirmar el monto de ninguna venta que lo use. Formulario "Nuevo plan" en el panel, dentro de la misma pantalla de Tarifario. Recién ahí aparece en `GET /catalogo/planes`, el selector que usa `venta.js` del técnico.
 
 ## Bodega — equipos
 

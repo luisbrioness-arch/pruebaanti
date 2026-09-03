@@ -18,11 +18,61 @@ export async function renderTarifario(container) {
       <div id="tabla-tarifas"><p class="vacio">Cargando…</p></div>
       <h3>Comisiones por plan</h3>
       <div id="tabla-comisiones"><p class="vacio">Cargando…</p></div>
+
+      <h3>Nuevo plan</h3>
+      <p class="campo-ayuda" style="margin-bottom: 8px;">Antes de que aparezca en el selector de "Registrar venta" del técnico, tiene que existir acá.</p>
+      <form id="form-nuevo-plan" class="form-fila">
+        <label class="campo campo--inline">
+          <span>Código</span>
+          <input type="text" name="codigo" placeholder="Ej: plan_basico" pattern="[a-z0-9_]+" title="Solo minúsculas, números o guion bajo" required>
+        </label>
+        <label class="campo campo--inline">
+          <span>Nombre</span>
+          <input type="text" name="nombre" placeholder="Ej: Plan Básico" required>
+        </label>
+        <label class="campo campo--inline">
+          <span>Comisión inicial</span>
+          <input type="number" name="comision_inicial" min="1" step="1" required>
+        </label>
+        <button type="submit" class="btn btn--primario">Crear plan</button>
+      </form>
     </section>
   `));
 
   const $tarifas = container.querySelector('#tabla-tarifas');
   const $comisiones = container.querySelector('#tabla-comisiones');
+
+  container.querySelector('#form-nuevo-plan').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const $submit = ev.target.querySelector('button[type="submit"]');
+    if ($submit.disabled) return;
+    $submit.disabled = true;
+    const fd = new FormData(ev.target);
+    const payload = {
+      codigo: fd.get('codigo').trim(),
+      nombre: fd.get('nombre').trim(),
+      comision_inicial: Number(fd.get('comision_inicial')),
+    };
+    try {
+      const { datos, encolado } = await conColaSiHaceFalta('crear_plan', payload, () => api('/admin/planes', { method: 'POST', body: payload }));
+      ev.target.reset();
+      if (encolado) {
+        toast(`Plan "${payload.nombre}" guardado sin conexión — se creará al recuperar señal.`, 'neutro');
+      } else {
+        toast(`Plan "${payload.nombre}" creado.`, 'ok');
+        renderTabla($comisiones, datos.comisiones, {
+          codigoCampo: 'plan_codigo',
+          nombreCampo: 'plan_nombre',
+          endpoint: (codigo) => `/admin/comisiones/${encodeURIComponent(codigo)}`,
+          tipoAccion: 'editar_comision',
+        });
+      }
+    } catch (e) {
+      toast(e.message, 'malo');
+    } finally {
+      $submit.disabled = false;
+    }
+  });
 
   async function cargar() {
     try {
