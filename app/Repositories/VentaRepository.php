@@ -18,8 +18,8 @@ final class VentaRepository
     public function crear(array $datos): int
     {
         $stmt = Database::connection()->prepare(
-            'INSERT INTO ventas (numero_venta_tuves, cliente_nombre, cliente_rut, cliente_direccion, cliente_telefono, comuna, plan_id, vendedor_id, estado)
-             VALUES (:numero_venta_tuves, :cliente_nombre, :cliente_rut, :cliente_direccion, :cliente_telefono, :comuna, :plan_id, :vendedor_id, :estado)'
+            'INSERT INTO ventas (numero_venta_tuves, cliente_nombre, cliente_rut, cliente_direccion, cliente_telefono, fecha_instalacion_solicitada, comuna, plan_id, vendedor_id, estado)
+             VALUES (:numero_venta_tuves, :cliente_nombre, :cliente_rut, :cliente_direccion, :cliente_telefono, :fecha_instalacion_solicitada, :comuna, :plan_id, :vendedor_id, :estado)'
         );
         $stmt->execute($datos);
         return (int) Database::connection()->lastInsertId();
@@ -50,6 +50,28 @@ final class VentaRepository
              ORDER BY v.creado_en DESC"
         );
         $stmt->execute([$vendedorId]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Todas las ventas sin instalar (de cualquier técnico), ordenadas por la
+     * fecha que pidió el cliente — las más próximas (o ya vencidas) primero,
+     * las que no tienen fecha cargada van al final. Para "Pendientes de
+     * instalar" en Inicio del panel admin.
+     */
+    public function pendientesInstalarTodas(int $limite = 20): array
+    {
+        $stmt = Database::connection()->prepare(
+            "SELECT v.*, p.nombre AS plan_nombre, u.nombre AS vendedor_nombre
+             FROM ventas v
+             JOIN planes p ON p.id = v.plan_id
+             JOIN usuarios u ON u.id = v.vendedor_id
+             WHERE v.estado = 'registrada'
+             ORDER BY (v.fecha_instalacion_solicitada IS NULL) ASC, v.fecha_instalacion_solicitada ASC
+             LIMIT ?"
+        );
+        $stmt->bindValue(1, $limite, \PDO::PARAM_INT);
+        $stmt->execute();
         return $stmt->fetchAll();
     }
 

@@ -169,6 +169,7 @@ POST /api/admin/ordenes/retroactiva
 → 201 orden completa (estado 'enviada' o 'conflicto')
 
 GET  /api/admin/ventas/pendientes?tecnico_id=2   → ventas 'registrada' de ESE técnico, para el selector de venta_id
+GET  /api/admin/ventas/pendientes-instalar       → TODAS las ventas 'registrada', de cualquier técnico, ordenadas por fecha_instalacion_solicitada (las sin fecha van al final) — alimenta "Ventas pendientes de instalar" en Inicio
 ```
 
 Para cuando el técnico hizo el trabajo sin pasar por el wizard del celular (se le cayó la app, se olvidó el teléfono, reporte en papel) y Edwin lo carga después desde el PC. Implementado en `OrdenWizardService::crearRetroactiva()`, compartiendo con `enviar()` — nunca duplicando — las mismas reglas sobre maleta, kit de ferretería, tarifa vigente, folio en conflicto y confirmación de venta.

@@ -161,6 +161,15 @@ registro) — siguen sin ser la ficha real del cliente, eso sigue viviendo en
 TuVes; son solo una referencia rápida para el vendedor o quien instale. Ver
 [admin-api.md](admin-api.md) y `app/Controllers/VentaController.php`.
 
+**`fecha_instalacion_solicitada`** (también opcional) es distinta a las
+anteriores — no es solo referencia, alimenta directo "Ventas pendientes de
+instalar" en la pantalla de Inicio del admin (pedido: *"que aparezca en el
+dashboard del edwin como pendiente de instalar dependiendo de la fecha de
+instalación solicitada por el cliente"*). Sin fecha cargada, la venta sigue
+apareciendo ahí (al final de la lista, sin urgencia) — no se pierde, solo no
+tiene con qué ordenarla. Ver `GET /admin/ventas/pendientes-instalar` en
+[admin-api.md](admin-api.md).
+
 ## Qué falta para completar la Fase 1 (no es parte de este wizard técnico)
 
 - **Auditoría** (aprobar/rechazar/observar), **registro retroactivo del admin** (respuesta 12), **traspasos de equipo** (respuesta 9) y **tarifario/bodega** — módulo del administrador, ver [admin-api.md](admin-api.md).

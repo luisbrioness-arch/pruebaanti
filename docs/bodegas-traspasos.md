@@ -202,9 +202,31 @@ información importante"*) — ahora es la pantalla de aterrizaje por defecto
 default en `router.js` y como destino de `topbar-marca`). Combina accesos
 directos a cada sección (tarjetas grandes) con una lista de alertas
 accionables (solo se muestran las que tienen algo pendiente, cada una linkea
-a la pantalla que corresponde) y un resumen chico del mes — no reemplaza
+a la pantalla que corresponde), una tabla de **"Ventas pendientes de
+instalar"** (ver abajo) y un resumen chico del mes — no reemplaza
 Auditoría/Bodega/Billetera para el trabajo del día a día, es el primer
 vistazo antes de entrar a cualquiera de ellas.
+
+## Ventas pendientes de instalar (en Inicio)
+
+Pedido: *"si creamos una venta que aparezca en el dashboard del edwin como
+pendiente de instalar dependiendo de la fecha de instalación solicitada por
+el cliente"*. `ventas.fecha_instalacion_solicitada` (opcional) es lo que el
+técnico carga al registrar la venta — no bloquea el registro si no la sabe
+todavía.
+
+`GET /admin/ventas/pendientes-instalar` (`VentaRepository::pendientesInstalarTodas`)
+trae TODAS las ventas en estado `registrada` (de cualquier técnico, no solo
+uno), ordenadas por esa fecha — las vencidas y las más próximas primero, las
+sin fecha cargada al final (no desaparecen, solo quedan sin urgencia). El
+front (`inicio.js`) calcula "vencida hace N días" / "hoy" / "en N días" en
+el cliente, sin librería de fechas — mismo criterio de "3 días" que ya usan
+los avisos de Bodega para marcar algo en rojo.
+
+No hay ninguna acción posible desde esta tabla (no es un botón de "marcar
+instalada") — una venta sale de la lista sola cuando la orden de instalación
+que la enlaza (`orden.venta_id`) se envía y `confirmarVenta()` la pasa a
+`estado = 'instalada'`, el mismo mecanismo que ya existía.
 
 ## Avisos de traspasos que llevan mucho tiempo sin confirmar
 

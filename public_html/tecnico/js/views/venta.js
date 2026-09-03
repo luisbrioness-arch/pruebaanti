@@ -13,7 +13,9 @@ export async function renderVenta(container) {
         Deja la venta guardada acá para poder enlazarla después con la instalación,
         sea hoy mismo o cuando el cliente agende. La ficha real del cliente sigue
         viviendo en el sistema de TuVes — RUT, dirección y teléfono acá son
-        opcionales, solo una referencia rápida para vos o para quien instale.
+        opcionales, solo una referencia rápida para vos o para quien instale. Si
+        cargas la fecha que pidió el cliente, Edwin la ve como pendiente de
+        instalar en su pantalla de Inicio.
       </p>
       <form class="venta-form" id="form-venta" novalidate>
         <label class="campo">
@@ -39,6 +41,10 @@ export async function renderVenta(container) {
         <label class="campo">
           <span>Comuna</span>
           <input type="text" name="comuna" required>
+        </label>
+        <label class="campo">
+          <span>Fecha de instalación pedida por el cliente (opcional)</span>
+          <input type="date" name="fecha_instalacion_solicitada">
         </label>
         <label class="campo">
           <span>Plan</span>

@@ -31,9 +31,16 @@ final class VentaController
         $rut = trim((string) $req->input('cliente_rut', ''));
         $direccion = trim((string) $req->input('cliente_direccion', ''));
         $telefono = trim((string) $req->input('cliente_telefono', ''));
+        // También opcional, pero es lo que alimenta "pendientes de instalar"
+        // en Inicio del admin — sin fecha, la venta simplemente no aparece
+        // ahí (no bloquea el registro).
+        $fechaInstalacion = trim((string) $req->input('fecha_instalacion_solicitada', ''));
 
         if ($numero === '' || $cliente === '' || $comuna === '' || $planCodigo === '') {
             throw new ValidationException('Faltan datos de la venta (número TuVes, cliente, comuna o plan).');
+        }
+        if ($fechaInstalacion !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $fechaInstalacion)) {
+            throw new ValidationException('Fecha de instalación inválida.');
         }
 
         $plan = (new PlanRepository())->porCodigo($planCodigo);
@@ -48,6 +55,7 @@ final class VentaController
             'cliente_rut' => $rut !== '' ? $rut : null,
             'cliente_direccion' => $direccion !== '' ? $direccion : null,
             'cliente_telefono' => $telefono !== '' ? $telefono : null,
+            'fecha_instalacion_solicitada' => $fechaInstalacion !== '' ? $fechaInstalacion : null,
             'comuna' => $comuna,
             'plan_id' => $plan['id'],
             'vendedor_id' => $vendedorId,

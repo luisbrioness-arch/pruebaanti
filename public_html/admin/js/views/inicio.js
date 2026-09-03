@@ -30,6 +30,9 @@ export async function renderInicio(container) {
       <h3 style="margin-top: 26px;">Importante</h3>
       <div id="inicio-alertas"><p class="vacio">Cargando…</p></div>
 
+      <h3 style="margin-top: 26px;">Ventas pendientes de instalar</h3>
+      <div id="inicio-ventas-pendientes"><p class="vacio">Cargando…</p></div>
+
       <h3 style="margin-top: 26px;">Este mes</h3>
       <div id="inicio-tiles"><p class="vacio">Cargando…</p></div>
     </section>
@@ -44,6 +47,53 @@ export async function renderInicio(container) {
     seccion.querySelector('#inicio-alertas').innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
     seccion.querySelector('#inicio-tiles').innerHTML = '';
   }
+
+  try {
+    const { ventas } = await api('/admin/ventas/pendientes-instalar');
+    pintarVentasPendientes(seccion.querySelector('#inicio-ventas-pendientes'), ventas);
+  } catch (e) {
+    seccion.querySelector('#inicio-ventas-pendientes').innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
+  }
+}
+
+/** "hoy", "en 3 días", "vencida hace 2 días" — sin depender de ninguna librería de fechas. */
+function etiquetaFecha(fechaStr) {
+  if (!fechaStr) return { texto: 'Sin fecha', tono: '' };
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const fecha = new Date(fechaStr + 'T00:00:00');
+  const dias = Math.round((fecha - hoy) / 86400000);
+  const fechaFmt = fecha.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  if (dias < 0) return { texto: `${fechaFmt} — vencida hace ${-dias} día${-dias === 1 ? '' : 's'}`, tono: 'malo' };
+  if (dias === 0) return { texto: `${fechaFmt} — hoy`, tono: 'malo' };
+  if (dias <= 3) return { texto: `${fechaFmt} — en ${dias} día${dias === 1 ? '' : 's'}`, tono: 'alerta' };
+  return { texto: fechaFmt, tono: '' };
+}
+
+function pintarVentasPendientes($div, ventas) {
+  if (!ventas.length) {
+    $div.innerHTML = '<p class="campo-ayuda">No hay ventas esperando instalación.</p>';
+    return;
+  }
+  $div.innerHTML = `
+    <table class="tabla">
+      <thead><tr><th>Cliente</th><th>Plan</th><th>Comuna</th><th>Vendedor</th><th>Fecha pedida</th></tr></thead>
+      <tbody>
+        ${ventas.map((v) => {
+          const { texto, tono } = etiquetaFecha(v.fecha_instalacion_solicitada);
+          return `
+            <tr>
+              <td>${escapeHtml(v.cliente_nombre)}</td>
+              <td>${escapeHtml(v.plan_nombre)}</td>
+              <td>${escapeHtml(v.comuna)}</td>
+              <td>${escapeHtml(v.vendedor_nombre)}</td>
+              <td>${tono ? `<span class="chip chip--${tono}">${escapeHtml(texto)}</span>` : escapeHtml(texto)}</td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
 }
 
 function pintarAlertas($div, r) {

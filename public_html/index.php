@@ -89,6 +89,7 @@ $router->post('/api/admin/ordenes/{id}/reabrir', fn(Request $r) => (new AdminAud
 // Registro retroactivo (trabajo hecho en terreno sin pasar por el wizard del celular)
 $router->post('/api/admin/ordenes/retroactiva', fn(Request $r) => (new AdminOrdenController())->crearRetroactiva($r));
 $router->get('/api/admin/ventas/pendientes', fn(Request $r) => (new AdminOrdenController())->ventasPendientes($r));
+$router->get('/api/admin/ventas/pendientes-instalar', fn(Request $r) => (new AdminOrdenController())->ventasPendientesInstalar($r));
 
 // Conflictos de sincronización
 $router->get('/api/admin/conflictos', fn(Request $r) => (new AdminConflictoController())->listar($r));

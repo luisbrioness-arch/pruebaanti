@@ -40,4 +40,17 @@ final class AdminOrdenController
         }
         Response::json(['ventas' => (new VentaRepository())->pendientesDe($tecnicoId)]);
     }
+
+    /**
+     * Todas las ventas sin instalar, de cualquier técnico, ordenadas por
+     * fecha solicitada por el cliente — para "Pendientes de instalar" en
+     * Inicio del panel (pedido: "que aparezca en el dashboard del edwin
+     * como pendiente de instalar dependiendo de la fecha de instalación
+     * solicitada por el cliente").
+     */
+    public function ventasPendientesInstalar(Request $req): void
+    {
+        Auth::requireAdmin();
+        Response::json(['ventas' => (new VentaRepository())->pendientesInstalarTodas()]);
+    }
 }
