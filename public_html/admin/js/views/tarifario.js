@@ -1,5 +1,6 @@
 import { api } from '../api.js';
 import { toast } from '../toast.js';
+import { abrirModal } from '../modal.js';
 import { conColaSiHaceFalta } from '../offline.js';
 import { escapeHtml, formatMoney, formatDateTime, el } from '../utils.js';
 
@@ -123,12 +124,7 @@ export async function renderTarifario(container) {
         toast(`Plan "${payload.nombre}" guardado sin conexión — se creará al recuperar señal.`, 'neutro');
       } else {
         toast(`Plan "${payload.nombre}" creado.`, 'ok');
-        renderTabla($comisiones, datos.comisiones, {
-          codigoCampo: 'plan_codigo',
-          nombreCampo: 'plan_nombre',
-          endpoint: (codigo) => `/admin/comisiones/${encodeURIComponent(codigo)}`,
-          tipoAccion: 'editar_comision',
-        });
+        renderTablaComisiones($comisiones, datos.comisiones);
         $selectPlanInstalacion.innerHTML = datos.comisiones
           .map((c) => `<option value="${escapeHtml(c.plan_codigo)}">${escapeHtml(c.plan_nombre)}</option>`).join('');
       }
@@ -151,12 +147,7 @@ export async function renderTarifario(container) {
         endpoint: (codigo) => `/admin/tarifas/${encodeURIComponent(codigo)}`,
         tipoAccion: 'editar_tarifa',
       });
-      renderTabla($comisiones, comisiones, {
-        codigoCampo: 'plan_codigo',
-        nombreCampo: 'plan_nombre',
-        endpoint: (codigo) => `/admin/comisiones/${encodeURIComponent(codigo)}`,
-        tipoAccion: 'editar_comision',
-      });
+      renderTablaComisiones($comisiones, comisiones);
       $selectPlanInstalacion.innerHTML = comisiones.length
         ? comisiones.map((c) => `<option value="${escapeHtml(c.plan_codigo)}">${escapeHtml(c.plan_nombre)}</option>`).join('')
         : '<option value="" disabled selected>No hay planes todavía</option>';
@@ -224,6 +215,118 @@ export async function renderTarifario(container) {
         }
       });
       $tbody.appendChild(tr);
+    }
+  }
+
+  /**
+   * Comisiones por plan necesita dos cosas que renderTabla() no tiene:
+   * columna "Estado" y el botón Eliminar/Reactivar (pedido: "falta opcion
+   * de borrar planes") — por eso es su propio render en vez de sumarle
+   * parámetros a renderTabla() para un solo caso.
+   */
+  function renderTablaComisiones($contenedor, comisiones) {
+    if (!comisiones.length) {
+      $contenedor.innerHTML = '<p class="vacio">Nada configurado todavía.</p>';
+      return;
+    }
+    $contenedor.innerHTML = `
+      <table class="tabla tabla--editable">
+        <thead><tr><th>Nombre</th><th>Estado</th><th>Monto vigente</th><th>Desde</th><th>Editar</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    `;
+    const $tbody = $contenedor.querySelector('tbody');
+    for (const fila of comisiones) {
+      const codigo = fila.plan_codigo;
+      const nombre = fila.plan_nombre;
+      const activo = Number(fila.plan_activo) === 1;
+      const tr = el(`
+        <tr>
+          <td>${escapeHtml(nombre)}</td>
+          <td>${activo ? '<span class="badge badge--ok">Activo</span>' : '<span class="badge badge--neutro">Desactivado</span>'}</td>
+          <td class="celda-monto">${formatMoney(fila.monto)}</td>
+          <td class="celda-desde">${formatDateTime(fila.vigente_desde)}</td>
+          <td class="celda-acciones-plan">
+            <form class="form-inline">
+              <input type="number" name="monto" min="1" step="1" placeholder="Nuevo monto" required>
+              <button type="submit" class="btn btn--secundario btn--chico">Guardar</button>
+            </form>
+            <button type="button" class="btn btn--texto btn--chico" data-toggle-activo>${activo ? 'Eliminar' : 'Reactivar'}</button>
+          </td>
+        </tr>
+      `);
+      tr.querySelector('form').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const monto = Number(new FormData(ev.target).get('monto'));
+        if (!monto || monto <= 0) return;
+        const boton = ev.target.querySelector('button');
+        boton.disabled = true;
+        try {
+          const { encolado } = await conColaSiHaceFalta(
+            'editar_comision', { codigo, monto },
+            () => api(`/admin/comisiones/${encodeURIComponent(codigo)}`, { method: 'PUT', body: { monto } }),
+            codigo
+          );
+          if (encolado) {
+            tr.querySelector('.celda-monto').textContent = `${formatMoney(monto)} (sin conexión)`;
+            tr.querySelector('.celda-desde').textContent = 'pendiente de confirmar';
+            toast(`${nombre}: guardado sin conexión — se aplicará al recuperar señal.`, 'neutro');
+            boton.disabled = false;
+          } else {
+            toast(`${nombre} actualizado a ${formatMoney(monto)}.`, 'ok');
+            await cargar();
+          }
+        } catch (e) {
+          toast(e.message, 'malo');
+          boton.disabled = false;
+        }
+      });
+      tr.querySelector('[data-toggle-activo]').addEventListener('click', () => {
+        if (activo) {
+          confirmarEliminarPlan(codigo, nombre);
+        } else {
+          cambiarActivoPlan(codigo, nombre, true);
+        }
+      });
+      $tbody.appendChild(tr);
+    }
+  }
+
+  function confirmarEliminarPlan(codigo, nombre) {
+    const { root, cerrar } = abrirModal(`
+      <h3>Eliminar "${escapeHtml(nombre)}"</h3>
+      <p class="modal-explicacion">
+        Deja de aparecer en el selector de "Registrar venta" del técnico. No se borra nada de su historial —
+        las comisiones, la instalación por plan y las ventas ya hechas con este plan siguen intactas, y
+        podés reactivarlo cuando quieras desde acá mismo.
+      </p>
+      <div class="modal-acciones">
+        <button type="button" class="btn btn--secundario" id="btn-cancelar">Cancelar</button>
+        <button type="button" class="btn btn--malo" id="btn-confirmar">Eliminar</button>
+      </div>
+    `);
+    root.querySelector('#btn-cancelar').addEventListener('click', cerrar);
+    root.querySelector('#btn-confirmar').addEventListener('click', () => {
+      cerrar();
+      cambiarActivoPlan(codigo, nombre, false);
+    });
+  }
+
+  async function cambiarActivoPlan(codigo, nombre, activo) {
+    try {
+      const { datos, encolado } = await conColaSiHaceFalta(
+        'cambiar_activo_plan', { codigo, activo },
+        () => api(`/admin/planes/${encodeURIComponent(codigo)}/activo`, { method: 'PUT', body: { activo } }),
+        codigo
+      );
+      if (encolado) {
+        toast(`${nombre}: guardado sin conexión — se aplicará al recuperar señal.`, 'neutro');
+      } else {
+        toast(activo ? `${nombre} reactivado.` : `${nombre} eliminado del selector del técnico.`, activo ? 'ok' : 'neutro');
+        renderTablaComisiones($comisiones, datos.comisiones);
+      }
+    } catch (e) {
+      toast(e.message, 'malo');
     }
   }
 

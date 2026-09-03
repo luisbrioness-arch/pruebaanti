@@ -20,7 +20,7 @@ final class ComisionPlanRepository
     public function todasVigentes(): array
     {
         return Database::connection()->query(
-            "SELECT c.*, p.codigo AS plan_codigo, p.nombre AS plan_nombre
+            "SELECT c.*, p.codigo AS plan_codigo, p.nombre AS plan_nombre, p.activo AS plan_activo
              FROM comisiones_plan c
              JOIN planes p ON p.id = c.plan_id
              WHERE c.vigente_hasta IS NULL

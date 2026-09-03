@@ -49,6 +49,16 @@ final class AdminTarifarioController
         Response::json(['comisiones' => (new TarifarioService())->listarComisiones()], 201);
     }
 
+    /** "Borrar" un plan (pedido: "falta opcion de borrar planes") — ver TarifarioService::cambiarActivoPlan. */
+    public function cambiarActivoPlan(Request $req): void
+    {
+        Auth::requireAdmin();
+        $activo = (bool) $req->input('activo');
+        Response::json(['comisiones' => (new TarifarioService())->cambiarActivoPlan(
+            (string) $req->param('plan'), $activo
+        )]);
+    }
+
     public function editarComision(Request $req): void
     {
         $admin = Auth::requireAdmin();

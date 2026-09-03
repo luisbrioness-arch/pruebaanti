@@ -15,7 +15,7 @@ import { api, ApiError } from './api.js';
 import { toast } from './toast.js';
 import { colaAgregar, colaListar, colaEliminar, colaContar, colaEliminarPorTipoYClave } from './db.js';
 
-const TIPOS_COALESCIBLES = new Set(['editar_tarifa', 'editar_comision', 'editar_tarifa_instalacion', 'actualizar_kit']);
+const TIPOS_COALESCIBLES = new Set(['editar_tarifa', 'editar_comision', 'editar_tarifa_instalacion', 'actualizar_kit', 'cambiar_activo_plan']);
 
 const listeners = new Set();
 /** @param {() => void} fn se llama cada vez que la cola cambia (para refrescar el contador del topbar). */
@@ -45,6 +45,7 @@ const RUTAS = {
   ingreso_ferreteria_central: (p) => ({ path: '/admin/ferreteria/ingreso', method: 'POST', body: { item_codigo: p.item_codigo, bodega_id: p.bodega_id, cantidad: p.cantidad, observacion: p.observacion } }),
   crear_bodega: (p) => ({ path: '/admin/bodegas', method: 'POST', body: { nombre: p.nombre } }),
   crear_plan: (p) => ({ path: '/admin/planes', method: 'POST', body: { codigo: p.codigo, nombre: p.nombre, comision_inicial: p.comision_inicial } }),
+  cambiar_activo_plan: (p) => ({ path: `/admin/planes/${encodeURIComponent(p.codigo)}/activo`, method: 'PUT', body: { activo: p.activo } }),
   cancelar_entrega_ferreteria: (p) => ({ path: `/admin/ferreteria/pendientes/${p.id}/cancelar`, method: 'POST', body: {} }),
   actualizar_kit: (p) => ({ path: `/admin/kits/${encodeURIComponent(p.codigo)}`, method: 'PUT', body: { items: p.items } }),
   crear_usuario: (p) => ({ path: '/admin/usuarios', method: 'POST', body: p }),
@@ -60,6 +61,7 @@ const ETIQUETAS = {
   falla_fabrica: 'marcar falla de fábrica',
   ingreso_bodega: 'ingreso a bodega', entregar_ferreteria: 'entregar ferretería', cancelar_entrega_ferreteria: 'cancelar entrega de ferretería',
   ingreso_ferreteria_central: 'ingreso de ferretería a bodega', crear_bodega: 'crear bodega', crear_plan: 'crear plan',
+  cambiar_activo_plan: 'activar/desactivar plan',
   actualizar_kit: 'actualizar kit',
   cerrar_periodo: 'cerrar período de liquidación', registrar_pago: 'registrar pago', registrar_ajuste: 'registrar ajuste',
   reportar: 'enviar reporte', crear_usuario: 'crear usuario',

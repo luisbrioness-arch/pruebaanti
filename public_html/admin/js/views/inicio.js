@@ -77,13 +77,19 @@ function pintarVentasPendientes($div, ventas) {
   }
   $div.innerHTML = `
     <table class="tabla">
-      <thead><tr><th>Cliente</th><th>Plan</th><th>Comuna</th><th>Vendedor</th><th>Fecha pedida</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Cliente</th><th>Dirección</th><th>Plan</th><th>Comuna</th><th>Vendedor</th>
+          <th style="text-align: left;">Fecha pedida</th>
+        </tr>
+      </thead>
       <tbody>
         ${ventas.map((v) => {
           const { texto, tono } = etiquetaFecha(v.fecha_instalacion_solicitada);
           return `
             <tr>
               <td>${escapeHtml(v.cliente_nombre)}</td>
+              <td>${escapeHtml(v.cliente_direccion || '—')}</td>
               <td>${escapeHtml(v.plan_nombre)}</td>
               <td>${escapeHtml(v.comuna)}</td>
               <td>${escapeHtml(v.vendedor_nombre)}</td>

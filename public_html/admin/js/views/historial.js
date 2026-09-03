@@ -90,7 +90,7 @@ export async function renderHistorial(container) {
         <thead>
           <tr>
             <th>Cliente</th><th>Plan</th><th>Comuna</th><th>Vendedor</th>
-            <th>Fecha de venta</th><th>Instalación pedida</th><th>Estado</th>
+            <th>Fecha de venta</th><th>Instalación pedida</th><th style="text-align: left;">Estado</th>
           </tr>
         </thead>
         <tbody>
@@ -120,7 +120,7 @@ export async function renderHistorial(container) {
         <thead>
           <tr>
             <th>Folio</th><th>Técnico</th><th>Tipo</th><th>Cliente</th>
-            <th>Fecha de trabajo</th><th>Estado</th><th>Monto técnico</th>
+            <th>Fecha de trabajo</th><th>Estado</th><th style="text-align: left;">Monto técnico</th>
           </tr>
         </thead>
         <tbody>

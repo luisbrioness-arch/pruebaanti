@@ -36,4 +36,31 @@ final class PlanRepository
         $stmt->execute([$codigo, $nombre]);
         return (int) Database::connection()->lastInsertId();
     }
+
+    /**
+     * A diferencia de porCodigo(), no filtra por activo — hace falta para
+     * poder encontrar (y reactivar) un plan que ya está desactivado.
+     */
+    public function porCodigoCualquiera(string $codigo): ?array
+    {
+        $stmt = Database::connection()->prepare('SELECT * FROM planes WHERE codigo = ?');
+        $stmt->execute([$codigo]);
+        return $stmt->fetch() ?: null;
+    }
+
+    /**
+     * "Borrar" un plan (pedido: "falta opcion de borrar planes") es en
+     * realidad desactivarlo — un DELETE de verdad chocaría contra
+     * comisiones_plan/tarifas_instalacion_plan (todo plan tiene al menos
+     * una fila ahí) y contra ventas.plan_id si alguna vez se usó, mismo
+     * criterio que usuarios.activo para no perder plata/historia real. Un
+     * plan desactivado desaparece del selector de "Registrar venta" del
+     * técnico (ver PlanRepository::activos()) pero sigue intacto en
+     * Tarifario y en cualquier venta/orden vieja que ya lo haya usado.
+     */
+    public function cambiarActivo(int $id, bool $activo): void
+    {
+        $stmt = Database::connection()->prepare('UPDATE planes SET activo = ? WHERE id = ?');
+        $stmt->execute([$activo ? 1 : 0, $id]);
+    }
 }

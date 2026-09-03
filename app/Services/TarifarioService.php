@@ -91,6 +91,23 @@ final class TarifarioService
         });
     }
 
+    /**
+     * "Borrar" un plan = desactivarlo (ver PlanRepository::cambiarActivo
+     * para el porqué). Devuelve la lista completa de comisiones para que el
+     * panel pueda repintar la tabla entera de una — el plan no desaparece
+     * de acá, solo cambia su columna "Activo" y se saca del selector del
+     * técnico.
+     */
+    public function cambiarActivoPlan(string $codigo, bool $activo): array
+    {
+        $plan = $this->planes->porCodigoCualquiera($codigo);
+        if (!$plan) {
+            throw new ValidationException('Plan desconocido: ' . $codigo);
+        }
+        $this->planes->cambiarActivo((int) $plan['id'], $activo);
+        return $this->comisiones->todasVigentes();
+    }
+
     public function editarComision(string $planCodigo, float $monto, int $editorId): array
     {
         if ($monto <= 0) {
