@@ -30,6 +30,7 @@ final class VentaController
         // cliente, esto es solo una referencia rápida para el vendedor/técnico.
         $rut = trim((string) $req->input('cliente_rut', ''));
         $direccion = trim((string) $req->input('cliente_direccion', ''));
+        $telefono = trim((string) $req->input('cliente_telefono', ''));
 
         if ($numero === '' || $cliente === '' || $comuna === '' || $planCodigo === '') {
             throw new ValidationException('Faltan datos de la venta (número TuVes, cliente, comuna o plan).');
@@ -46,6 +47,7 @@ final class VentaController
             'cliente_nombre' => $cliente,
             'cliente_rut' => $rut !== '' ? $rut : null,
             'cliente_direccion' => $direccion !== '' ? $direccion : null,
+            'cliente_telefono' => $telefono !== '' ? $telefono : null,
             'comuna' => $comuna,
             'plan_id' => $plan['id'],
             'vendedor_id' => $vendedorId,

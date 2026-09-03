@@ -18,8 +18,8 @@ final class VentaRepository
     public function crear(array $datos): int
     {
         $stmt = Database::connection()->prepare(
-            'INSERT INTO ventas (numero_venta_tuves, cliente_nombre, cliente_rut, cliente_direccion, comuna, plan_id, vendedor_id, estado)
-             VALUES (:numero_venta_tuves, :cliente_nombre, :cliente_rut, :cliente_direccion, :comuna, :plan_id, :vendedor_id, :estado)'
+            'INSERT INTO ventas (numero_venta_tuves, cliente_nombre, cliente_rut, cliente_direccion, cliente_telefono, comuna, plan_id, vendedor_id, estado)
+             VALUES (:numero_venta_tuves, :cliente_nombre, :cliente_rut, :cliente_direccion, :cliente_telefono, :comuna, :plan_id, :vendedor_id, :estado)'
         );
         $stmt->execute($datos);
         return (int) Database::connection()->lastInsertId();

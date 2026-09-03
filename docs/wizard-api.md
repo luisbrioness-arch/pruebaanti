@@ -154,8 +154,9 @@ GET /api/ventas/pendientes
 
 **Actualización — se revirtió la decisión de no pedir RUT/dirección**
 (pedido explícito: *"al registrar venta que deje agregar más datos del
-cliente como rut y direccion"*). `cliente_rut` y `cliente_direccion` son
-columnas nuevas en `ventas`, ambas **opcionales** (nunca bloquean el
+cliente como rut y direccion"*, más tarde también *"un campo de teléfono
+del cliente"*). `cliente_rut`, `cliente_direccion` y `cliente_telefono` son
+columnas nuevas en `ventas`, las tres **opcionales** (nunca bloquean el
 registro) — siguen sin ser la ficha real del cliente, eso sigue viviendo en
 TuVes; son solo una referencia rápida para el vendedor o quien instale. Ver
 [admin-api.md](admin-api.md) y `app/Controllers/VentaController.php`.

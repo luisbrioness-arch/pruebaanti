@@ -128,6 +128,7 @@ CREATE TABLE ventas (
     cliente_nombre          VARCHAR(160)    NOT NULL,
     cliente_rut             VARCHAR(20)     NULL,       -- opcional (pedido: "que deje agregar más datos del cliente")
     cliente_direccion       VARCHAR(255)    NULL,       -- opcional — referencia rápida en terreno, TuVes sigue siendo la ficha real
+    cliente_telefono        VARCHAR(20)     NULL,       -- opcional — por si hay que llamar antes de ir a instalar
     comuna                  VARCHAR(80)     NOT NULL,
     plan_id                 INT UNSIGNED    NOT NULL,
     vendedor_id             INT UNSIGNED    NOT NULL,
