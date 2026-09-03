@@ -29,6 +29,27 @@ final class TarifaInstalacionPlanRepository
         )->fetchAll();
     }
 
+    /**
+     * Todos los planes activos, tengan o no una fila vigente acá — a
+     * diferencia de todasVigentes(). Pedido: "eliminar esta parte [el
+     * formulario Plan+Monto separado] en cambio un boton de editar" — para
+     * poder editar CUALQUIER plan desde su propia fila (incluido ponerle
+     * su primera tarifa), la tabla tiene que listarlos todos, no solo los
+     * que ya tienen una. `monto`/`vigente_desde` vienen NULL para los que
+     * todavía no tienen fila.
+     */
+    public function todosLosPlanesConTarifa(): array
+    {
+        return Database::connection()->query(
+            "SELECT p.codigo AS plan_codigo, p.nombre AS plan_nombre, p.activo AS plan_activo,
+                    t.monto, t.vigente_desde
+             FROM planes p
+             LEFT JOIN tarifas_instalacion_plan t ON t.plan_id = p.id AND t.vigente_hasta IS NULL
+             WHERE p.activo = 1
+             ORDER BY p.nombre"
+        )->fetchAll();
+    }
+
     public function cerrarYCrear(int $planId, float $monto, int $creadoPor): int
     {
         $ahora = date('Y-m-d H:i:s');

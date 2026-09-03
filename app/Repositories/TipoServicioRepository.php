@@ -37,4 +37,15 @@ final class TipoServicioRepository
         $stmt->execute([$tipoServicioId]);
         return $stmt->fetchAll();
     }
+
+    /**
+     * Pedido: "un boton de editar que deje editar todos los campos ya sea
+     * nombre y valor". El nombre es solo la etiqueta que ve el técnico/admin
+     * — `codigo` (lo que usa el código de negocio, ej. 'instalacion_nueva')
+     * nunca cambia acá.
+     */
+    public function actualizarNombre(int $id, string $nombre): void
+    {
+        Database::connection()->prepare('UPDATE tipos_servicio SET nombre = ? WHERE id = ?')->execute([$nombre, $id]);
+    }
 }

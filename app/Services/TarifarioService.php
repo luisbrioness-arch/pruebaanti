@@ -149,7 +149,12 @@ final class TarifarioService
      */
     public function listarTarifasInstalacion(): array
     {
-        return $this->tarifasInstalacionPlan->todasVigentes();
+        // Pedido: "eliminar esta parte [el formulario Plan+Monto separado]
+        // en cambio un boton de editar" — lista TODOS los planes (con o
+        // sin fila vigente) para poder editar cualquiera desde su propia
+        // fila, en vez de necesitar un selector aparte para los que
+        // todavía no tienen tarifa. Ver TarifaInstalacionPlanRepository::todosLosPlanesConTarifa.
+        return $this->tarifasInstalacionPlan->todosLosPlanesConTarifa();
     }
 
     public function editarTarifaInstalacion(string $planCodigo, float $monto, int $editorId): array
@@ -181,6 +186,49 @@ final class TarifarioService
             throw new ValidationException('Plan desconocido: ' . $planCodigo);
         }
         $this->tarifasInstalacionPlan->cerrarSinCrear((int) $plan['id']);
-        return $this->tarifasInstalacionPlan->todasVigentes();
+        return $this->tarifasInstalacionPlan->todosLosPlanesConTarifa();
+    }
+
+    /**
+     * Editar el NOMBRE de un tipo de servicio (pedido: "un boton de editar
+     * que deje editar todos los campos ya sea nombre y valor"). `codigo`
+     * nunca cambia — es lo que usa el resto del sistema (wizard, kits ya
+     * eliminados, etc.) para identificarlo.
+     */
+    public function editarNombreTarifa(string $tipoServicioCodigo, string $nombre): array
+    {
+        $nombre = trim($nombre);
+        if ($nombre === '') {
+            throw new ValidationException('El nombre no puede estar vacío.');
+        }
+        $tipo = $this->tiposServicio->findByCodigo($tipoServicioCodigo);
+        if (!$tipo) {
+            throw new ValidationException('Tipo de servicio desconocido: ' . $tipoServicioCodigo);
+        }
+        $this->tiposServicio->actualizarNombre((int) $tipo['id'], $nombre);
+        return $this->tarifas->todasVigentes();
+    }
+
+    /**
+     * Editar el NOMBRE de un plan — afecta por igual a como se ve en
+     * "Comisiones por plan" e "Instalación por plan" (mismo `planes.nombre`
+     * subyacente), y a lo que ve el técnico en "Registrar venta". `codigo`
+     * nunca cambia.
+     */
+    public function editarNombrePlan(string $planCodigo, string $nombre): array
+    {
+        $nombre = trim($nombre);
+        if ($nombre === '') {
+            throw new ValidationException('El nombre no puede estar vacío.');
+        }
+        $plan = $this->planes->porCodigoCualquiera($planCodigo);
+        if (!$plan) {
+            throw new ValidationException('Plan desconocido: ' . $planCodigo);
+        }
+        $this->planes->actualizarNombre((int) $plan['id'], $nombre);
+        return [
+            'comisiones' => $this->comisiones->todasVigentes(),
+            'tarifas_instalacion' => $this->tarifasInstalacionPlan->todosLosPlanesConTarifa(),
+        ];
     }
 }

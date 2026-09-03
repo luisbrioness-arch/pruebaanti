@@ -124,15 +124,17 @@ Recordatorio: la regla que decide qué entra a este buzón (`OrdenRepository::fo
 
 ```
 GET    /api/admin/tarifas
-PUT    /api/admin/tarifas/{tipoServicioCodigo}   { monto }
-DELETE /api/admin/tarifas/{tipoServicioCodigo}   → cierra la fila vigente sin reemplazarla
+PUT    /api/admin/tarifas/{tipoServicioCodigo}          { monto }
+PUT    /api/admin/tarifas/{tipoServicioCodigo}/nombre   { nombre }
+DELETE /api/admin/tarifas/{tipoServicioCodigo}          → cierra la fila vigente sin reemplazarla
 
 GET  /api/admin/comisiones
 PUT  /api/admin/comisiones/{planCodigo}        { monto }
 POST /api/admin/planes                         { codigo, nombre, comision_inicial }   → 201, alta de plan nuevo
 PUT  /api/admin/planes/{planCodigo}/activo     { activo: true|false }   → "borrar"/reactivar un plan
+PUT  /api/admin/planes/{planCodigo}/nombre     { nombre }
 
-GET    /api/admin/tarifas-instalacion
+GET    /api/admin/tarifas-instalacion                → TODOS los planes activos, con o sin fila vigente (monto null si no tienen)
 PUT    /api/admin/tarifas-instalacion/{planCodigo}   { monto }
 DELETE /api/admin/tarifas-instalacion/{planCodigo}   → cierra la fila vigente sin reemplazarla
 ```
@@ -141,7 +143,7 @@ Editar **nunca** hace `UPDATE` sobre el monto vigente: cierra la fila (`vigente_
 
 **Instalación por plan** (confirmado por Edwin: *"los planes van subiendo por cantidad de decos"*) — `tarifas_instalacion_plan`, mismo patrón versionado que lo de arriba, pero indexada por `plan_id` en vez de `tipo_servicio_id`. Cada plan ya trae su cantidad de decos en el nombre (`Plan Básico 2 Decos`), así que no hace falta pedirle nada nuevo al técnico: si una orden de **`instalacion_nueva`** tiene `venta_id` y ese plan tiene una fila vigente acá, `monto_bruto` sale de ahí; si no (orden sin venta, o un plan que todavía no tiene fila), sigue cayendo al monto plano de `tarifas_servicio` como siempre (`OrdenWizardService::calcularMontoBruto`). Los demás tipos de servicio (soporte, retiro, adicional) no varían por plan — solo `instalacion_nueva`. El endpoint `PUT` sirve tanto para crear la primera fila de un plan como para editar una ya existente (mismo `cerrarYCrear`).
 
-**Alta de planes** (pedido: *"que al elegir el plan venga los planes que hay"* — antes solo existía `plan_full`, sembrado en el schema, sin ninguna forma de agregar otro salvo tocar la base a mano). `POST /admin/planes` crea el plan Y su primera comisión vigente en la misma transacción — un plan sin comisión no podría confirmar el monto de ninguna venta que lo use. Formulario "Nuevo plan" en el panel, dentro de la misma pantalla de Tarifario. Recién ahí aparece en `GET /catalogo/planes`, el selector que usa `venta.js` del técnico.
+**Alta de planes** (pedido: *"que al elegir el plan venga los planes que hay"* — antes solo existía `plan_full`, sembrado en el schema, sin ninguna forma de agregar otro salvo tocar la base a mano). `POST /admin/planes` crea el plan Y su primera comisión vigente en la misma transacción — un plan sin comisión no podría confirmar el monto de ninguna venta que lo use. Botón **"+ Agregar nuevo plan"** al fondo de la tabla "Comisiones por plan" (pedido: *"en cada final de cada campo que aparezca un boton para agregar nuevos planes"* — antes era un formulario fijo al fondo de toda la página; ahora es un modal, pegado a la tabla a la que corresponde). Recién ahí aparece en `GET /catalogo/planes`, el selector que usa `venta.js` del técnico.
 
 **"Borrar" planes** (pedido: *"falta opcion de borrar planes"*, después *"que aplique a todos los planes o instalaciones de tarifario"*) es en realidad desactivar/cerrar, nunca un `DELETE` real de la fila — chocaría contra `comisiones_plan`/`tarifas_instalacion_plan` (todo plan tiene al menos una fila ahí desde que se crea) y contra `ventas.plan_id` si alguna vez se usó. Dos botones separados, ambos rojos y al lado de "Guardar" en su fila:
 
@@ -149,7 +151,15 @@ Editar **nunca** hace `UPDATE` sobre el monto vigente: cierra la fila (`vigente_
 - **Instalación por plan** ("Eliminar", sin modal — es reversible con solo volver a usar "Agregar / actualizar"): `DELETE /admin/tarifas-instalacion/{planCodigo}` cierra la fila vigente de `tarifas_instalacion_plan` sin crear otra (`TarifaInstalacionPlanRepository::cerrarSinCrear`) — no toca el plan en sí, solo hace que esa instalación vuelva a cobrar el monto plano de `tarifas_servicio` hasta que alguien cargue un monto nuevo.
 - **Tarifas por tipo de servicio** (pedido: *"que aplique igual para las Tarifas por tipo de servicio"* — "Eliminar" acá SÍ pasa por un modal de confirmación, a diferencia de las otras dos): `DELETE /admin/tarifas/{tipoServicioCodigo}` cierra la fila vigente de `tarifas_servicio` sin crear otra. A diferencia de instalación por plan, acá no hay un monto plano al que caer — es literalmente la tarifa que usa `OrdenWizardService::calcularMontoBruto` como fallback para todo lo demás. Sin fila vigente, cualquier técnico que intente cerrar una orden de ese tipo de servicio recibe `409 sin_tarifa_vigente` hasta que se cargue un monto nuevo — por eso el modal avisa esto explícitamente antes de confirmar.
 
-Los tres botones "Eliminar" son rojos y viven en la misma fila que "Guardar" (no debajo) — `.fila-tarifa-acciones` en vez de la `.celda-acciones` que usa Bodega, porque el `min-width: 124px` por botón de esa clase (pensado para textos largos como "Falla de fábrica") sería más ancho que toda la columna acá y forzaría el salto de línea que justamente se pidió evitar.
+Los tres botones "Eliminar" son rojos y viven en la misma fila que "Editar" (no debajo) — `.fila-tarifa-acciones` en vez de la `.celda-acciones` que usa Bodega, porque el `min-width: 124px` por botón de esa clase (pensado para textos largos como "Falla de fábrica") sería más ancho que toda la columna acá y forzaría el salto de línea que justamente se pidió evitar.
+
+**Editar nombre y monto juntos, desde un modal** (pedido: *"eliminar esta parte [el formulario Plan+Monto aparte de Instalación por plan] en cambio un boton de editar que deje editar todos los campos ya sea nombre y valor del plan en todos los campos"*) — reemplaza el viejo mini-formulario embebido en cada fila (que solo dejaba tocar el monto; el nombre quedaba fijo desde que se creaba el plan/tipo de servicio). Las tres tablas usan el mismo botón **"Editar"** por fila → modal con Nombre + Monto, ambos pre-cargados con el valor actual:
+
+- `PUT /admin/tarifas/{tipoServicioCodigo}/nombre` y `PUT /admin/planes/{planCodigo}/nombre` — nuevos, solo tocan la columna `nombre` (`codigo` nunca cambia, es lo que usa el resto del sistema para identificar la fila).
+- El monto sigue el mismo `PUT` de siempre (`cerrarYCrear`, nunca `UPDATE`).
+- Si el modal detecta que el nombre no cambió, no llama al endpoint de nombre; mismo criterio para el monto — evita crear una fila de historial nueva por una edición que no tocó el monto.
+
+**"Instalación por plan" ahora lista TODOS los planes**, no solo los que ya tienen una fila vigente (`GET /admin/tarifas-instalacion`, `TarifaInstalacionPlanRepository::todosLosPlanesConTarifa`, `LEFT JOIN` desde `planes`) — un plan sin tarifa todavía muestra "— (monto plano)" en vez de no aparecer. Esto es lo que permitió sacar el selector de plan aparte: "Editar" en cualquier fila sirve tanto para ponerle su primera tarifa como para cambiar una que ya tenía.
 
 ## Bodega — equipos
 

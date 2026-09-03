@@ -107,4 +107,22 @@ final class AdminTarifarioController
             (string) $req->param('plan')
         )]);
     }
+
+    /** Editar el nombre de un tipo de servicio — ver TarifarioService::editarNombreTarifa. */
+    public function editarNombreTarifa(Request $req): void
+    {
+        Auth::requireAdmin();
+        Response::json(['tarifas' => (new TarifarioService())->editarNombreTarifa(
+            (string) $req->param('tipoServicio'), (string) $req->input('nombre', '')
+        )]);
+    }
+
+    /** Editar el nombre de un plan — ver TarifarioService::editarNombrePlan. */
+    public function editarNombrePlan(Request $req): void
+    {
+        Auth::requireAdmin();
+        Response::json((new TarifarioService())->editarNombrePlan(
+            (string) $req->param('plan'), (string) $req->input('nombre', '')
+        ));
+    }
 }

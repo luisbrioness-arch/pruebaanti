@@ -399,7 +399,7 @@ final class OrdenWizardService
         $this->confirmarConsumoFisico($ordenId, $materiales, $tecnicoId);
 
         if (!empty($orden['venta_id'])) {
-            $this->confirmarVenta((int) $orden['venta_id'], $tecnicoId);
+            $this->confirmarVenta((int) $orden['venta_id']);
         }
 
         return $this->estadoCompleto($this->ordenes->find($ordenId));
@@ -680,7 +680,16 @@ final class OrdenWizardService
         return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($datos), 4));
     }
 
-    private function confirmarVenta(int $ventaId, int $vendedorId): void
+    /**
+     * FIX (pedido: "si la venta viene de otro lugar ya sea directa de
+     * tuvez o otro tecnico esa no se paga al que instala si no al que
+     * vendio") — antes esto recibía el id del TÉCNICO que instala y le
+     * acreditaba la comisión a él, sin importar quién había registrado la
+     * venta. La comisión es de `venta.vendedor_id` siempre, sea o no la
+     * misma persona que termina instalando — instalar una venta ajena no
+     * te hace dueño de su comisión.
+     */
+    private function confirmarVenta(int $ventaId): void
     {
         $venta = $this->ventas->find($ventaId);
         // Si ya no está 'registrada' (otra orden ya la confirmó, o fue
@@ -692,7 +701,7 @@ final class OrdenWizardService
         if (!$comision) {
             return; // sin comisión configurada para el plan: se resuelve manualmente, no se bloquea la instalación
         }
-        $vendedor = $this->usuarios->find($vendedorId);
+        $vendedor = $this->usuarios->find((int) $venta['vendedor_id']);
         $porcentaje = (float) $vendedor['porcentaje_reparto'];
         $this->ventas->actualizar($ventaId, [
             'estado' => 'instalada',

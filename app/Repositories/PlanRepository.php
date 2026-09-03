@@ -63,4 +63,14 @@ final class PlanRepository
         $stmt = Database::connection()->prepare('UPDATE planes SET activo = ? WHERE id = ?');
         $stmt->execute([$activo ? 1 : 0, $id]);
     }
+
+    /**
+     * Pedido: "un boton de editar que deje editar todos los campos ya sea
+     * nombre y valor". `codigo` nunca cambia acá (es lo que usa
+     * "Registrar venta" del técnico y las órdenes/ventas ya guardadas).
+     */
+    public function actualizarNombre(int $id, string $nombre): void
+    {
+        Database::connection()->prepare('UPDATE planes SET nombre = ? WHERE id = ?')->execute([$nombre, $id]);
+    }
 }

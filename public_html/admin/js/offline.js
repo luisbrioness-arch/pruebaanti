@@ -17,7 +17,7 @@ import { colaAgregar, colaListar, colaEliminar, colaContar, colaEliminarPorTipoY
 
 const TIPOS_COALESCIBLES = new Set([
   'editar_tarifa', 'eliminar_tarifa', 'editar_comision', 'editar_tarifa_instalacion', 'eliminar_tarifa_instalacion',
-  'cambiar_activo_plan',
+  'cambiar_activo_plan', 'editar_nombre_tarifa', 'editar_nombre_plan',
 ]);
 
 const listeners = new Set();
@@ -37,7 +37,9 @@ export { colaContar };
 const RUTAS = {
   editar_tarifa: (p) => ({ path: `/admin/tarifas/${encodeURIComponent(p.codigo)}`, method: 'PUT', body: { monto: p.monto } }),
   eliminar_tarifa: (p) => ({ path: `/admin/tarifas/${encodeURIComponent(p.codigo)}`, method: 'DELETE' }),
+  editar_nombre_tarifa: (p) => ({ path: `/admin/tarifas/${encodeURIComponent(p.codigo)}/nombre`, method: 'PUT', body: { nombre: p.nombre } }),
   editar_comision: (p) => ({ path: `/admin/comisiones/${encodeURIComponent(p.codigo)}`, method: 'PUT', body: { monto: p.monto } }),
+  editar_nombre_plan: (p) => ({ path: `/admin/planes/${encodeURIComponent(p.codigo)}/nombre`, method: 'PUT', body: { nombre: p.nombre } }),
   editar_tarifa_instalacion: (p) => ({ path: `/admin/tarifas-instalacion/${encodeURIComponent(p.codigo)}`, method: 'PUT', body: { monto: p.monto } }),
   eliminar_tarifa_instalacion: (p) => ({ path: `/admin/tarifas-instalacion/${encodeURIComponent(p.codigo)}`, method: 'DELETE' }),
   alta_equipo: (p) => ({ path: '/admin/equipos', method: 'POST', body: { tipo_equipo: p.tipo_equipo, numero_serie: p.numero_serie, bodega_id: p.bodega_id } }),
@@ -62,7 +64,8 @@ const RUTAS = {
 };
 
 const ETIQUETAS = {
-  editar_tarifa: 'editar tarifa', eliminar_tarifa: 'eliminar tarifa', editar_comision: 'editar comisión', editar_tarifa_instalacion: 'editar instalación por plan',
+  editar_tarifa: 'editar tarifa', eliminar_tarifa: 'eliminar tarifa', editar_nombre_tarifa: 'editar nombre de tarifa',
+  editar_comision: 'editar comisión', editar_nombre_plan: 'editar nombre de plan', editar_tarifa_instalacion: 'editar instalación por plan',
   eliminar_tarifa_instalacion: 'eliminar instalación por plan', alta_equipo: 'alta de equipo',
   asignar_equipo: 'enviar equipo a técnico', traspasar_equipo: 'traspasar equipo', cancelar_traspaso_equipo: 'cancelar envío de equipo',
   falla_fabrica: 'marcar falla de fábrica',
