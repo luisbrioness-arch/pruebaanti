@@ -15,6 +15,20 @@ final class VentaRepository
         return $stmt->fetch() ?: null;
     }
 
+    /**
+     * Igual que find(), con el nombre del plan ya resuelto — para que el
+     * wizard del técnico (paso 2) pueda mostrar "este plan trae N decos"
+     * sin tener que pedir el catálogo completo de planes solo para eso.
+     */
+    public function findConPlan(int $id): ?array
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT v.*, p.nombre AS plan_nombre FROM ventas v JOIN planes p ON p.id = v.plan_id WHERE v.id = ?'
+        );
+        $stmt->execute([$id]);
+        return $stmt->fetch() ?: null;
+    }
+
     public function crear(array $datos): int
     {
         $stmt = Database::connection()->prepare(

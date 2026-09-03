@@ -7,6 +7,8 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Request;
 use App\Core\Response;
+use App\Exceptions\ForbiddenException;
+use App\Exceptions\NotFoundException;
 use App\Exceptions\ValidationException;
 use App\Repositories\PlanRepository;
 use App\Repositories\VentaRepository;
@@ -68,5 +70,25 @@ final class VentaController
     public function pendientes(Request $req): void
     {
         Response::json(['ventas' => (new VentaRepository())->pendientesDe(Auth::id())]);
+    }
+
+    /**
+     * Una venta propia con el nombre del plan ya resuelto — la usa el
+     * wizard (paso 2) para mostrar "este plan trae N decos" cuando la orden
+     * viene enlazada a una venta (pedido: "que aqui aparezcan si este plan
+     * por ejemplo era de 3 decos 3 series a instalar"). Restringida al
+     * dueño de la venta, igual que pendientes().
+     */
+    public function detalle(Request $req): void
+    {
+        $id = (int) $req->param('id');
+        $venta = (new VentaRepository())->findConPlan($id);
+        if (!$venta) {
+            throw new NotFoundException('Venta no encontrada.');
+        }
+        if ((int) $venta['vendedor_id'] !== Auth::id()) {
+            throw new ForbiddenException('Esta venta no te pertenece.');
+        }
+        Response::json($venta);
     }
 }

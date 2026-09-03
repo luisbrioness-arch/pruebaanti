@@ -17,6 +17,7 @@ export async function renderPaso2(container, ctx) {
     <div style="display: contents;">
     <section class="wizard-paso">
       <h2>Equipos</h2>
+      <p class="campo-ayuda" id="aviso-decos-plan" hidden></p>
       <div class="segmentado" id="segmentado-accion">
         <button type="button" data-accion="instalado" class="activo">Instalar</button>
         <button type="button" data-accion="retirado">Retirar</button>
@@ -56,10 +57,40 @@ export async function renderPaso2(container, ctx) {
   const $lista = seccion.querySelector('#lista-materiales');
   const $siguiente = seccion.querySelector('#paso2-siguiente');
   const $inputManual = seccion.querySelector('#input-manual');
+  const $avisoDecos = seccion.querySelector('#aviso-decos-plan');
+
+  // Si la orden viene de una venta propia, avisa cuántos decos trae ese
+  // plan (pedido: "que aqui aparezcan si este plan por ejemplo era de 3
+  // decos 3 series a instalar") — el nombre del plan ya trae la cantidad
+  // ("Plan Básico 3 Decos"), mismo criterio que ya usa el cálculo de
+  // instalación por plan (ver OrdenWizardService::calcularMontoBruto).
+  let cantidadDecosPlan = null;
+  let nombrePlan = '';
+  const ventaId = ctx.getOrden().venta_id;
+  if (ventaId) {
+    api(`/ventas/${ventaId}`).then((venta) => {
+      nombrePlan = venta.plan_nombre || '';
+      const match = nombrePlan.match(/(\d+)\s*Decos?/i);
+      if (match) {
+        cantidadDecosPlan = Number(match[1]);
+        pintarAvisoDecos();
+      }
+    }).catch(() => { /* sin señal o venta no disponible: el wizard sigue sin este aviso */ });
+  }
+
+  function pintarAvisoDecos() {
+    if (cantidadDecosPlan === null) return;
+    const instalados = ctx.getOrden().materiales.filter((m) => m.accion === 'instalado').length;
+    $avisoDecos.hidden = false;
+    $avisoDecos.textContent = instalados >= cantidadDecosPlan
+      ? `✔ ${nombrePlan} — ${instalados}/${cantidadDecosPlan} decos escaneados.`
+      : `${nombrePlan} trae ${cantidadDecosPlan} deco${cantidadDecosPlan === 1 ? '' : 's'} — llevas ${instalados}/${cantidadDecosPlan} escaneados.`;
+  }
 
   function pintarLista() {
     const materiales = ctx.getOrden().materiales;
     $siguiente.disabled = materiales.length === 0;
+    pintarAvisoDecos();
     if (!materiales.length) {
       $lista.innerHTML = '<p class="vacio">Todavía no escaneas ningún equipo.</p>';
       return;

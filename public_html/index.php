@@ -59,6 +59,7 @@ $router->post('/api/ordenes/{uuid}/enviar', fn(Request $r) => (new OrdenControll
 // --- Registro de venta -------------------------------------------------------
 $router->post('/api/ventas', fn(Request $r) => (new VentaController())->crear($r));
 $router->get('/api/ventas/pendientes', fn(Request $r) => (new VentaController())->pendientes($r));
+$router->get('/api/ventas/{id}', fn(Request $r) => (new VentaController())->detalle($r));
 
 // --- Billetera propia (ver docs/liquidacion-billetera.md) -------------------
 $router->get('/api/mi-billetera', fn(Request $r) => (new BilleteraController())->mia($r));

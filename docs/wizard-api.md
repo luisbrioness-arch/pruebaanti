@@ -151,7 +151,18 @@ POST /api/ventas
 
 GET /api/ventas/pendientes
 → { ventas: [...] }   // propias, estado "registrada" — para el selector del paso 1
+
+GET /api/ventas/{id}
+→ { ...venta, plan_nombre }   // 403 si la venta no es del técnico logueado
 ```
+
+`GET /api/ventas/{id}` (pedido: *"que aqui aparezcan si este plan por
+ejemplo era de 3 decos 3 series a instalar"*) lo usa el paso 2 del wizard
+cuando la orden tiene `venta_id`: extrae la cantidad de decos del
+`plan_nombre` (mismo patrón que `tarifas_instalacion_plan` — el nombre ya
+trae la cantidad, "Plan Básico 3 Decos") y muestra "llevas N/3 escaneados"
+mientras el técnico va marcando equipos como instalados. Es solo un aviso
+visual — no bloquea "Siguiente" ni valida nada contra el servidor.
 
 **Actualización — se revirtió la decisión de no pedir RUT/dirección**
 (pedido explícito: *"al registrar venta que deje agregar más datos del
