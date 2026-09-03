@@ -10,6 +10,7 @@ const ACCESOS = [
   { ruta: 'historial', icono: '📋', etiqueta: 'Historial' },
   { ruta: 'tarifario', icono: '💲', etiqueta: 'Tarifario' },
   { ruta: 'bodega', icono: '📦', etiqueta: 'Bodega' },
+  { ruta: 'bodega-tecnicos', icono: '🧑‍🔧', etiqueta: 'Bodega técnicos' },
   { ruta: 'billetera', icono: '👛', etiqueta: 'Billetera' },
   { ruta: 'usuarios', icono: '👥', etiqueta: 'Usuarios' },
 ];
@@ -137,32 +138,32 @@ function pintarAlertas($div, r) {
   `;
 }
 
-function tile(etiqueta, valor, tono = '') {
+/**
+ * Tile accionable (pedido: "que aqui sean botones accionables") — todo el
+ * tile es un link a Historial, no solo decoración. `valorDinero` es
+ * opcional: cuando viene, se pinta aparte a la derecha del conteo
+ * (pedido: "a la derecha el valor en dinero que lo que llevamos").
+ */
+function tile(etiqueta, valor, { tono = '', valorDinero = null } = {}) {
   return `
-    <div class="tile ${tono}">
-      <span class="tile-valor">${valor}</span>
+    <a href="#historial" class="tile ${tono}">
+      <span class="tile-fila">
+        <span class="tile-valor">${valor}</span>
+        ${valorDinero !== null ? `<span class="tile-dinero">${escapeHtml(valorDinero)}</span>` : ''}
+      </span>
       <span class="tile-etiqueta">${escapeHtml(etiqueta)}</span>
-    </div>
+    </a>
   `;
 }
 
 function pintarTiles($div, r) {
   const mapaOrdenes = Object.fromEntries(r.ordenes_por_estado_mes.map((o) => [o.estado, Number(o.n)]));
-  // Con la auto-aprobación al enviar, una orden ya no se queda "enviada"
-  // esperando auditoría — pasa a "aprobada" en el mismo instante. Por eso
-  // el total del mes se suma acá en vez de mostrar el bucket 'enviada' (que
-  // ahora siempre da 0) — pero sin contar 'borrador': esas son órdenes que
-  // el técnico empezó en el wizard y todavía no envió (o abandonó), no
-  // trabajo real del mes.
-  const totalMes = Object.entries(mapaOrdenes)
-    .filter(([estado]) => estado !== 'borrador')
-    .reduce((suma, [, n]) => suma + n, 0);
   $div.innerHTML = `
     <div class="tiles">
-      ${tile('Órdenes este mes', totalMes)}
-      ${tile('Aprobadas', mapaOrdenes.aprobada || 0, 'tile--ok')}
-      ${tile('Rechazadas', (mapaOrdenes.rechazada_corregible || 0) + (mapaOrdenes.rechazada_penalizada || 0), 'tile--malo')}
-      ${tile('Liquidado', formatMoney(r.liquidado_mes), 'tile--ok')}
+      ${tile('Instalaciones este mes', r.instalaciones_mes.n, { tono: 'tile--ok', valorDinero: formatMoney(r.instalaciones_mes.monto) })}
+      ${tile('Ventas este mes', r.ventas_mes.n, { tono: 'tile--ok', valorDinero: formatMoney(r.ventas_mes.monto) })}
+      ${tile('Aprobadas', mapaOrdenes.aprobada || 0, { tono: 'tile--ok' })}
+      ${tile('Liquidado', formatMoney(r.liquidado_mes), { tono: 'tile--ok' })}
     </div>
   `;
 }

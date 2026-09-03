@@ -34,10 +34,6 @@ export async function renderPaso4(container, ctx) {
           <input type="number" name="calidad_porcentaje" min="0" max="100" inputmode="numeric">
         </label>
         <label class="campo">
-          <span>Satélite</span>
-          <input type="text" name="satelite" autocomplete="off">
-        </label>
-        <label class="campo">
           <span>Metros de cable usados</span>
           <input type="number" name="metros_cable" min="0" step="0.5" inputmode="decimal">
         </label>
@@ -58,7 +54,7 @@ export async function renderPaso4(container, ctx) {
 
   const form = seccion.querySelector('#form-cierre');
   const ordenInicial = ctx.getOrden();
-  for (const campo of ['senal_porcentaje', 'calidad_porcentaje', 'satelite', 'metros_cable', 'observaciones']) {
+  for (const campo of ['senal_porcentaje', 'calidad_porcentaje', 'metros_cable', 'observaciones']) {
     if (ordenInicial[campo] !== null && ordenInicial[campo] !== undefined) {
       form.elements[campo].value = ordenInicial[campo];
     }

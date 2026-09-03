@@ -130,7 +130,7 @@ export async function renderPaso1(container, ctx) {
           venta_id: cuerpo.venta_id ? Number(cuerpo.venta_id) : null,
           estado: 'borrador',
           monto_bruto: null, porcentaje_aplicado: null, monto_tecnico: null,
-          senal_porcentaje: null, calidad_porcentaje: null, satelite: null, metros_cable: null, observaciones: null,
+          senal_porcentaje: null, calidad_porcentaje: null, metros_cable: null, observaciones: null,
           creado_por_admin: 0,
           creado_en: new Date().toISOString(),
           materiales: [], fotos: [], ferreteria: [],

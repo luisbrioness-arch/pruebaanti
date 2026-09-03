@@ -11,16 +11,36 @@ function diasDesde(fechaServidor) {
 }
 const DIAS_AVISO_PENDIENTE = 3;
 
-export async function renderBodega(container) {
+/**
+ * Reorganización de menús (pedido: "mejora estos menus que sean mas
+ * intuitivos y que arriba solo sea bodega - bodega tecnicos"):
+ *  - "Bodegas de técnicos" salió de acá a su propia pantalla de nivel
+ *    superior (ver bodega-tecnicos.js) — ya no es una pestaña más entre
+ *    seis, es su propio ítem de nav junto a "Bodega".
+ *  - "Kits estándar" desapareció del todo (pedido separado: "eliminar el
+ *    kit standar de todo el proyecto que no exista" — el wizard ya no lo
+ *    usa desde antes, ver docs/wizard-api.md).
+ *  - Nueva pestaña "Catálogo": faltaba dar de alta un TIPO de equipo o
+ *    ÍTEM de ferretería nuevo (ya se podía dar de alta una serie/cantidad
+ *    de un tipo que ya existía, pero crear el tipo en sí exigía tocar la
+ *    base a mano).
+ *  - Nueva pestaña "Asignar a técnicos": reemplaza el "Enviar"/"Traspasar"
+ *    que antes vivía embebido en cada fila de Equipos — Equipos pasa a ser
+ *    solo inventario (ver, filtrar, dar de alta, falla de fábrica);
+ *    asignar/traspasar vive en un solo lugar.
+ *  - "Bodegas" (ubicaciones físicas) se renombra a "Ubicaciones" para no
+ *    confundirse con el nombre de la sección entera ("Bodega").
+ */
+export async function renderBodega(container, params = {}) {
   container.appendChild(el(`
     <section class="bodega">
       <nav class="subtabs">
         <button type="button" class="subtab subtab--activo" data-tab="equipos">Equipos</button>
+        <button type="button" class="subtab" data-tab="asignar">Asignar a técnicos</button>
         <button type="button" class="subtab" data-tab="ferreteria">Ferretería</button>
-        <button type="button" class="subtab" data-tab="kits">Kits estándar</button>
+        <button type="button" class="subtab" data-tab="catalogo">Catálogo</button>
         <button type="button" class="subtab" data-tab="buscar">Buscar por serie</button>
-        <button type="button" class="subtab" data-tab="bodegas">Bodegas</button>
-        <button type="button" class="subtab" data-tab="tecnicos">Bodegas de técnicos</button>
+        <button type="button" class="subtab" data-tab="ubicaciones">Ubicaciones</button>
       </nav>
       <div id="bodega-contenido"><p class="vacio">Cargando…</p></div>
     </section>
@@ -30,14 +50,12 @@ export async function renderBodega(container) {
   const $tabs = Array.from(container.querySelectorAll('.subtab'));
 
   // Catálogos compartidos por todas las pestañas — se piden una sola vez.
-  let [{ usuarios }, { tipos_equipo: tiposEquipo }, { items }, { tipos_servicio: tiposServicio }, { bodegas }] = await Promise.all([
+  let [{ usuarios }, { tipos_equipo: tiposEquipo }, { items }, { bodegas }] = await Promise.all([
     api('/admin/usuarios'),
     api('/admin/catalogo/tipos-equipo'),
     api('/admin/catalogo/items-ferreteria'),
-    api('/catalogo/tipos-servicio'),
     api('/admin/bodegas'),
   ]);
-  const tecnicos = () => usuarios.filter((u) => u.rol === 'tecnico');
 
   function opcionesUsuarios(seleccionado, excluirId) {
     return usuarios
@@ -56,15 +74,18 @@ export async function renderBodega(container) {
     $tabs.forEach((t) => t.classList.toggle('subtab--activo', t.dataset.tab === nombre));
     $contenido.innerHTML = '<p class="vacio">Cargando…</p>';
     if (nombre === 'equipos') await renderEquipos();
+    else if (nombre === 'asignar') await renderAsignar();
     else if (nombre === 'ferreteria') await renderFerreteria();
-    else if (nombre === 'kits') await renderKits();
+    else if (nombre === 'catalogo') await renderCatalogo();
     else if (nombre === 'buscar') await renderBuscar();
-    else if (nombre === 'bodegas') await renderBodegas();
-    else await renderTecnicos();
+    else await renderUbicaciones();
   }
   $tabs.forEach((t) => t.addEventListener('click', () => activarTab(t.dataset.tab)));
 
   // ------------------------------------------------------------- Equipos --
+  // Ahora es solo inventario: ver, filtrar, dar de alta, marcar falla de
+  // fábrica, registrar el reingreso de un retiro. Asignar/traspasar vive en
+  // su propia pestaña (ver renderAsignar).
   async function renderEquipos() {
     $contenido.innerHTML = `
       <form id="form-alta" class="form-fila">
@@ -134,18 +155,8 @@ export async function renderBodega(container) {
     await cargarTablaEquipos('');
   }
 
-  /**
-   * Selección para acciones masivas (reporte #5: "poder seleccionar varios
-   * equipos y transferir"). Solo tiene sentido entre filas del MISMO estado
-   * (asignar es 'bodega'→técnico, traspasar es 'maleta'→otro técnico) — no
-   * hay una acción común a mezclar entre estados distintos, así que la
-   * barra de acciones se oculta si la selección queda mixta.
-   */
-  const seleccionados = new Map(); // id -> { estado, numero_serie }
-
   async function cargarTablaEquipos(estado) {
     const $tabla = $contenido.querySelector('#tabla-equipos');
-    seleccionados.clear();
     try {
       const qs = estado ? `?estado=${encodeURIComponent(estado)}` : '';
       const { equipos } = await api(`/admin/equipos${qs}`);
@@ -154,88 +165,15 @@ export async function renderBodega(container) {
         return;
       }
       $tabla.innerHTML = `
-        <div id="acciones-masivas" class="acciones-masivas" hidden></div>
         <table class="tabla">
-          <thead><tr><th></th><th>Serie</th><th>Tipo</th><th>Estado</th><th>Técnico / Bodega</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Serie</th><th>Tipo</th><th>Estado</th><th>Técnico / Bodega</th><th>Acciones</th></tr></thead>
           <tbody></tbody>
         </table>
       `;
-      const $barra = $tabla.querySelector('#acciones-masivas');
-
-      function actualizarBarra() {
-        if (!seleccionados.size) { $barra.hidden = true; $barra.innerHTML = ''; return; }
-        const estados = new Set([...seleccionados.values()].map((v) => v.estado));
-        if (estados.size > 1) {
-          $barra.hidden = false;
-          $barra.innerHTML = `<p class="campo-ayuda">${seleccionados.size} seleccionados — mezclan estados distintos, no se pueden mover juntos.</p>`;
-          return;
-        }
-        const estadoComun = [...estados][0];
-        if (estadoComun === 'bodega') {
-          $barra.hidden = false;
-          $barra.innerHTML = `
-            <form id="form-asignar-masivo" class="form-fila">
-              <span class="campo-ayuda">${seleccionados.size} en bodega seleccionados</span>
-              <select name="tecnico_id" required>${opcionesUsuarios()}</select>
-              <button type="submit" class="btn btn--primario btn--chico">Enviar seleccionados</button>
-            </form>
-          `;
-          $barra.querySelector('#form-asignar-masivo').addEventListener('submit', async (ev) => {
-            ev.preventDefault();
-            const tecnicoId = Number(new FormData(ev.target).get('tecnico_id'));
-            await ejecutarAccionMasiva('asignar_equipo', (id) => api(`/admin/equipos/${id}/asignar`, { method: 'POST', body: { tecnico_id: tecnicoId } }), (id) => ({ id, tecnico_id: tecnicoId }));
-          });
-        } else if (estadoComun === 'maleta') {
-          $barra.hidden = false;
-          $barra.innerHTML = `
-            <form id="form-traspasar-masivo" class="form-fila">
-              <span class="campo-ayuda">${seleccionados.size} en maleta seleccionados</span>
-              <select name="tecnico_destino_id" required>${opcionesUsuarios()}</select>
-              <button type="submit" class="btn btn--primario btn--chico">Traspasar seleccionados</button>
-            </form>
-          `;
-          $barra.querySelector('#form-traspasar-masivo').addEventListener('submit', async (ev) => {
-            ev.preventDefault();
-            const tecnicoDestinoId = Number(new FormData(ev.target).get('tecnico_destino_id'));
-            await ejecutarAccionMasiva('traspasar_equipo', (id) => api(`/admin/equipos/${id}/traspasar`, { method: 'POST', body: { tecnico_destino_id: tecnicoDestinoId } }), (id) => ({ id, tecnico_destino_id: tecnicoDestinoId }));
-          });
-        } else {
-          $barra.hidden = true;
-        }
-      }
-
-      /**
-       * Manda una acción por cada seleccionado, uno por uno — no hay un
-       * endpoint masivo real en el servidor para esto, así que se reusan
-       * los mismos endpoints de a uno (cada uno pasa igual por la cola
-       * offline si hace falta). Sin conexión, cada ítem queda encolado por
-       * separado y se procesan en orden al recuperar señal.
-       */
-      async function ejecutarAccionMasiva(tipo, llamada, armarPayload) {
-        const ids = [...seleccionados.keys()];
-        let ok = 0, encoladosN = 0, fallidos = 0;
-        for (const id of ids) {
-          const info = seleccionados.get(id);
-          try {
-            const { encolado } = await conColaSiHaceFalta(tipo, armarPayload(id), () => llamada(id));
-            if (encolado) encoladosN++; else ok++;
-          } catch (e) {
-            fallidos++;
-            console.error('[terreno-dth admin] acción masiva falló para', info.numero_serie, e.message);
-          }
-        }
-        if (fallidos) toast(`${fallidos} de ${ids.length} fallaron — revisa la consola.`, 'malo');
-        else if (encoladosN) toast(`${ok + encoladosN} guardados${encoladosN ? `, ${encoladosN} sin conexión (se aplicarán al recuperar señal)` : ''}.`, 'neutro');
-        else toast(`${ok} equipos enviados — quedan pendientes hasta que cada técnico confirme.`, 'ok');
-        await cargarTablaEquipos(estado);
-      }
-
       const $tbody = $tabla.querySelector('tbody');
       for (const e of equipos) {
-        const puedeSeleccionar = e.estado === 'bodega' || e.estado === 'maleta';
         const tr = el(`
           <tr>
-            <td>${puedeSeleccionar ? `<input type="checkbox" class="check-equipo" data-id="${e.id}">` : ''}</td>
             <td class="celda-mono">${escapeHtml(e.numero_serie)}</td>
             <td>${escapeHtml(e.tipo_equipo_nombre)}</td>
             <td>${badge(e.estado)}</td>
@@ -245,64 +183,13 @@ export async function renderBodega(container) {
         `);
         const $acciones = tr.querySelector('.celda-acciones');
 
-        tr.querySelector('.check-equipo')?.addEventListener('change', (ev) => {
-          if (ev.target.checked) seleccionados.set(e.id, { estado: e.estado, numero_serie: e.numero_serie });
-          else seleccionados.delete(e.id);
-          actualizarBarra();
-        });
-
         /** Sin conexión no hay fila nueva que pintar (el servidor decide el estado real) — se marca esta fila como "en camino" y se le quitan más acciones hasta que se sepa de verdad. */
         function marcarFilaPendiente(mensaje) {
           $acciones.innerHTML = `<span class="chip chip--alerta">⏳ ${escapeHtml(mensaje)}</span>`;
         }
 
-        if (e.estado === 'bodega') {
-          const form = el(`
-            <form class="form-inline">
-              <select name="tecnico_id" required>${opcionesUsuarios()}</select>
-              <button type="submit" class="btn btn--secundario btn--chico">Enviar</button>
-            </form>
-          `);
-          form.addEventListener('submit', async (ev) => {
-            ev.preventDefault();
-            const tecnicoId = Number(new FormData(ev.target).get('tecnico_id'));
-            const payload = { id: e.id, tecnico_id: tecnicoId };
-            try {
-              const { encolado } = await conColaSiHaceFalta('asignar_equipo', payload, () => api(`/admin/equipos/${e.id}/asignar`, { method: 'POST', body: { tecnico_id: tecnicoId } }));
-              if (encolado) {
-                toast(`${e.numero_serie}: guardado sin conexión — se enviará al recuperar señal.`, 'neutro');
-                marcarFilaPendiente('envío pendiente');
-              } else {
-                toast(`${e.numero_serie} enviado — queda pendiente hasta que el técnico confirme que lo recibió.`, 'ok');
-                await cargarTablaEquipos(estado);
-              }
-            } catch (err) { toast(err.message, 'malo'); }
-          });
-          $acciones.appendChild(form);
-        }
-        if (e.estado === 'maleta') {
-          const form = el(`
-            <form class="form-inline">
-              <select name="tecnico_destino_id" required>${opcionesUsuarios(null, e.usuario_actual_id)}</select>
-              <button type="submit" class="btn btn--secundario btn--chico">Traspasar</button>
-            </form>
-          `);
-          form.addEventListener('submit', async (ev) => {
-            ev.preventDefault();
-            const tecnicoDestinoId = Number(new FormData(ev.target).get('tecnico_destino_id'));
-            const payload = { id: e.id, tecnico_destino_id: tecnicoDestinoId };
-            try {
-              const { encolado } = await conColaSiHaceFalta('traspasar_equipo', payload, () => api(`/admin/equipos/${e.id}/traspasar`, { method: 'POST', body: { tecnico_destino_id: tecnicoDestinoId } }));
-              if (encolado) {
-                toast(`${e.numero_serie}: guardado sin conexión — se traspasará al recuperar señal.`, 'neutro');
-                marcarFilaPendiente('traspaso pendiente');
-              } else {
-                toast(`${e.numero_serie} enviado — queda pendiente hasta que el técnico confirme que lo recibió.`, 'ok');
-                await cargarTablaEquipos(estado);
-              }
-            } catch (err) { toast(err.message, 'malo'); }
-          });
-          $acciones.appendChild(form);
+        if (e.estado === 'bodega' || e.estado === 'maleta') {
+          $acciones.appendChild(el('<a href="#bodega?tab=asignar" class="campo-ayuda">→ Asignar a técnicos</a>'));
         }
         if (e.estado === 'en_transito') {
           const dias = diasDesde(e.actualizado_en);
@@ -363,6 +250,181 @@ export async function renderBodega(container) {
             } catch (err) { toast(err.message, 'malo'); }
           });
           $acciones.appendChild(btnFalla);
+        }
+        $tbody.appendChild(tr);
+      }
+    } catch (e) {
+      $tabla.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
+    }
+  }
+
+  // ------------------------------------------------------ Asignar a técnicos --
+  // Todo lo que antes vivía embebido en cada fila de Equipos ("Enviar"
+  // desde bodega, "Traspasar" desde una maleta) más la selección masiva
+  // (reporte #5: "poder seleccionar varios equipos y transferir") — juntos
+  // en un solo lugar pensado para esa tarea, no mezclado con el inventario.
+  async function renderAsignar() {
+    $contenido.innerHTML = `
+      <div class="segmentado" id="segmentado-asignar">
+        <button type="button" data-modo="bodega" class="activo">En bodega — asignar</button>
+        <button type="button" data-modo="maleta">En maletas — traspasar</button>
+      </div>
+      <div id="tabla-asignar"><p class="vacio">Cargando…</p></div>
+    `;
+    let modo = 'bodega';
+    const $segmentado = $contenido.querySelector('#segmentado-asignar');
+    $segmentado.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button[data-modo]');
+      if (!btn) return;
+      modo = btn.dataset.modo;
+      $segmentado.querySelectorAll('button').forEach((b) => b.classList.toggle('activo', b === btn));
+      cargarTablaAsignar(modo);
+    });
+    await cargarTablaAsignar(modo);
+  }
+
+  const seleccionados = new Map(); // id -> numero_serie
+
+  async function cargarTablaAsignar(modo) {
+    const $tabla = $contenido.querySelector('#tabla-asignar');
+    seleccionados.clear();
+    try {
+      const { equipos } = await api(`/admin/equipos?estado=${encodeURIComponent(modo)}`);
+      if (!equipos.length) {
+        $tabla.innerHTML = modo === 'bodega'
+          ? '<p class="vacio">No hay equipos en bodega para asignar.</p>'
+          : '<p class="vacio">Ningún técnico tiene equipos en su maleta ahora mismo.</p>';
+        return;
+      }
+      $tabla.innerHTML = `
+        <div id="acciones-masivas" class="acciones-masivas" hidden></div>
+        <table class="tabla">
+          <thead><tr><th></th><th>Serie</th><th>Tipo</th><th>${modo === 'bodega' ? 'Bodega' : 'Técnico'}</th><th>Acciones</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      `;
+      const $barra = $tabla.querySelector('#acciones-masivas');
+
+      function actualizarBarra() {
+        if (!seleccionados.size) { $barra.hidden = true; $barra.innerHTML = ''; return; }
+        $barra.hidden = false;
+        if (modo === 'bodega') {
+          $barra.innerHTML = `
+            <form id="form-accion-masiva" class="form-fila">
+              <span class="campo-ayuda">${seleccionados.size} en bodega seleccionados</span>
+              <select name="tecnico_id" required>${opcionesUsuarios()}</select>
+              <button type="submit" class="btn btn--primario btn--chico">Enviar seleccionados</button>
+            </form>
+          `;
+          $barra.querySelector('#form-accion-masiva').addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            const tecnicoId = Number(new FormData(ev.target).get('tecnico_id'));
+            await ejecutarAccionMasiva('asignar_equipo', (id) => api(`/admin/equipos/${id}/asignar`, { method: 'POST', body: { tecnico_id: tecnicoId } }), (id) => ({ id, tecnico_id: tecnicoId }));
+          });
+        } else {
+          $barra.innerHTML = `
+            <form id="form-accion-masiva" class="form-fila">
+              <span class="campo-ayuda">${seleccionados.size} en maleta seleccionados</span>
+              <select name="tecnico_destino_id" required>${opcionesUsuarios()}</select>
+              <button type="submit" class="btn btn--primario btn--chico">Traspasar seleccionados</button>
+            </form>
+          `;
+          $barra.querySelector('#form-accion-masiva').addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            const tecnicoDestinoId = Number(new FormData(ev.target).get('tecnico_destino_id'));
+            await ejecutarAccionMasiva('traspasar_equipo', (id) => api(`/admin/equipos/${id}/traspasar`, { method: 'POST', body: { tecnico_destino_id: tecnicoDestinoId } }), (id) => ({ id, tecnico_destino_id: tecnicoDestinoId }));
+          });
+        }
+      }
+
+      /**
+       * Manda una acción por cada seleccionado, uno por uno — no hay un
+       * endpoint masivo real en el servidor para esto, así que se reusan
+       * los mismos endpoints de a uno (cada uno pasa igual por la cola
+       * offline si hace falta). Sin conexión, cada ítem queda encolado por
+       * separado y se procesan en orden al recuperar señal.
+       */
+      async function ejecutarAccionMasiva(tipo, llamada, armarPayload) {
+        const ids = [...seleccionados.keys()];
+        let ok = 0, encoladosN = 0, fallidos = 0;
+        for (const id of ids) {
+          const numeroSerie = seleccionados.get(id);
+          try {
+            const { encolado } = await conColaSiHaceFalta(tipo, armarPayload(id), () => llamada(id));
+            if (encolado) encoladosN++; else ok++;
+          } catch (e) {
+            fallidos++;
+            console.error('[terreno-dth admin] acción masiva falló para', numeroSerie, e.message);
+          }
+        }
+        if (fallidos) toast(`${fallidos} de ${ids.length} fallaron — revisa la consola.`, 'malo');
+        else if (encoladosN) toast(`${ok + encoladosN} guardados${encoladosN ? `, ${encoladosN} sin conexión (se aplicarán al recuperar señal)` : ''}.`, 'neutro');
+        else toast(`${ok} equipos enviados — quedan pendientes hasta que cada técnico confirme.`, 'ok');
+        await cargarTablaAsignar(modo);
+      }
+
+      const $tbody = $tabla.querySelector('tbody');
+      for (const e of equipos) {
+        const tr = el(`
+          <tr>
+            <td><input type="checkbox" class="check-equipo" data-id="${e.id}"></td>
+            <td class="celda-mono">${escapeHtml(e.numero_serie)}</td>
+            <td>${escapeHtml(e.tipo_equipo_nombre)}</td>
+            <td>${escapeHtml(e.tecnico_nombre || e.bodega_nombre || '—')}</td>
+            <td class="celda-acciones"></td>
+          </tr>
+        `);
+        const $acciones = tr.querySelector('.celda-acciones');
+        tr.querySelector('.check-equipo').addEventListener('change', (ev) => {
+          if (ev.target.checked) seleccionados.set(e.id, e.numero_serie);
+          else seleccionados.delete(e.id);
+          actualizarBarra();
+        });
+
+        if (modo === 'bodega') {
+          const form = el(`
+            <form class="form-inline">
+              <select name="tecnico_id" required>${opcionesUsuarios()}</select>
+              <button type="submit" class="btn btn--secundario btn--chico">Enviar</button>
+            </form>
+          `);
+          form.addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            const tecnicoId = Number(new FormData(ev.target).get('tecnico_id'));
+            try {
+              const { encolado } = await conColaSiHaceFalta('asignar_equipo', { id: e.id, tecnico_id: tecnicoId }, () => api(`/admin/equipos/${e.id}/asignar`, { method: 'POST', body: { tecnico_id: tecnicoId } }));
+              if (encolado) {
+                toast(`${e.numero_serie}: guardado sin conexión — se enviará al recuperar señal.`, 'neutro');
+                $acciones.innerHTML = '<span class="chip chip--alerta">⏳ envío pendiente</span>';
+              } else {
+                toast(`${e.numero_serie} enviado — queda pendiente hasta que el técnico confirme que lo recibió.`, 'ok');
+                await cargarTablaAsignar(modo);
+              }
+            } catch (err) { toast(err.message, 'malo'); }
+          });
+          $acciones.appendChild(form);
+        } else {
+          const form = el(`
+            <form class="form-inline">
+              <select name="tecnico_destino_id" required>${opcionesUsuarios(null, e.usuario_actual_id)}</select>
+              <button type="submit" class="btn btn--secundario btn--chico">Traspasar</button>
+            </form>
+          `);
+          form.addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            const tecnicoDestinoId = Number(new FormData(ev.target).get('tecnico_destino_id'));
+            try {
+              const { encolado } = await conColaSiHaceFalta('traspasar_equipo', { id: e.id, tecnico_destino_id: tecnicoDestinoId }, () => api(`/admin/equipos/${e.id}/traspasar`, { method: 'POST', body: { tecnico_destino_id: tecnicoDestinoId } }));
+              if (encolado) {
+                toast(`${e.numero_serie}: guardado sin conexión — se traspasará al recuperar señal.`, 'neutro');
+                $acciones.innerHTML = '<span class="chip chip--alerta">⏳ traspaso pendiente</span>';
+              } else {
+                toast(`${e.numero_serie} enviado — queda pendiente hasta que el técnico confirme que lo recibió.`, 'ok');
+                await cargarTablaAsignar(modo);
+              }
+            } catch (err) { toast(err.message, 'malo'); }
+          });
+          $acciones.appendChild(form);
         }
         $tbody.appendChild(tr);
       }
@@ -573,107 +635,120 @@ export async function renderBodega(container) {
     }
   }
 
-  // ---------------------------------------------------------------- Kits --
-  async function renderKits() {
+  // ------------------------------------------------------------ Catálogo --
+  // Pedido: "en bodega se puedan agregar nuevos items" — hasta ahora solo
+  // se podía dar de alta una serie/cantidad de un tipo que YA existía en
+  // el catálogo; crear el tipo en sí exigía tocar la base a mano.
+  async function renderCatalogo() {
     $contenido.innerHTML = `
-      <label class="campo campo--inline">
-        <span>Tipo de servicio</span>
-        <select id="select-tipo-servicio">
-          ${tiposServicio.map((t) => `<option value="${t.codigo}">${escapeHtml(t.nombre)}</option>`).join('')}
-        </select>
-      </label>
-      <div id="editor-kit"></div>
-    `;
-    const $select = $contenido.querySelector('#select-tipo-servicio');
-    $select.addEventListener('change', () => cargarKit($select.value));
-    await cargarKit($select.value);
-  }
+      <h3>Tipos de equipo</h3>
+      <form id="form-nuevo-tipo-equipo" class="form-fila">
+        <label class="campo campo--inline">
+          <span>Código</span>
+          <input type="text" name="codigo" placeholder="Ej: decodificador_4k" pattern="[a-z0-9_]+" title="Solo minúsculas, números o guion bajo" required>
+        </label>
+        <label class="campo campo--inline">
+          <span>Nombre</span>
+          <input type="text" name="nombre" placeholder="Ej: Decodificador 4K" required>
+        </label>
+        <button type="submit" class="btn btn--primario">Crear tipo de equipo</button>
+      </form>
+      <div id="tabla-tipos-equipo"></div>
 
-  async function cargarKit(codigoServicio) {
-    const $editor = $contenido.querySelector('#editor-kit');
-    $editor.innerHTML = '<p class="vacio">Cargando…</p>';
-    try {
-      const { kit } = await api(`/admin/kits/${encodeURIComponent(codigoServicio)}`);
-      const filasIniciales = kit.map((k) => ({ item_codigo: k.item_codigo, item_nombre: k.item_nombre, cantidad_estandar: k.cantidad_estandar }));
-      renderEditorKit(codigoServicio, filasIniciales);
-    } catch (e) {
-      $editor.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
-    }
-  }
-
-  function renderEditorKit(codigoServicio, filas) {
-    const $editor = $contenido.querySelector('#editor-kit');
-    const itemsUsados = new Set(filas.map((f) => f.item_codigo));
-    const itemsDisponibles = items.filter((i) => !itemsUsados.has(i.codigo));
-
-    $editor.innerHTML = `
-      <p class="panel-explicacion">
-        Esto es la plantilla que el wizard precarga en el paso 4 — no afecta a órdenes ya enviadas,
-        que guardan su propio consumo congelado.
-      </p>
-      <table class="tabla tabla--editable">
-        <thead><tr><th>Ítem</th><th>Cantidad estándar</th><th></th></tr></thead>
-        <tbody>
-          ${filas.map((f, i) => `
-            <tr data-idx="${i}">
-              <td>${escapeHtml(f.item_nombre)}</td>
-              <td><input type="number" class="input-cantidad" min="0" step="0.01" value="${f.cantidad_estandar}"></td>
-              <td><button type="button" class="btn btn--malo btn--chico btn-quitar">Quitar</button></td>
-            </tr>
-          `).join('') || '<tr><td colspan="3" class="vacio-celda">Sin ítems en el kit todavía.</td></tr>'}
-        </tbody>
-      </table>
-      ${itemsDisponibles.length ? `
-        <form class="form-fila" id="form-agregar-item">
-          <select name="item_codigo">${itemsDisponibles.map((i) => `<option value="${i.codigo}">${escapeHtml(i.nombre)}</option>`).join('')}</select>
-          <input type="number" name="cantidad" min="0" step="0.01" placeholder="Cantidad" required>
-          <button type="submit" class="btn btn--secundario">Agregar al kit</button>
-        </form>
-      ` : ''}
-      <button type="button" class="btn btn--primario" id="btn-guardar-kit">Guardar kit completo</button>
+      <h3 style="margin-top: 26px;">Ítems de ferretería</h3>
+      <form id="form-nuevo-item" class="form-fila">
+        <label class="campo campo--inline">
+          <span>Código</span>
+          <input type="text" name="codigo" placeholder="Ej: cinta_aislante" pattern="[a-z0-9_]+" title="Solo minúsculas, números o guion bajo" required>
+        </label>
+        <label class="campo campo--inline">
+          <span>Nombre</span>
+          <input type="text" name="nombre" placeholder="Ej: Cinta aislante" required>
+        </label>
+        <label class="campo campo--inline">
+          <span>Unidad</span>
+          <select name="unidad_medida">
+            <option value="unidad">Unidad</option>
+            <option value="metro">Metro</option>
+          </select>
+        </label>
+        <button type="submit" class="btn btn--primario">Crear ítem</button>
+      </form>
+      <div id="tabla-items-ferreteria"></div>
     `;
 
-    $editor.querySelectorAll('.btn-quitar').forEach((btn) => {
-      btn.addEventListener('click', (ev) => {
-        const idx = Number(ev.target.closest('tr').dataset.idx);
-        const nuevasFilas = filas.filter((_, i) => i !== idx);
-        renderEditorKit(codigoServicio, nuevasFilas);
-      });
-    });
+    pintarTablaTiposEquipo();
+    pintarTablaItemsFerreteria();
 
-    $editor.querySelector('#form-agregar-item')?.addEventListener('submit', (ev) => {
+    $contenido.querySelector('#form-nuevo-tipo-equipo').addEventListener('submit', async (ev) => {
       ev.preventDefault();
+      const $submit = ev.target.querySelector('button[type="submit"]');
+      if ($submit.disabled) return;
+      $submit.disabled = true;
       const fd = new FormData(ev.target);
-      const codigo = fd.get('item_codigo');
-      const item = items.find((i) => i.codigo === codigo);
-      const nuevasFilas = [...filas, { item_codigo: codigo, item_nombre: item.nombre, cantidad_estandar: Number(fd.get('cantidad')) }];
-      renderEditorKit(codigoServicio, nuevasFilas);
-    });
-
-    $editor.querySelector('#btn-guardar-kit').addEventListener('click', async () => {
-      const filasActualizadas = Array.from($editor.querySelectorAll('tbody tr[data-idx]')).map((tr, i) => ({
-        item_codigo: filas[Number(tr.dataset.idx)].item_codigo,
-        cantidad_estandar: Number(tr.querySelector('.input-cantidad').value),
-      }));
-      const payload = { codigo: codigoServicio, items: filasActualizadas };
+      const payload = { codigo: fd.get('codigo').trim(), nombre: fd.get('nombre').trim() };
       try {
-        const { encolado } = await conColaSiHaceFalta(
-          'actualizar_kit', payload,
-          () => api(`/admin/kits/${encodeURIComponent(codigoServicio)}`, { method: 'PUT', body: { items: filasActualizadas } }),
-          codigoServicio
-        );
+        const { datos, encolado } = await conColaSiHaceFalta('crear_tipo_equipo', payload, () => api('/admin/catalogo/tipos-equipo', { method: 'POST', body: payload }));
+        ev.target.reset();
         if (encolado) {
-          toast('Kit guardado sin conexión — se aplicará al recuperar señal.', 'neutro');
-          // Se deja el editor tal como quedó (ya refleja lo que el admin
-          // pidió) en vez de recargarlo desde un servidor que no responde.
+          toast(`"${payload.nombre}" guardado sin conexión — se creará al recuperar señal.`, 'neutro');
         } else {
-          toast('Kit actualizado.', 'ok');
-          await cargarKit(codigoServicio);
+          toast(`Tipo de equipo "${payload.nombre}" creado.`, 'ok');
+          tiposEquipo = datos.tipos_equipo;
+          pintarTablaTiposEquipo();
         }
       } catch (e) {
         toast(e.message, 'malo');
+      } finally {
+        $submit.disabled = false;
       }
     });
+
+    $contenido.querySelector('#form-nuevo-item').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const $submit = ev.target.querySelector('button[type="submit"]');
+      if ($submit.disabled) return;
+      $submit.disabled = true;
+      const fd = new FormData(ev.target);
+      const payload = { codigo: fd.get('codigo').trim(), nombre: fd.get('nombre').trim(), unidad_medida: fd.get('unidad_medida') };
+      try {
+        const { datos, encolado } = await conColaSiHaceFalta('crear_item_ferreteria', payload, () => api('/admin/catalogo/items-ferreteria', { method: 'POST', body: payload }));
+        ev.target.reset();
+        if (encolado) {
+          toast(`"${payload.nombre}" guardado sin conexión — se creará al recuperar señal.`, 'neutro');
+        } else {
+          toast(`Ítem "${payload.nombre}" creado.`, 'ok');
+          items = datos.items;
+          pintarTablaItemsFerreteria();
+        }
+      } catch (e) {
+        toast(e.message, 'malo');
+      } finally {
+        $submit.disabled = false;
+      }
+    });
+  }
+
+  function pintarTablaTiposEquipo() {
+    const $tabla = $contenido.querySelector('#tabla-tipos-equipo');
+    if (!$tabla) return;
+    $tabla.innerHTML = `
+      <table class="tabla">
+        <thead><tr><th>Código</th><th>Nombre</th></tr></thead>
+        <tbody>${tiposEquipo.map((t) => `<tr><td class="celda-mono">${escapeHtml(t.codigo)}</td><td>${escapeHtml(t.nombre)}</td></tr>`).join('')}</tbody>
+      </table>
+    `;
+  }
+
+  function pintarTablaItemsFerreteria() {
+    const $tabla = $contenido.querySelector('#tabla-items-ferreteria');
+    if (!$tabla) return;
+    $tabla.innerHTML = `
+      <table class="tabla">
+        <thead><tr><th>Código</th><th>Nombre</th><th>Unidad</th></tr></thead>
+        <tbody>${items.map((i) => `<tr><td class="celda-mono">${escapeHtml(i.codigo)}</td><td>${escapeHtml(i.nombre)}</td><td>${escapeHtml(i.unidad_medida)}</td></tr>`).join('')}</tbody>
+      </table>
+    `;
   }
 
   // -------------------------------------------------------- Buscar por serie --
@@ -759,15 +834,17 @@ export async function renderBodega(container) {
     }
   }
 
-  // ------------------------------------------------------------ Bodegas --
-  async function renderBodegas() {
+  // -------------------------------------------------------- Ubicaciones --
+  // Antes "Bodegas" — se renombra para no confundir con el nombre de la
+  // sección entera ("Bodega" en el nav de arriba).
+  async function renderUbicaciones() {
     $contenido.innerHTML = `
       <form id="form-nueva-bodega" class="form-fila">
         <label class="campo campo--inline">
-          <span>Nombre de la bodega</span>
+          <span>Nombre de la ubicación</span>
           <input type="text" name="nombre" placeholder="Ej: Bodega Valparaíso" required>
         </label>
-        <button type="submit" class="btn btn--primario">Crear bodega</button>
+        <button type="submit" class="btn btn--primario">Crear ubicación</button>
       </form>
       <div id="tabla-bodegas"></div>
     `;
@@ -778,9 +855,9 @@ export async function renderBodega(container) {
         const { encolado } = await conColaSiHaceFalta('crear_bodega', { nombre }, () => api('/admin/bodegas', { method: 'POST', body: { nombre } }));
         ev.target.reset();
         if (encolado) {
-          toast(`Bodega "${nombre}" guardada sin conexión — se creará al recuperar señal.`, 'neutro');
+          toast(`"${nombre}" guardada sin conexión — se creará al recuperar señal.`, 'neutro');
         } else {
-          toast(`Bodega "${nombre}" creada.`, 'ok');
+          toast(`"${nombre}" creada.`, 'ok');
           const { bodegas: actualizadas } = await api('/admin/bodegas');
           bodegas = actualizadas;
           pintarTablaBodegas();
@@ -803,57 +880,8 @@ export async function renderBodega(container) {
     `;
   }
 
-  // ------------------------------------------------- Bodegas de técnicos --
-  async function renderTecnicos() {
-    $contenido.innerHTML = `
-      <label class="campo campo--inline">
-        <span>Técnico</span>
-        <select id="select-tecnico-bodega">
-          <option value="">Elegí un técnico…</option>
-          ${tecnicos().map((t) => `<option value="${t.id}">${escapeHtml(t.nombre)}</option>`).join('')}
-        </select>
-      </label>
-      <div id="contenido-tecnico"></div>
-    `;
-    $contenido.querySelector('#select-tecnico-bodega').addEventListener('change', (ev) => {
-      const id = ev.target.value;
-      if (id) cargarBodegaTecnico(Number(id));
-      else $contenido.querySelector('#contenido-tecnico').innerHTML = '';
-    });
-  }
-
-  async function cargarBodegaTecnico(tecnicoId) {
-    const $div = $contenido.querySelector('#contenido-tecnico');
-    $div.innerHTML = '<p class="vacio">Cargando…</p>';
-    try {
-      const [{ equipos: equiposTecnico }, { stock }] = await Promise.all([
-        api(`/admin/equipos?estado=maleta&tecnico_id=${tecnicoId}`),
-        api(`/admin/ferreteria/stock?tecnico_id=${tecnicoId}`),
-      ]);
-      $div.innerHTML = `
-        <div class="form-fila" style="margin: 10px 0;">
-          <a href="#guia?tecnicoId=${tecnicoId}" class="btn btn--secundario">🖨 Ver guía de despacho pendiente</a>
-        </div>
-        <h3>Equipos en su maleta (${equiposTecnico.length})</h3>
-        ${equiposTecnico.length ? `
-          <table class="tabla">
-            <thead><tr><th>Serie</th><th>Tipo</th></tr></thead>
-            <tbody>${equiposTecnico.map((e) => `<tr><td class="celda-mono">${escapeHtml(e.numero_serie)}</td><td>${escapeHtml(e.tipo_equipo_nombre)}</td></tr>`).join('')}</tbody>
-          </table>
-        ` : '<p class="vacio">No tiene equipos en su maleta.</p>'}
-
-        <h3>Ferretería confirmada</h3>
-        ${stock.length ? `
-          <table class="tabla">
-            <thead><tr><th>Ítem</th><th>Cantidad</th></tr></thead>
-            <tbody>${stock.map((s) => `<tr><td>${escapeHtml(s.item_nombre)}</td><td class="${Number(s.cantidad_actual) < 0 ? 'celda-negativa' : ''}">${s.cantidad_actual} ${escapeHtml(s.unidad_medida)}</td></tr>`).join('')}</tbody>
-          </table>
-        ` : '<p class="vacio">Sin ferretería confirmada.</p>'}
-      `;
-    } catch (e) {
-      $div.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
-    }
-  }
-
-  await activarTab('equipos');
+  // La URL puede pedir una pestaña puntual (ej. el link "→ Asignar a
+  // técnicos" de la tabla de Equipos, o #bodega?tab=asignar desde afuera).
+  const tabInicial = params.tab;
+  await activarTab(tabInicial && $tabs.some((t) => t.dataset.tab === tabInicial) ? tabInicial : 'equipos');
 }

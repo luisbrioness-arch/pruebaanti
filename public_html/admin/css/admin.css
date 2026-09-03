@@ -342,6 +342,16 @@ body.reportar-eligiendo, body.reportar-eligiendo * { cursor: crosshair !importan
 .subtab:hover { color: var(--tinta); }
 .subtab--activo { color: var(--acento-2); border-bottom-color: var(--acento); }
 
+/* Toggle de dos opciones dentro de una pestaña (ej. Asignar a técnicos: "En bodega" / "En maletas"). */
+.segmentado { display: inline-flex; border: 1px solid var(--borde-fuerte); border-radius: 8px; overflow: hidden; margin-bottom: 14px; }
+.segmentado button {
+  background: var(--superficie); border: none; padding: 7px 14px; font-size: .82rem; font-weight: 600;
+  color: var(--tinta-3); cursor: pointer; border-right: 1px solid var(--borde-fuerte);
+}
+.segmentado button:last-child { border-right: none; }
+.segmentado button:hover { color: var(--tinta); }
+.segmentado button.activo { background: var(--acento); color: #fff; }
+
 /* ---------- Toasts ---------- */
 .toast-pila { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 200; }
 .toast {
@@ -365,11 +375,18 @@ body.reportar-eligiendo, body.reportar-eligiendo * { cursor: crosshair !importan
 
 /* ---------- Indicadores (dashboard) ---------- */
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+/* Tile accionable (pedido: "que aqui sean botones accionables") — es un
+   <a>, no un <div> decorativo: todo el tile navega a Historial. */
 .tile {
   background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio);
   padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;
+  text-decoration: none; color: inherit; cursor: pointer; transition: border-color .15s, transform .1s;
 }
+.tile:hover { border-color: var(--acento); transform: translateY(-1px); }
+.tile-fila { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .tile-valor { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* Pedido: "a la derecha el valor en dinero que lo que llevamos" — al lado del conteo, no debajo. */
+.tile-dinero { font-size: .95rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--tinta-2); }
 .tile-etiqueta { font-size: .78rem; color: var(--tinta-2); }
 .tile--ok { border-color: var(--ok); }
 .tile--ok .tile-valor { color: var(--ok); }
