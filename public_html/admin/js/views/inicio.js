@@ -144,9 +144,13 @@ function pintarTiles($div, r) {
   const mapaOrdenes = Object.fromEntries(r.ordenes_por_estado_mes.map((o) => [o.estado, Number(o.n)]));
   // Con la auto-aprobación al enviar, una orden ya no se queda "enviada"
   // esperando auditoría — pasa a "aprobada" en el mismo instante. Por eso
-  // el total del mes se suma acá en vez de mostrar el bucket 'enviada'
-  // (que ahora siempre da 0).
-  const totalMes = Object.values(mapaOrdenes).reduce((a, b) => a + b, 0);
+  // el total del mes se suma acá en vez de mostrar el bucket 'enviada' (que
+  // ahora siempre da 0) — pero sin contar 'borrador': esas son órdenes que
+  // el técnico empezó en el wizard y todavía no envió (o abandonó), no
+  // trabajo real del mes.
+  const totalMes = Object.entries(mapaOrdenes)
+    .filter(([estado]) => estado !== 'borrador')
+    .reduce((suma, [, n]) => suma + n, 0);
   $div.innerHTML = `
     <div class="tiles">
       ${tile('Órdenes este mes', totalMes)}
