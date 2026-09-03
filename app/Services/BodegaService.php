@@ -316,31 +316,43 @@ final class BodegaService
         });
     }
 
-    /** El equipo viene malo de fábrica — sale de la maleta sin culpar ni descontar al técnico. */
-    public function marcarFallaFabrica(int $equipoId, ?string $observacion): array
+    /**
+     * El equipo viene malo de fábrica — sale de la maleta sin culpar ni
+     * descontar al técnico. Pedido: "nos falta una bodega de reversa donde
+     * lleguen los con falla, retiro o reparaciones" — antes quedaba con
+     * bodega_id NULL (flotando, invisible en cualquier listado por
+     * ubicación); ahora el admin elige a qué bodega física llega de verdad
+     * (puede ser la misma "Bodega Central" o una dedicada tipo "Reversa"
+     * que se crea igual que cualquier otra desde Ubicaciones — no hace
+     * falta una tabla nueva para eso).
+     */
+    public function marcarFallaFabrica(int $equipoId, ?string $observacion, int $bodegaId): array
     {
+        $this->requerirBodega($bodegaId);
         $equipo = $this->requerirEquipo($equipoId);
         $tecnicoActual = $equipo['usuario_actual_id'] !== null ? (int) $equipo['usuario_actual_id'] : null;
 
-        $this->equipos->actualizarEstado($equipoId, 'falla_fabrica', null, null, null, null);
+        $this->equipos->actualizarEstado($equipoId, 'falla_fabrica', null, null, null, $bodegaId);
         $this->movimientosEquipo->crear($equipoId, 'falla_fabrica', $tecnicoActual, null, null, $observacion);
         return $this->equipos->find($equipoId);
     }
 
     /**
-     * El retorno físico a bodega tras un retiro es un evento propio, no
-     * parte de la orden de retiro (ver docs/modelo-datos-fase1.md) — puede
-     * pasar días después, cuando el técnico junta varios retiros en un viaje.
-     * El admin elige a QUÉ bodega física vuelve (puede ser distinta de la
-     * que lo mandó originalmente).
+     * El retorno físico a bodega tras un retiro (o tras salir reparado de
+     * la bodega de reversa) es un evento propio, no parte de la orden de
+     * retiro (ver docs/modelo-datos-fase1.md) — puede pasar días después,
+     * cuando el técnico junta varios retiros en un viaje. El admin elige a
+     * QUÉ bodega física vuelve (puede ser distinta de la que lo mandó
+     * originalmente, ej. de la Reversa de vuelta a Central una vez
+     * reparado).
      */
     public function ingresoABodega(int $equipoId, int $bodegaId): array
     {
         $this->requerirBodega($bodegaId);
         $equipo = $this->requerirEquipo($equipoId);
-        if ($equipo['estado'] !== 'retirado') {
+        if (!in_array($equipo['estado'], ['retirado', 'falla_fabrica'], true)) {
             throw new ApiException(
-                'Solo se puede ingresar a bodega un equipo que está "retirado" (estado actual: ' . $equipo['estado'] . ').',
+                'Solo se puede ingresar a bodega un equipo que está "retirado" o "falla_fabrica" (estado actual: ' . $equipo['estado'] . ').',
                 409,
                 'estado_invalido'
             );

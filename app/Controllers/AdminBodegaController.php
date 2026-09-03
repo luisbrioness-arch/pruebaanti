@@ -148,8 +148,12 @@ final class AdminBodegaController
     {
         Auth::requireAdmin();
         $observacion = $req->input('observacion');
+        $bodegaId = (int) $req->input('bodega_id', 0);
+        if (!$bodegaId) {
+            throw new ValidationException('Falta bodega_id (a qué bodega llega el equipo con falla).');
+        }
         Response::json((new BodegaService())->marcarFallaFabrica(
-            (int) $req->param('id'), $observacion !== null ? (string) $observacion : null
+            (int) $req->param('id'), $observacion !== null ? (string) $observacion : null, $bodegaId
         ));
     }
 

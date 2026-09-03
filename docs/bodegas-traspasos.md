@@ -285,6 +285,37 @@ directo de `movimientos_equipo` — el dato ya existía, solo faltaba una
 pantalla para consultarlo por serie en vez de tener que saber en qué estado
 filtrar.
 
+## Rastreo de un equipo instalado, y bodega de "reversa"
+
+Dos pedidos relacionados, ninguno necesitó tocar el esquema:
+
+- **"Rastreo"** — botón nuevo en Equipos, solo para `estado = 'instalado'`.
+  Abre un modal con el mismo `GET /admin/equipos/{id}/historial` que ya usaba
+  "Buscar por serie", pero con un resumen arriba: quién lo instaló, cuándo, en
+  qué orden y — si esa orden viene de una venta propia — cliente, dirección,
+  teléfono y un link al mapa con el GPS que tomó el técnico al cerrar la
+  orden. Una orden sin venta propia no tiene cliente registrado en el
+  sistema (la ficha real sigue siendo la de TuVes); en ese caso solo se ve
+  folio + técnico + GPS.
+
+- **"Bodega de reversa"** (pedido: "nos falta una bodega de reversa donde
+  lleguen los con falla, retiro o reparaciones") — antes, marcar un equipo
+  "Falla de fábrica" lo dejaba con `bodega_id = NULL`: invisible en cualquier
+  filtro por ubicación, sin forma de saber dónde estaba físicamente ni de
+  reingresarlo después de repararlo. Ahora:
+  - "Falla de fábrica" pide elegir a qué bodega llega (mismo selector que ya
+    usaba el reingreso de un "retirado").
+  - `ingresoABodega()` (el mismo endpoint que ya devolvía un "retirado" a
+    stock bueno) ahora también acepta equipos en `falla_fabrica` — así un
+    equipo reparado vuelve a `estado = 'bodega'` eligiendo destino, igual que
+    un retiro.
+  - No hace falta ninguna bodega "especial" en el código: el admin crea una
+    bodega llamada como quiera (ej. "Bodega Reversa") desde **Ubicaciones**
+    — ya existía ese formulario — y la elige en esos selectores como
+    cualquier otra. `equipos.listar()` ya traía `bodega_nombre`, así que
+    filtrar Equipos por esa bodega ya muestra fallas/retiros/reparaciones
+    juntos, separados de la Bodega Central.
+
 ## Migración de esquema en producción
 
 Los cambios de esquema (columna nueva en `equipos`, valores nuevos en dos

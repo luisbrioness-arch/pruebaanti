@@ -366,11 +366,17 @@ export async function renderBodega(container, params = {}) {
           });
           $acciones.append($chip, btnCancelar);
         }
-        if (e.estado === 'retirado') {
+        // Pedido: "nos falta una bodega de reversa donde lleguen los con
+        // falla, retiro o reparaciones" — tanto "retirado" (vuelve de
+        // instalar) como "falla_fabrica" (salió malo / está en reparación)
+        // se reingresan con el mismo formulario, eligiendo a qué bodega
+        // física llega (puede ser una dedicada, ej. "Bodega Reversa",
+        // creada como cualquier otra desde Ubicaciones).
+        if (['retirado', 'falla_fabrica'].includes(e.estado)) {
           const form = el(`
             <form class="form-inline">
               <select name="bodega_id" required>${opcionesBodegas()}</select>
-              <button type="submit" class="btn btn--secundario btn--chico">Ingresó a bodega</button>
+              <button type="submit" class="btn btn--secundario btn--chico">${e.estado === 'retirado' ? 'Ingresó a bodega' : 'Reingresar (reparado)'}</button>
             </form>
           `);
           form.addEventListener('submit', async (ev) => {
@@ -396,10 +402,18 @@ export async function renderBodega(container, params = {}) {
           $acciones.appendChild(btnRastreo);
         }
         if (!['falla_fabrica', 'devuelto_tuves', 'perdido'].includes(e.estado)) {
-          const btnFalla = el('<button type="button" class="btn btn--malo btn--chico">Falla de fábrica</button>');
-          btnFalla.addEventListener('click', async () => {
+          const form = el(`
+            <form class="form-inline">
+              <select name="bodega_id" required>${opcionesBodegas()}</select>
+              <button type="submit" class="btn btn--malo btn--chico">Falla de fábrica</button>
+            </form>
+          `);
+          form.addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            const bodegaId = Number(new FormData(ev.target).get('bodega_id'));
+            const payload = { id: e.id, observacion: null, bodega_id: bodegaId };
             try {
-              const { encolado } = await conColaSiHaceFalta('falla_fabrica', { id: e.id, observacion: null }, () => api(`/admin/equipos/${e.id}/falla-fabrica`, { method: 'POST', body: {} }));
+              const { encolado } = await conColaSiHaceFalta('falla_fabrica', payload, () => api(`/admin/equipos/${e.id}/falla-fabrica`, { method: 'POST', body: { bodega_id: bodegaId } }));
               if (encolado) {
                 toast(`${e.numero_serie}: guardado sin conexión — se marcará al recuperar señal.`, 'neutro');
                 marcarFilaPendiente('falla de fábrica pendiente');
@@ -409,7 +423,7 @@ export async function renderBodega(container, params = {}) {
               }
             } catch (err) { toast(err.message, 'malo'); }
           });
-          $acciones.appendChild(btnFalla);
+          $acciones.appendChild(form);
         }
         $tbody.appendChild(tr);
       }
