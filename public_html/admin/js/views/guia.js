@@ -7,7 +7,6 @@
 import { api } from '../api.js';
 import { el, escapeHtml, formatDateTime } from '../utils.js';
 import { irA } from '../router.js';
-import { setTopbar } from '../topbar.js';
 
 export async function renderGuia(container, params) {
   const tecnicoId = Number(params?.tecnicoId);
