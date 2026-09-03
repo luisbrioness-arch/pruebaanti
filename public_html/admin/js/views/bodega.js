@@ -13,41 +13,37 @@ const DIAS_AVISO_PENDIENTE = 3;
 
 /**
  * Reorganización de menús (pedido: "mejora estos menus que sean mas
- * intuitivos y que arriba solo sea bodega - bodega tecnicos"):
- *  - "Bodegas de técnicos" salió de acá a su propia pantalla de nivel
- *    superior (ver bodega-tecnicos.js) — ya no es una pestaña más entre
- *    seis, es su propio ítem de nav junto a "Bodega".
+ * intuitivos y que arriba solo sea bodega - bodega tecnicos", después
+ * ajustado a "que dentro de bodega existan 2 submenu uno de bodega
+ * principal y otro bodega tecnicos" — un solo ítem de nav arriba, con dos
+ * submenús adentro en vez de dos ítems de nav separados):
+ *  - "Bodega" (nav de arriba) tiene ahora 2 submenús: "Bodega principal"
+ *    (todo lo que había) y "Bodega técnicos" (antes la pestaña "Bodegas de
+ *    técnicos", después probado como su propio ítem de nav — quedó acá).
+ *  - Dentro de "Bodega principal", 6 pestañas: Equipos (ahora solo
+ *    inventario: ver/filtrar/alta/falla de fábrica) · Asignar a técnicos
+ *    (nueva — el "Enviar"/"Traspasar" que vivía embebido en cada fila de
+ *    Equipos, más la selección masiva) · Ferretería · Catálogo (nueva —
+ *    crear tipos de equipo/ítems de ferretería nuevos, antes exigía tocar
+ *    la base a mano) · Buscar por serie · Ubicaciones (antes "Bodegas",
+ *    renombrada para no confundir con "Bodega" del nav de arriba).
  *  - "Kits estándar" desapareció del todo (pedido separado: "eliminar el
  *    kit standar de todo el proyecto que no exista" — el wizard ya no lo
  *    usa desde antes, ver docs/wizard-api.md).
- *  - Nueva pestaña "Catálogo": faltaba dar de alta un TIPO de equipo o
- *    ÍTEM de ferretería nuevo (ya se podía dar de alta una serie/cantidad
- *    de un tipo que ya existía, pero crear el tipo en sí exigía tocar la
- *    base a mano).
- *  - Nueva pestaña "Asignar a técnicos": reemplaza el "Enviar"/"Traspasar"
- *    que antes vivía embebido en cada fila de Equipos — Equipos pasa a ser
- *    solo inventario (ver, filtrar, dar de alta, falla de fábrica);
- *    asignar/traspasar vive en un solo lugar.
- *  - "Bodegas" (ubicaciones físicas) se renombra a "Ubicaciones" para no
- *    confundirse con el nombre de la sección entera ("Bodega").
  */
 export async function renderBodega(container, params = {}) {
   container.appendChild(el(`
     <section class="bodega">
-      <nav class="subtabs">
-        <button type="button" class="subtab subtab--activo" data-tab="equipos">Equipos</button>
-        <button type="button" class="subtab" data-tab="asignar">Asignar a técnicos</button>
-        <button type="button" class="subtab" data-tab="ferreteria">Ferretería</button>
-        <button type="button" class="subtab" data-tab="catalogo">Catálogo</button>
-        <button type="button" class="subtab" data-tab="buscar">Buscar por serie</button>
-        <button type="button" class="subtab" data-tab="ubicaciones">Ubicaciones</button>
+      <nav class="subtabs subtabs--nivel1">
+        <button type="button" class="subtab subtab--activo" data-vista="principal">Bodega principal</button>
+        <button type="button" class="subtab" data-vista="tecnicos">Bodega técnicos</button>
       </nav>
-      <div id="bodega-contenido"><p class="vacio">Cargando…</p></div>
+      <div id="bodega-nivel2"><p class="vacio">Cargando…</p></div>
     </section>
   `));
 
-  const $contenido = container.querySelector('#bodega-contenido');
-  const $tabs = Array.from(container.querySelectorAll('.subtab'));
+  const $nivel2 = container.querySelector('#bodega-nivel2');
+  const $vistas = Array.from(container.querySelectorAll('.subtabs--nivel1 .subtab'));
 
   // Catálogos compartidos por todas las pestañas — se piden una sola vez.
   let [{ usuarios }, { tipos_equipo: tiposEquipo }, { items }, { bodegas }] = await Promise.all([
@@ -56,6 +52,7 @@ export async function renderBodega(container, params = {}) {
     api('/admin/catalogo/items-ferreteria'),
     api('/admin/bodegas'),
   ]);
+  const tecnicos = () => usuarios.filter((u) => u.rol === 'tecnico');
 
   function opcionesUsuarios(seleccionado, excluirId) {
     return usuarios
@@ -70,6 +67,90 @@ export async function renderBodega(container, params = {}) {
       .join('');
   }
 
+  // ------------------------------------------------------- Nivel 1: vista --
+  async function activarVista(vista) {
+    $vistas.forEach((v) => v.classList.toggle('subtab--activo', v.dataset.vista === vista));
+    $nivel2.innerHTML = '<p class="vacio">Cargando…</p>';
+    if (vista === 'tecnicos') await renderVistaTecnicos();
+    else await renderVistaPrincipal();
+  }
+  $vistas.forEach((v) => v.addEventListener('click', () => activarVista(v.dataset.vista)));
+
+  // --------------------------------------------- "Bodega técnicos" (submenú) --
+  async function renderVistaTecnicos() {
+    $nivel2.innerHTML = `
+      <label class="campo campo--inline">
+        <span>Técnico</span>
+        <select id="select-tecnico-bodega">
+          <option value="">Elegí un técnico…</option>
+          ${tecnicos().map((t) => `<option value="${t.id}">${escapeHtml(t.nombre)}</option>`).join('')}
+        </select>
+      </label>
+      <div id="contenido-tecnico"></div>
+    `;
+    $nivel2.querySelector('#select-tecnico-bodega').addEventListener('change', (ev) => {
+      const id = ev.target.value;
+      if (id) cargarBodegaTecnico(Number(id));
+      else $nivel2.querySelector('#contenido-tecnico').innerHTML = '';
+    });
+  }
+
+  async function cargarBodegaTecnico(tecnicoId) {
+    const $div = $nivel2.querySelector('#contenido-tecnico');
+    $div.innerHTML = '<p class="vacio">Cargando…</p>';
+    try {
+      const [{ equipos: equiposTecnico }, { stock }] = await Promise.all([
+        api(`/admin/equipos?estado=maleta&tecnico_id=${tecnicoId}`),
+        api(`/admin/ferreteria/stock?tecnico_id=${tecnicoId}`),
+      ]);
+      $div.innerHTML = `
+        <div class="form-fila" style="margin: 10px 0;">
+          <a href="#guia?tecnicoId=${tecnicoId}" class="btn btn--secundario">🖨 Ver guía de despacho pendiente</a>
+        </div>
+        <h3>Equipos en su maleta (${equiposTecnico.length})</h3>
+        ${equiposTecnico.length ? `
+          <table class="tabla">
+            <thead><tr><th>Serie</th><th>Tipo</th></tr></thead>
+            <tbody>${equiposTecnico.map((e) => `<tr><td class="celda-mono">${escapeHtml(e.numero_serie)}</td><td>${escapeHtml(e.tipo_equipo_nombre)}</td></tr>`).join('')}</tbody>
+          </table>
+        ` : '<p class="vacio">No tiene equipos en su maleta.</p>'}
+
+        <h3>Ferretería confirmada</h3>
+        ${stock.length ? `
+          <table class="tabla">
+            <thead><tr><th>Ítem</th><th>Cantidad</th></tr></thead>
+            <tbody>${stock.map((s) => `<tr><td>${escapeHtml(s.item_nombre)}</td><td class="${Number(s.cantidad_actual) < 0 ? 'celda-negativa' : ''}">${s.cantidad_actual} ${escapeHtml(s.unidad_medida)}</td></tr>`).join('')}</tbody>
+          </table>
+        ` : '<p class="vacio">Sin ferretería confirmada.</p>'}
+      `;
+    } catch (e) {
+      $div.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
+    }
+  }
+
+  // --------------------------------------------- "Bodega principal" (submenú) --
+  let $contenido, $tabs;
+
+  async function renderVistaPrincipal() {
+    $nivel2.innerHTML = `
+      <nav class="subtabs">
+        <button type="button" class="subtab subtab--activo" data-tab="equipos">Equipos</button>
+        <button type="button" class="subtab" data-tab="asignar">Asignar a técnicos</button>
+        <button type="button" class="subtab" data-tab="ferreteria">Ferretería</button>
+        <button type="button" class="subtab" data-tab="catalogo">Catálogo</button>
+        <button type="button" class="subtab" data-tab="buscar">Buscar por serie</button>
+        <button type="button" class="subtab" data-tab="ubicaciones">Ubicaciones</button>
+      </nav>
+      <div id="bodega-contenido"><p class="vacio">Cargando…</p></div>
+    `;
+    $contenido = $nivel2.querySelector('#bodega-contenido');
+    $tabs = Array.from($nivel2.querySelectorAll('.subtabs:not(.subtabs--nivel1) .subtab'));
+    $tabs.forEach((t) => t.addEventListener('click', () => activarTab(t.dataset.tab)));
+
+    const tabInicial = params.tab;
+    await activarTab(tabInicial && $tabs.some((t) => t.dataset.tab === tabInicial) ? tabInicial : 'equipos');
+  }
+
   async function activarTab(nombre) {
     $tabs.forEach((t) => t.classList.toggle('subtab--activo', t.dataset.tab === nombre));
     $contenido.innerHTML = '<p class="vacio">Cargando…</p>';
@@ -80,7 +161,6 @@ export async function renderBodega(container, params = {}) {
     else if (nombre === 'buscar') await renderBuscar();
     else await renderUbicaciones();
   }
-  $tabs.forEach((t) => t.addEventListener('click', () => activarTab(t.dataset.tab)));
 
   // ------------------------------------------------------------- Equipos --
   // Ahora es solo inventario: ver, filtrar, dar de alta, marcar falla de
@@ -880,8 +960,8 @@ export async function renderBodega(container, params = {}) {
     `;
   }
 
-  // La URL puede pedir una pestaña puntual (ej. el link "→ Asignar a
-  // técnicos" de la tabla de Equipos, o #bodega?tab=asignar desde afuera).
-  const tabInicial = params.tab;
-  await activarTab(tabInicial && $tabs.some((t) => t.dataset.tab === tabInicial) ? tabInicial : 'equipos');
+  // La URL puede pedir un submenú puntual (ej. #bodega?vista=tecnicos
+  // desde el acceso rápido de Inicio, o #bodega?tab=asignar desde el link
+  // "→ Asignar a técnicos" de la tabla de Equipos — implica vista=principal).
+  await activarVista(params.vista === 'tecnicos' ? 'tecnicos' : 'principal');
 }

@@ -10,7 +10,7 @@ const ACCESOS = [
   { ruta: 'historial', icono: '📋', etiqueta: 'Historial' },
   { ruta: 'tarifario', icono: '💲', etiqueta: 'Tarifario' },
   { ruta: 'bodega', icono: '📦', etiqueta: 'Bodega' },
-  { ruta: 'bodega-tecnicos', icono: '🧑‍🔧', etiqueta: 'Bodega técnicos' },
+  { ruta: 'bodega?vista=tecnicos', icono: '🧑‍🔧', etiqueta: 'Bodega técnicos' },
   { ruta: 'billetera', icono: '👛', etiqueta: 'Billetera' },
   { ruta: 'usuarios', icono: '👥', etiqueta: 'Usuarios' },
 ];

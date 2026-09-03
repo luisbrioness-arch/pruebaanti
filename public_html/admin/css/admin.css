@@ -341,6 +341,11 @@ body.reportar-eligiendo, body.reportar-eligiendo * { cursor: crosshair !importan
 }
 .subtab:hover { color: var(--tinta); }
 .subtab--activo { color: var(--acento-2); border-bottom-color: var(--acento); }
+/* Submenú de nivel 1 dentro de Bodega ("Bodega principal" / "Bodega
+   técnicos") — un poco más grande que las pestañas de nivel 2, para que
+   la jerarquía se note sin necesidad de leer el texto. */
+.subtabs--nivel1 { margin-bottom: 20px; border-bottom-width: 2px; }
+.subtabs--nivel1 .subtab { font-size: 1rem; padding-bottom: 12px; }
 
 /* Toggle de dos opciones dentro de una pestaña (ej. Asignar a técnicos: "En bodega" / "En maletas"). */
 .segmentado { display: inline-flex; border: 1px solid var(--borde-fuerte); border-radius: 8px; overflow: hidden; margin-bottom: 14px; }

@@ -134,34 +134,47 @@ menús" más abajo): crear más bodegas físicas (ej. si abren sucursal en otra
 ciudad). Al dar de alta un equipo o hacer un ingreso de ferretería, ahora
 hay que elegir a cuál bodega entra.
 
-Panel admin → **Bodega técnicos** (antes una pestaña más dentro de
-"Bodega", ahora su propio ítem de nav — ver más abajo): elegís un técnico
-y ves de un vistazo su maleta completa (equipos) y su stock de ferretería
-ya confirmado — reusa los mismos endpoints que ya existían
+Panel admin → **Bodega → Bodega técnicos** (submenú de nivel 1, junto a
+"Bodega principal" — ver "Reorganización de menús" más abajo): elegís un
+técnico y ves de un vistazo su maleta completa (equipos) y su stock de
+ferretería ya confirmado — reusa los mismos endpoints que ya existían
 (`GET /admin/equipos?estado=maleta&tecnico_id=`,
 `GET /admin/ferreteria/stock?tecnico_id=`), sin backend nuevo.
 
 ## Reorganización de menús (pedido: "mejora estos menus que sean mas
-intuitivos y que arriba solo sea bodega - bodega tecnicos")
+intuitivos y que arriba solo sea bodega - bodega tecnicos", ajustado
+después a "que dentro de bodega existan 2 submenu uno de bodega principal
+y otro bodega tecnicos")
 
 El nav de arriba tenía un solo ítem "Bodega" con seis pestañas debajo
 (Equipos, Ferretería, Kits estándar, Buscar por serie, Bodegas, Bodegas de
 técnicos) — mezclaba inventario general con la pregunta "¿qué tiene ESTE
-técnico?", que es un punto de partida distinto. Quedó así:
+técnico?", que es un punto de partida distinto. El primer intento sacó
+"Bodega técnicos" a su propio ítem de nav; el pedido siguiente lo devolvió
+adentro de "Bodega", pero como su propio submenú de primer nivel en vez de
+una pestaña más entre seis. Quedó así — **"Bodega" (nav de arriba) → dos
+submenús de nivel 1**:
 
-- **"Bodega técnicos"** pasa a ser su propio ítem de nav, junto a "Bodega"
-  (antes era la pestaña "Bodegas de técnicos"). Vive en
-  `admin/js/views/bodega-tecnicos.js`, misma lógica de siempre.
-- **"Catálogo"** (pestaña nueva dentro de Bodega): antes no había forma de
-  crear un tipo de equipo o ítem de ferretería nuevo sin tocar la base a
-  mano — solo se podía dar de alta una serie/cantidad de un tipo que YA
-  existía. Ver `docs/admin-api.md`.
-- **"Asignar a técnicos"** (pestaña nueva): el "Enviar"/"Traspasar" que
-  antes vivía embebido en cada fila de Equipos se saca de ahí — Equipos
-  pasa a ser solo inventario (ver, filtrar, dar de alta, falla de fábrica),
-  y asignar/traspasar (con selección masiva) vive en un solo lugar.
-- **"Bodegas" → "Ubicaciones"**: mismo contenido, nombre menos confuso
-  junto al "Bodega" del nav de arriba.
+- **"Bodega principal"**: las 6 pestañas de siempre (nivel 2), con dos
+  agregados:
+  - **"Catálogo"** (pestaña nueva): antes no había forma de crear un tipo
+    de equipo o ítem de ferretería nuevo sin tocar la base a mano — solo
+    se podía dar de alta una serie/cantidad de un tipo que YA existía. Ver
+    `docs/admin-api.md`.
+  - **"Asignar a técnicos"** (pestaña nueva): el "Enviar"/"Traspasar" que
+    antes vivía embebido en cada fila de Equipos se saca de ahí — Equipos
+    pasa a ser solo inventario (ver, filtrar, dar de alta, falla de
+    fábrica), y asignar/traspasar (con selección masiva) vive en un solo
+    lugar.
+  - "Bodegas" → **"Ubicaciones"**: mismo contenido, nombre menos confuso
+    junto al "Bodega" del nav de arriba.
+- **"Bodega técnicos"**: antes la pestaña "Bodegas de técnicos" (y, por un
+  momento, su propio ítem de nav) — misma lógica de siempre, ahora vive
+  como submenú dentro de `admin/js/views/bodega.js`
+  (`renderVistaTecnicos`/`cargarBodegaTecnico`), no en un archivo aparte.
+  Deep link: `#bodega?vista=tecnicos` (el acceso rápido de Inicio apunta
+  ahí). `#bodega?tab=asignar` (implica `vista=principal`) sigue siendo el
+  link que usa la tabla de Equipos para mandar a "Asignar a técnicos".
 - **"Kits estándar" desapareció** — pedido aparte, ver "Kit estándar" en
   `docs/admin-api.md`.
 
@@ -198,7 +211,7 @@ como un documento tributario (no reemplaza una guía SII real si algún día
 hiciera falta transportar mercadería comercialmente — este sistema no tiene
 ni necesita ese circuito).
 
-Desde **Bodega técnicos**, al elegir un técnico aparece "Ver
+Desde **Bodega → Bodega técnicos**, al elegir un técnico aparece "Ver
 guía de despacho pendiente" → `#guia?tecnicoId=N` (`admin/js/views/guia.js`),
 que lista TODO lo que ese técnico tiene pendiente de confirmar en ese
 momento (equipos `en_transito` + ferretería pendiente — mismo shape que
