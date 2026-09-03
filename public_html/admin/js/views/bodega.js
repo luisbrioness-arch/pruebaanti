@@ -1,7 +1,7 @@
 import { api } from '../api.js';
 import { toast } from '../toast.js';
 import { conColaSiHaceFalta } from '../offline.js';
-import { badge, escapeHtml, el, formatDateTime } from '../utils.js';
+import { badge, escapeHtml, el, formatDateTime, MOVIMIENTO_EQUIPO_LABEL } from '../utils.js';
 import { abrirScanner } from '../scanner.js';
 
 /** Días corridos desde una fecha del servidor (formato "YYYY-MM-DD HH:mm:ss") — para los avisos de "esto lleva mucho esperando" (mejora 3). */
