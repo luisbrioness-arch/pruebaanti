@@ -457,6 +457,10 @@ export async function renderBodega(container, params = {}) {
         return;
       }
       $tabla.innerHTML = `
+        <div class="form-fila" style="margin-bottom: 10px;">
+          <button type="button" class="btn btn--secundario" id="btn-escanear-seleccionar">📷 Escanear para seleccionar</button>
+          <span class="campo-ayuda">Escanea uno tras otro — se van tildando solos, sin tener que buscarlos a mano en la lista.</span>
+        </div>
         <div id="acciones-masivas" class="acciones-masivas" hidden></div>
         <table class="tabla">
           <thead><tr><th></th><th>Serie</th><th>Tipo</th><th>${modo === 'bodega' ? 'Bodega' : 'Técnico'}</th><th>Acciones</th></tr></thead>
@@ -524,6 +528,35 @@ export async function renderBodega(container, params = {}) {
       }
 
       const $tbody = $tabla.querySelector('tbody');
+
+      // Pedido: "aqui falta algo como un scaner igual para ir agregando
+      // decos y traspasarlos a algun tecnico ya que ahora se pueden ver
+      // visualmente pero cuando sean muchos no" — reabre el scanner solo
+      // después de cada lectura, así queda un loop "escanea, tilda,
+      // escanea, tilda…" hasta que el usuario cierra el modal (✕ o Escape).
+      $tabla.querySelector('#btn-escanear-seleccionar').addEventListener('click', async () => {
+        let seguirEscaneando = true;
+        while (seguirEscaneando) {
+          const resultado = await abrirScanner();
+          if (!resultado) { seguirEscaneando = false; break; }
+          const equipo = equipos.find((eq) => eq.numero_serie === resultado.serie);
+          if (!equipo) {
+            toast(`"${resultado.serie}" no está en esta lista (¿${modo === 'bodega' ? 'bodega' : 'técnico'} equivocado?).`, 'malo');
+            continue;
+          }
+          const $check = $tbody.querySelector(`.check-equipo[data-id="${equipo.id}"]`);
+          if (!$check) continue;
+          if ($check.checked) {
+            toast(`${equipo.numero_serie} ya estaba seleccionado.`, 'neutro');
+          } else {
+            $check.checked = true;
+            seleccionados.set(equipo.id, equipo.numero_serie);
+            actualizarBarra();
+            toast(`${equipo.numero_serie} seleccionado (${seleccionados.size}).`, 'ok');
+          }
+        }
+      });
+
       for (const e of equipos) {
         const tr = el(`
           <tr>
