@@ -21,6 +21,7 @@ use App\Repositories\OrdenFotoRepository;
 use App\Repositories\OrdenMaterialRepository;
 use App\Repositories\OrdenRepository;
 use App\Repositories\StockFerreteriaUsuarioRepository;
+use App\Repositories\TarifaInstalacionPlanRepository;
 use App\Repositories\TarifaServicioRepository;
 use App\Repositories\TipoServicioRepository;
 use App\Repositories\UsuarioRepository;
@@ -52,6 +53,7 @@ final class OrdenWizardService
     private OrdenFotoRepository $fotos;
     private TipoServicioRepository $tiposServicio;
     private TarifaServicioRepository $tarifas;
+    private TarifaInstalacionPlanRepository $tarifasInstalacionPlan;
     private EquipoRepository $equipos;
     private MovimientoEquipoRepository $movimientosEquipo;
     private ItemFerreteriaRepository $itemsFerreteria;
@@ -71,6 +73,7 @@ final class OrdenWizardService
         $this->fotos = new OrdenFotoRepository();
         $this->tiposServicio = new TipoServicioRepository();
         $this->tarifas = new TarifaServicioRepository();
+        $this->tarifasInstalacionPlan = new TarifaInstalacionPlanRepository();
         $this->equipos = new EquipoRepository();
         $this->movimientosEquipo = new MovimientoEquipoRepository();
         $this->itemsFerreteria = new ItemFerreteriaRepository();
@@ -302,6 +305,41 @@ final class OrdenWizardService
     }
 
     /**
+     * "Los planes van subiendo por cantidad de decos" (confirmado por
+     * Edwin) — cada plan ya trae su cantidad de decos en el nombre ("Plan
+     * Básico 2 Decos"), así que la instalación cobra según el plan que
+     * vendió, sin pedirle al técnico ningún dato nuevo. Solo aplica a
+     * 'instalacion_nueva'; los demás tipos de servicio (soporte, retiro,
+     * adicional) no varían por plan. Si la orden no tiene venta enlazada, o
+     * ese plan todavía no tiene una fila en tarifas_instalacion_plan, se
+     * cae al monto plano de tarifas_servicio — mismo comportamiento que
+     * había antes de esto para todos los casos.
+     */
+    private function calcularMontoBruto(array $orden): float
+    {
+        $tipoServicio = $this->tiposServicio->find((int) $orden['tipo_servicio_id']);
+        if ($tipoServicio && $tipoServicio['codigo'] === 'instalacion_nueva' && !empty($orden['venta_id'])) {
+            $venta = $this->ventas->find((int) $orden['venta_id']);
+            if ($venta) {
+                $tarifaPlan = $this->tarifasInstalacionPlan->vigentePara((int) $venta['plan_id']);
+                if ($tarifaPlan) {
+                    return (float) $tarifaPlan['monto'];
+                }
+            }
+        }
+
+        $tarifa = $this->tarifas->vigentePara((int) $orden['tipo_servicio_id']);
+        if (!$tarifa) {
+            throw new ApiException(
+                'No hay tarifa vigente para este tipo de servicio — avisa al administrador antes de reintentar.',
+                409,
+                'sin_tarifa_vigente'
+            );
+        }
+        return (float) $tarifa['monto'];
+    }
+
+    /**
      * Lo que hace que una orden efectivamente cuente como trabajo confirmado:
      * snapshot de tarifa/monto, consumo físico de equipos y ferretería, y
      * confirmación de la venta enlazada si la hay. Se llama en tres momentos
@@ -333,17 +371,9 @@ final class OrdenWizardService
             throw new ValidationException('La orden no tiene materiales escaneados.');
         }
 
-        $tarifa = $this->tarifas->vigentePara((int) $orden['tipo_servicio_id']);
-        if (!$tarifa) {
-            throw new ApiException(
-                'No hay tarifa vigente para este tipo de servicio — avisa al administrador antes de reintentar.',
-                409,
-                'sin_tarifa_vigente'
-            );
-        }
+        $montoBruto = $this->calcularMontoBruto($orden);
 
         $tecnico = $this->usuarios->find($tecnicoId);
-        $montoBruto = (float) $tarifa['monto'];
         $porcentaje = (float) $tecnico['porcentaje_reparto'];
 
         $this->ordenes->actualizar($ordenId, [

@@ -84,6 +84,8 @@ En `orden_ferreteria` se guardan ambos valores siempre, incluso cuando el técni
 
 El paso 5 del wizard de instalación (cuando `orden.venta_id` no es nulo) hace dos snapshots en el mismo instante: el de la orden (`monto_bruto`, `monto_tecnico`) y el de la venta (`monto_comision`, `monto_vendedor`), ambos tomando el porcentaje vigente del mismo usuario. Es deliberado que sea un solo momento — evita que exista un estado intermedio donde la orden ya diga "enviada" pero la venta todavía no sepa que se instaló.
 
+**`monto_bruto` de una `instalacion_nueva` con venta enlazada no siempre sale de `tarifas_servicio`** (confirmado: "los planes van subiendo por cantidad de decos") — si el plan de esa venta tiene una fila vigente en `tarifas_instalacion_plan`, se usa esa en su lugar; si no, cae al monto plano de `tarifas_servicio` como cualquier otro tipo de servicio. Ver [admin-api.md](admin-api.md#tarifario-y-comisiones) y `OrdenWizardService::calcularMontoBruto`.
+
 ### Retiro: la orden no lleva el equipo hasta bodega, solo hasta "retirado"
 
 El retiro físico ocurre en dos tiempos que la orden no puede fusionar: el técnico saca el equipo de la casa del cliente (eso es lo que la orden certifica y paga), y en algún momento posterior ese equipo llega físicamente a la bodega — a veces el mismo día, a veces días después, en un viaje que junta el retiro de varios clientes. Por eso `equipos.estado` pasa a `retirado` al enviar la orden, y solo un movimiento `ingreso_bodega` posterior — sin relación con ninguna orden — lo mueve a `bodega`. Tratar esto como un solo paso habría obligado a inventar una ficción ("se recibió en bodega a las 11:03, al mismo tiempo que se retiró") que no corresponde a lo que pasa en la realidad.

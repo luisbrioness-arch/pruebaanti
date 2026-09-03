@@ -60,4 +60,23 @@ final class AdminTarifarioController
             (string) $req->param('plan'), (float) $monto, (int) $admin['id']
         ));
     }
+
+    /** Instalación por plan (respuesta: "los planes van subiendo por cantidad de decos"). */
+    public function listarTarifasInstalacion(Request $req): void
+    {
+        Auth::requireAdmin();
+        Response::json(['tarifas_instalacion' => (new TarifarioService())->listarTarifasInstalacion()]);
+    }
+
+    public function editarTarifaInstalacion(Request $req): void
+    {
+        $admin = Auth::requireAdmin();
+        $monto = $req->input('monto');
+        if ($monto === null || (float) $monto <= 0) {
+            throw new ValidationException('Falta un monto válido (mayor que cero).');
+        }
+        Response::json((new TarifarioService())->editarTarifaInstalacion(
+            (string) $req->param('plan'), (float) $monto, (int) $admin['id']
+        ));
+    }
 }

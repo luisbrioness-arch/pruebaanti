@@ -122,6 +122,29 @@ CREATE TABLE comisiones_plan (
 -- Versionada por el mismo motivo que tarifas_servicio: editar la comisión de
 -- un plan no puede alterar una venta ya confirmada.
 
+-- Tarifa de INSTALACIÓN según el plan vendido (confirmado por Edwin: "los
+-- planes van subiendo por cantidad de decos" — cada plan ya trae su cantidad
+-- de decos en el nombre, ej. "Plan Básico 2 Decos", así que no hace falta
+-- pedirle al técnico ningún dato nuevo). Solo aplica a 'instalacion_nueva' —
+-- los demás tipos de servicio (soporte, retiro, adicional) siguen con el
+-- monto plano de tarifas_servicio. Si la orden no tiene venta enlazada, o
+-- ese plan todavía no tiene fila acá, se cae al monto plano de
+-- tarifas_servicio como antes (ver OrdenWizardService::calcularMontoBruto).
+CREATE TABLE tarifas_instalacion_plan (
+    id                      INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    plan_id                 INT UNSIGNED    NOT NULL,
+    monto                   DECIMAL(10,0)   NOT NULL,
+    vigente_desde           DATETIME        NOT NULL,
+    vigente_hasta           DATETIME        NULL,
+    creado_por              INT UNSIGNED    NOT NULL,
+    creado_en               DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_tarifainstplan_plan FOREIGN KEY (plan_id)
+        REFERENCES planes(id),
+    CONSTRAINT fk_tarifainstplan_usuario FOREIGN KEY (creado_por)
+        REFERENCES usuarios(id),
+    KEY idx_tarifainstplan_vigencia (plan_id, vigente_desde, vigente_hasta)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE ventas (
     id                      INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     numero_venta_tuves      VARCHAR(40)     NOT NULL,   -- referencia al sistema de TuVes, no se duplica su ficha

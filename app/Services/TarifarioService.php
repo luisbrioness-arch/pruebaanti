@@ -8,6 +8,7 @@ use App\Core\Database;
 use App\Exceptions\ValidationException;
 use App\Repositories\ComisionPlanRepository;
 use App\Repositories\PlanRepository;
+use App\Repositories\TarifaInstalacionPlanRepository;
 use App\Repositories\TarifaServicioRepository;
 use App\Repositories\TipoServicioRepository;
 
@@ -23,6 +24,7 @@ final class TarifarioService
     private TipoServicioRepository $tiposServicio;
     private ComisionPlanRepository $comisiones;
     private PlanRepository $planes;
+    private TarifaInstalacionPlanRepository $tarifasInstalacionPlan;
 
     public function __construct()
     {
@@ -30,6 +32,7 @@ final class TarifarioService
         $this->tiposServicio = new TipoServicioRepository();
         $this->comisiones = new ComisionPlanRepository();
         $this->planes = new PlanRepository();
+        $this->tarifasInstalacionPlan = new TarifaInstalacionPlanRepository();
     }
 
     public function listarTarifas(): array
@@ -101,5 +104,32 @@ final class TarifarioService
             $this->comisiones->cerrarYCrear((int) $plan['id'], $monto, $editorId);
         });
         return $this->comisiones->vigentePara((int) $plan['id']);
+    }
+
+    /**
+     * Tarifa de instalación según el plan (confirmado: "los planes van
+     * subiendo por cantidad de decos" — ver OrdenWizardService::calcularMontoBruto).
+     * No exige que todos los planes tengan una fila acá — mientras no la
+     * tengan, esa instalación sigue cobrando el monto plano de
+     * tarifas_servicio, ni bloquea ni rompe nada.
+     */
+    public function listarTarifasInstalacion(): array
+    {
+        return $this->tarifasInstalacionPlan->todasVigentes();
+    }
+
+    public function editarTarifaInstalacion(string $planCodigo, float $monto, int $editorId): array
+    {
+        if ($monto <= 0) {
+            throw new ValidationException('El monto debe ser mayor que cero.');
+        }
+        $plan = $this->planes->porCodigo($planCodigo);
+        if (!$plan) {
+            throw new ValidationException('Plan desconocido: ' . $planCodigo);
+        }
+        Database::transaction(function () use ($plan, $monto, $editorId) {
+            $this->tarifasInstalacionPlan->cerrarYCrear((int) $plan['id'], $monto, $editorId);
+        });
+        return $this->tarifasInstalacionPlan->vigentePara((int) $plan['id']);
     }
 }

@@ -19,6 +19,25 @@ export async function renderTarifario(container) {
       <h3>Comisiones por plan</h3>
       <div id="tabla-comisiones"><p class="vacio">Cargando…</p></div>
 
+      <h3>Instalación por plan</h3>
+      <p class="campo-ayuda" style="margin-bottom: 8px;">
+        Los planes van subiendo por cantidad de decos — si una orden de "Instalación nueva" viene de una
+        venta propia, cobra según esto en vez del monto plano de arriba. Un plan sin fila acá sigue
+        cobrando el monto plano de "Instalación nueva".
+      </p>
+      <div id="tabla-instalacion-plan"><p class="vacio">Cargando…</p></div>
+      <form id="form-instalacion-plan" class="form-fila">
+        <label class="campo campo--inline">
+          <span>Plan</span>
+          <select name="plan" required><option value="" disabled selected>Cargando planes…</option></select>
+        </label>
+        <label class="campo campo--inline">
+          <span>Monto de instalación</span>
+          <input type="number" name="monto" min="1" step="1" required>
+        </label>
+        <button type="submit" class="btn btn--secundario">Agregar / actualizar</button>
+      </form>
+
       <h3>Nuevo plan</h3>
       <p class="campo-ayuda" style="margin-bottom: 8px;">Antes de que aparezca en el selector de "Registrar venta" del técnico, tiene que existir acá.</p>
       <form id="form-nuevo-plan" class="form-fila">
@@ -41,6 +60,50 @@ export async function renderTarifario(container) {
 
   const $tarifas = container.querySelector('#tabla-tarifas');
   const $comisiones = container.querySelector('#tabla-comisiones');
+  const $instalacionPlan = container.querySelector('#tabla-instalacion-plan');
+  const $selectPlanInstalacion = container.querySelector('select[name="plan"]');
+
+  container.querySelector('#form-instalacion-plan').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const $submit = ev.target.querySelector('button[type="submit"]');
+    if ($submit.disabled) return;
+    $submit.disabled = true;
+    const fd = new FormData(ev.target);
+    const codigo = fd.get('plan');
+    const monto = Number(fd.get('monto'));
+    try {
+      const { encolado } = await conColaSiHaceFalta(
+        'editar_tarifa_instalacion', { codigo, monto },
+        () => api(`/admin/tarifas-instalacion/${encodeURIComponent(codigo)}`, { method: 'PUT', body: { monto } }),
+        codigo
+      );
+      ev.target.reset();
+      if (encolado) {
+        toast('Guardado sin conexión — se aplicará al recuperar señal.', 'neutro');
+      } else {
+        toast('Instalación por plan guardada.', 'ok');
+        await cargarInstalacionPlan();
+      }
+    } catch (e) {
+      toast(e.message, 'malo');
+    } finally {
+      $submit.disabled = false;
+    }
+  });
+
+  async function cargarInstalacionPlan() {
+    try {
+      const { tarifas_instalacion: tarifasInstalacion } = await api('/admin/tarifas-instalacion');
+      renderTabla($instalacionPlan, tarifasInstalacion, {
+        codigoCampo: 'plan_codigo',
+        nombreCampo: 'plan_nombre',
+        endpoint: (codigo) => `/admin/tarifas-instalacion/${encodeURIComponent(codigo)}`,
+        tipoAccion: 'editar_tarifa_instalacion',
+      });
+    } catch (e) {
+      $instalacionPlan.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
+    }
+  }
 
   container.querySelector('#form-nuevo-plan').addEventListener('submit', async (ev) => {
     ev.preventDefault();
@@ -66,6 +129,8 @@ export async function renderTarifario(container) {
           endpoint: (codigo) => `/admin/comisiones/${encodeURIComponent(codigo)}`,
           tipoAccion: 'editar_comision',
         });
+        $selectPlanInstalacion.innerHTML = datos.comisiones
+          .map((c) => `<option value="${escapeHtml(c.plan_codigo)}">${escapeHtml(c.plan_nombre)}</option>`).join('');
       }
     } catch (e) {
       toast(e.message, 'malo');
@@ -92,6 +157,10 @@ export async function renderTarifario(container) {
         endpoint: (codigo) => `/admin/comisiones/${encodeURIComponent(codigo)}`,
         tipoAccion: 'editar_comision',
       });
+      $selectPlanInstalacion.innerHTML = comisiones.length
+        ? comisiones.map((c) => `<option value="${escapeHtml(c.plan_codigo)}">${escapeHtml(c.plan_nombre)}</option>`).join('')
+        : '<option value="" disabled selected>No hay planes todavía</option>';
+      await cargarInstalacionPlan();
     } catch (e) {
       $tarifas.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
     }

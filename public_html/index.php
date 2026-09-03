@@ -100,6 +100,8 @@ $router->put('/api/admin/tarifas/{tipoServicio}', fn(Request $r) => (new AdminTa
 $router->get('/api/admin/comisiones', fn(Request $r) => (new AdminTarifarioController())->listarComisiones($r));
 $router->put('/api/admin/comisiones/{plan}', fn(Request $r) => (new AdminTarifarioController())->editarComision($r));
 $router->post('/api/admin/planes', fn(Request $r) => (new AdminTarifarioController())->crearPlan($r));
+$router->get('/api/admin/tarifas-instalacion', fn(Request $r) => (new AdminTarifarioController())->listarTarifasInstalacion($r));
+$router->put('/api/admin/tarifas-instalacion/{plan}', fn(Request $r) => (new AdminTarifarioController())->editarTarifaInstalacion($r));
 
 // Usuarios
 $router->get('/api/admin/usuarios', fn(Request $r) => (new AdminUsuarioController())->listar($r));
