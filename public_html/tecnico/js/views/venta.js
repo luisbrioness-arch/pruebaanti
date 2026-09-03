@@ -11,8 +11,9 @@ export async function renderVenta(container) {
     <section class="wizard-paso" style="padding-bottom: 24px;">
       <p class="wizard-paso-intro">
         Deja la venta guardada acá para poder enlazarla después con la instalación,
-        sea hoy mismo o cuando el cliente agende. No hace falta el RUT ni la
-        dirección exacta — eso ya vive en el sistema de TuVes.
+        sea hoy mismo o cuando el cliente agende. La ficha real del cliente sigue
+        viviendo en el sistema de TuVes — el RUT y la dirección acá son opcionales,
+        solo una referencia rápida para vos o para quien instale.
       </p>
       <form class="venta-form" id="form-venta" novalidate>
         <label class="campo">
@@ -22,6 +23,14 @@ export async function renderVenta(container) {
         <label class="campo">
           <span>Nombre del cliente</span>
           <input type="text" name="cliente_nombre" required>
+        </label>
+        <label class="campo">
+          <span>RUT (opcional)</span>
+          <input type="text" name="cliente_rut" placeholder="Ej: 12.345.678-9" autocomplete="off">
+        </label>
+        <label class="campo">
+          <span>Dirección (opcional)</span>
+          <input type="text" name="cliente_direccion" placeholder="Calle, número, depto/casa…" autocomplete="off">
         </label>
         <label class="campo">
           <span>Comuna</span>

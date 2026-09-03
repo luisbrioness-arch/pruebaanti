@@ -152,7 +152,13 @@ GET /api/ventas/pendientes
 → { ventas: [...] }   // propias, estado "registrada" — para el selector del paso 1
 ```
 
-Deliberadamente no se pide RUT ni dirección exacta del cliente — decisión de privacidad ya tomada: TuVes ya tiene esos datos en su propio sistema, acá solo se referencia.
+**Actualización — se revirtió la decisión de no pedir RUT/dirección**
+(pedido explícito: *"al registrar venta que deje agregar más datos del
+cliente como rut y direccion"*). `cliente_rut` y `cliente_direccion` son
+columnas nuevas en `ventas`, ambas **opcionales** (nunca bloquean el
+registro) — siguen sin ser la ficha real del cliente, eso sigue viviendo en
+TuVes; son solo una referencia rápida para el vendedor o quien instale. Ver
+[admin-api.md](admin-api.md) y `app/Controllers/VentaController.php`.
 
 ## Qué falta para completar la Fase 1 (no es parte de este wizard técnico)
 

@@ -26,6 +26,10 @@ final class VentaController
         $cliente = trim((string) $req->input('cliente_nombre', ''));
         $comuna = trim((string) $req->input('comuna', ''));
         $planCodigo = (string) $req->input('plan', '');
+        // Opcionales — el sistema de TuVes sigue siendo la ficha real del
+        // cliente, esto es solo una referencia rápida para el vendedor/técnico.
+        $rut = trim((string) $req->input('cliente_rut', ''));
+        $direccion = trim((string) $req->input('cliente_direccion', ''));
 
         if ($numero === '' || $cliente === '' || $comuna === '' || $planCodigo === '') {
             throw new ValidationException('Faltan datos de la venta (número TuVes, cliente, comuna o plan).');
@@ -40,6 +44,8 @@ final class VentaController
         $id = $repo->crear([
             'numero_venta_tuves' => $numero,
             'cliente_nombre' => $cliente,
+            'cliente_rut' => $rut !== '' ? $rut : null,
+            'cliente_direccion' => $direccion !== '' ? $direccion : null,
             'comuna' => $comuna,
             'plan_id' => $plan['id'],
             'vendedor_id' => $vendedorId,

@@ -15,7 +15,7 @@
 // es independiente de las cabeceras Cache-Control del servidor, así que
 // esas no lo despiertan. Sin este bump, el cambio recién le llega en el
 // SEGUNDO arranque (revalidación en segundo plano), no en el primero.
-const CACHE = 'terreno-dth-tecnico-v9';
+const CACHE = 'terreno-dth-tecnico-v10';
 
 const APP_SHELL = [
   '/tecnico/',

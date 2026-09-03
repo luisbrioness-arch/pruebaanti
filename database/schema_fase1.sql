@@ -126,6 +126,8 @@ CREATE TABLE ventas (
     id                      INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     numero_venta_tuves      VARCHAR(40)     NOT NULL,   -- referencia al sistema de TuVes, no se duplica su ficha
     cliente_nombre          VARCHAR(160)    NOT NULL,
+    cliente_rut             VARCHAR(20)     NULL,       -- opcional (pedido: "que deje agregar más datos del cliente")
+    cliente_direccion       VARCHAR(255)    NULL,       -- opcional — referencia rápida en terreno, TuVes sigue siendo la ficha real
     comuna                  VARCHAR(80)     NOT NULL,
     plan_id                 INT UNSIGNED    NOT NULL,
     vendedor_id             INT UNSIGNED    NOT NULL,
