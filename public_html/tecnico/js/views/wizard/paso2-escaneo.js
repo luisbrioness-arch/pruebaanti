@@ -209,15 +209,30 @@ export async function renderPaso2(container, ctx) {
     }
   }
 
+  // Pedido: "que al escanear se escriba en numero de serie lo escaneado
+  // para verificar si el escaner estuvo correcto" — ya no se agrega solo
+  // apenas lee la cámara: deja el valor escrito en el campo de entrada
+  // manual para que el técnico lo revise (y corrija si el escáner leyó
+  // mal, ej. un dígito de más/menos) antes de confirmar con "Agregar" —
+  // mismo criterio que ya usa el alta de equipo en el panel admin (ver
+  // admin/js/views/bodega.js). Si no se toca el campo, sigue contando como
+  // lectura de cámara (no manual); si se edita, pasa a contar como manual.
+  let ultimoEscaneo = null; // { serie, manual } | null
   seccion.querySelector('#btn-escanear').addEventListener('click', async () => {
     const resultado = await abrirScanner();
-    if (resultado) {
-      await agregarSerie(resultado.serie, accion, resultado.manual);
-    }
+    if (!resultado) return;
+    ultimoEscaneo = resultado;
+    $inputManual.value = resultado.serie;
+    $inputManual.focus();
+    $inputManual.select();
   });
 
   seccion.querySelector('#btn-agregar-manual').addEventListener('click', async () => {
-    await agregarSerie($inputManual.value, accion, true);
+    const valor = $inputManual.value.trim();
+    const sinEditar = ultimoEscaneo && valor === ultimoEscaneo.serie;
+    const ingresadoManual = sinEditar ? ultimoEscaneo.manual : true;
+    await agregarSerie(valor, accion, ingresadoManual);
+    ultimoEscaneo = null;
     $inputManual.value = '';
   });
   $inputManual.addEventListener('keydown', (ev) => {
