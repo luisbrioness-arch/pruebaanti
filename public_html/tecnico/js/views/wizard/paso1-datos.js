@@ -60,16 +60,30 @@ export async function renderPaso1(container, ctx) {
   const $btn = seccion.querySelector('#paso1-siguiente');
   const $campoVenta = seccion.querySelector('#campo-venta');
   const $selectVenta = $campoVenta.querySelector('select');
+  const $selectTipoServicio = seccion.querySelector('select[name="tipo_servicio"]');
+
+  // Enlazar una venta solo tiene sentido en "Instalación nueva" — es lo
+  // único que usa venta_id (decide si la instalación cobra según el plan
+  // vendido, ver OrdenWizardService::calcularMontoBruto). En los demás
+  // tipos de servicio el campo no aplica y se oculta.
+  let hayVentasPendientes = false;
+  function actualizarVisibilidadVenta() {
+    const mostrar = hayVentasPendientes && $selectTipoServicio.value === 'instalacion_nueva';
+    $campoVenta.hidden = !mostrar;
+    if (!mostrar) $selectVenta.value = ''; // no arrastrar una venta elegida si el técnico cambia de tipo de servicio
+  }
+  $selectTipoServicio.addEventListener('change', actualizarVisibilidadVenta);
 
   api('/ventas/pendientes').then(({ ventas }) => {
     if (!ventas.length) return;
-    $campoVenta.hidden = false;
+    hayVentasPendientes = true;
     for (const v of ventas) {
       const opt = document.createElement('option');
       opt.value = String(v.id);
       opt.textContent = `${v.cliente_nombre} · ${v.plan_nombre} · ${v.comuna}`;
       $selectVenta.appendChild(opt);
     }
+    actualizarVisibilidadVenta();
   }).catch(() => { /* sin señal: simplemente no se ofrece el selector de venta */ });
 
   $btn.addEventListener('click', async () => {
