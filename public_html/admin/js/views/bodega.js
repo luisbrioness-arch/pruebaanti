@@ -1,7 +1,7 @@
 import { api } from '../api.js';
 import { toast } from '../toast.js';
 import { conColaSiHaceFalta } from '../offline.js';
-import { badge, escapeHtml, el, formatDateTime, MOVIMIENTO_EQUIPO_LABEL } from '../utils.js';
+import { badge, escapeHtml, el, formatDateTime, MOVIMIENTO_EQUIPO_LABEL, debounce } from '../utils.js';
 import { abrirScanner } from '../scanner.js';
 import { abrirModal } from '../modal.js';
 
@@ -262,24 +262,53 @@ export async function renderBodega(container, params = {}) {
         <button type="submit" class="btn btn--primario">Dar de alta en bodega</button>
       </form>
 
-      <label class="campo campo--inline">
-        <span>Filtrar por estado</span>
-        <select id="filtro-estado-equipo">
-          <option value="">Todos</option>
-          <option value="bodega">En bodega</option>
-          <option value="maleta">En maleta</option>
-          <option value="en_transito">En tránsito (pendiente)</option>
-          <option value="instalado">Instalado</option>
-          <option value="retirado">Retirado</option>
-          <option value="falla_fabrica">Falla de fábrica</option>
-        </select>
-      </label>
+      <div class="form-fila filtros-equipos">
+        <label class="campo campo--inline">
+          <span>Serie</span>
+          <input type="text" id="filtro-serie-equipo" placeholder="Buscar serie…">
+        </label>
+        <label class="campo campo--inline">
+          <span>Tipo</span>
+          <select id="filtro-tipo-equipo">
+            <option value="">Todos</option>
+            ${tiposEquipo.map((t) => `<option value="${t.codigo}">${escapeHtml(t.nombre)}</option>`).join('')}
+          </select>
+        </label>
+        <label class="campo campo--inline">
+          <span>Estado</span>
+          <select id="filtro-estado-equipo">
+            <option value="">Todos</option>
+            <option value="bodega">En bodega</option>
+            <option value="maleta">En maleta</option>
+            <option value="en_transito">En tránsito (pendiente)</option>
+            <option value="instalado">Instalado</option>
+            <option value="retirado">Retirado</option>
+            <option value="falla_fabrica">Falla de fábrica</option>
+          </select>
+        </label>
+        <label class="campo campo--inline">
+          <span>Técnico / Bodega</span>
+          <input type="text" id="filtro-tecbod-equipo" placeholder="Buscar técnico o bodega…">
+        </label>
+      </div>
 
       <div id="tabla-equipos"><p class="vacio">Cargando…</p></div>
     `;
 
-    const $filtro = $contenido.querySelector('#filtro-estado-equipo');
-    $filtro.addEventListener('change', () => cargarTablaEquipos($filtro.value));
+    // Pedido: "haz que estos menus sean filtrables" (columnas Serie / Tipo /
+    // Estado / Técnico-Bodega de la tabla de Equipos). Estado sigue
+    // filtrando contra el servidor (ya lo hacía, y es el filtro más pesado
+    // en volumen); serie/tipo/técnico-bodega filtran en el cliente sobre lo
+    // que ya se trajo — no vale la pena un roundtrip nuevo por cada tecleo
+    // para un inventario de este tamaño.
+    const $filtroSerie = $contenido.querySelector('#filtro-serie-equipo');
+    const $filtroTipo = $contenido.querySelector('#filtro-tipo-equipo');
+    const $filtroEstado = $contenido.querySelector('#filtro-estado-equipo');
+    const $filtroTecBod = $contenido.querySelector('#filtro-tecbod-equipo');
+    $filtroEstado.addEventListener('change', () => cargarTablaEquipos($filtroEstado.value));
+    $filtroSerie.addEventListener('input', debounce(pintarFilasEquipos, 200));
+    $filtroTipo.addEventListener('change', pintarFilasEquipos);
+    $filtroTecBod.addEventListener('input', debounce(pintarFilasEquipos, 200));
 
     $contenido.querySelector('#btn-escanear-serie').addEventListener('click', async () => {
       const resultado = await abrirScanner();
@@ -300,7 +329,7 @@ export async function renderBodega(container, params = {}) {
           toast(`Serie ${payload.numero_serie} guardada sin conexión — se dará de alta al recuperar señal.`, 'neutro');
         } else {
           toast(`Equipo ${datos.numero_serie} dado de alta en bodega.`, 'ok');
-          await cargarTablaEquipos($filtro.value);
+          await cargarTablaEquipos($filtroEstado.value);
         }
       } catch (e) {
         toast(e.message, 'malo');
@@ -310,13 +339,37 @@ export async function renderBodega(container, params = {}) {
     await cargarTablaEquipos('');
   }
 
+  let equiposCache = [];
+  let estadoActual = '';
+
   async function cargarTablaEquipos(estado) {
     const $tabla = $contenido.querySelector('#tabla-equipos');
+    estadoActual = estado;
     try {
       const qs = estado ? `?estado=${encodeURIComponent(estado)}` : '';
       const { equipos } = await api(`/admin/equipos${qs}`);
+      equiposCache = equipos;
+      pintarFilasEquipos();
+    } catch (e) {
+      $tabla.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
+    }
+  }
+
+  function pintarFilasEquipos() {
+    const $tabla = $contenido.querySelector('#tabla-equipos');
+    const estado = estadoActual;
+    const serieQ = ($contenido.querySelector('#filtro-serie-equipo')?.value ?? '').trim().toLowerCase();
+    const tipoQ = $contenido.querySelector('#filtro-tipo-equipo')?.value ?? '';
+    const tecbodQ = ($contenido.querySelector('#filtro-tecbod-equipo')?.value ?? '').trim().toLowerCase();
+    const equipos = equiposCache.filter((e) => {
+      if (serieQ && !e.numero_serie.toLowerCase().includes(serieQ)) return false;
+      if (tipoQ && e.tipo_equipo_codigo !== tipoQ) return false;
+      if (tecbodQ && !(e.tecnico_nombre || e.bodega_nombre || '').toLowerCase().includes(tecbodQ)) return false;
+      return true;
+    });
+    try {
       if (!equipos.length) {
-        $tabla.innerHTML = '<p class="vacio">No hay equipos en este estado.</p>';
+        $tabla.innerHTML = '<p class="vacio">No hay equipos que coincidan con el filtro.</p>';
         return;
       }
       $tabla.innerHTML = `
@@ -344,7 +397,7 @@ export async function renderBodega(container, params = {}) {
         }
 
         if (e.estado === 'bodega' || e.estado === 'maleta') {
-          $acciones.appendChild(el('<a href="#bodega?tab=asignar" class="campo-ayuda">→ Asignar a técnicos</a>'));
+          $acciones.appendChild(el('<a href="#bodega?tab=asignar" class="btn btn--secundario btn--chico">→ Asignar a técnicos</a>'));
         }
         if (e.estado === 'en_transito') {
           const dias = diasDesde(e.actualizado_en);
@@ -401,29 +454,48 @@ export async function renderBodega(container, params = {}) {
           btnRastreo.addEventListener('click', () => abrirRastreoEquipo(e.id, e.numero_serie));
           $acciones.appendChild(btnRastreo);
         }
+        // Pedido: "elimina esta fila no entiendo su funcion" — el selector
+        // de bodega suelto en CADA fila (para elegir a dónde llega si se
+        // marca falla de fábrica) confundía porque aparecía siempre, sin
+        // relación visible con nada. Ahora "Falla de fábrica" vuelve a ser
+        // un botón simple; el selector de bodega solo aparece si hace
+        // falta, dentro de un modal de confirmación.
         if (!['falla_fabrica', 'devuelto_tuves', 'perdido'].includes(e.estado)) {
-          const form = el(`
-            <form class="form-inline">
-              <select name="bodega_id" required>${opcionesBodegas()}</select>
-              <button type="submit" class="btn btn--malo btn--chico">Falla de fábrica</button>
-            </form>
-          `);
-          form.addEventListener('submit', async (ev) => {
-            ev.preventDefault();
-            const bodegaId = Number(new FormData(ev.target).get('bodega_id'));
-            const payload = { id: e.id, observacion: null, bodega_id: bodegaId };
-            try {
-              const { encolado } = await conColaSiHaceFalta('falla_fabrica', payload, () => api(`/admin/equipos/${e.id}/falla-fabrica`, { method: 'POST', body: { bodega_id: bodegaId } }));
-              if (encolado) {
-                toast(`${e.numero_serie}: guardado sin conexión — se marcará al recuperar señal.`, 'neutro');
-                marcarFilaPendiente('falla de fábrica pendiente');
-              } else {
-                toast(`${e.numero_serie} marcado como falla de fábrica.`, 'alerta');
-                await cargarTablaEquipos(estado);
-              }
-            } catch (err) { toast(err.message, 'malo'); }
+          const btnFalla = el('<button type="button" class="btn btn--malo btn--chico">Falla de fábrica</button>');
+          btnFalla.addEventListener('click', () => {
+            const { root, cerrar } = abrirModal(`
+              <h3>Marcar "${escapeHtml(e.numero_serie)}" como falla de fábrica</h3>
+              <p class="modal-explicacion">Sale de donde esté ahora sin culpar ni descontar a nadie. Elegí a qué bodega física llega.</p>
+              <form id="form-falla-fabrica">
+                <label class="campo">
+                  <span>Bodega</span>
+                  <select name="bodega_id" required>${opcionesBodegas()}</select>
+                </label>
+                <div class="modal-acciones">
+                  <button type="button" class="btn btn--secundario" id="btn-cancelar">Cancelar</button>
+                  <button type="submit" class="btn btn--malo">Marcar falla de fábrica</button>
+                </div>
+              </form>
+            `);
+            root.querySelector('#btn-cancelar').addEventListener('click', cerrar);
+            root.querySelector('#form-falla-fabrica').addEventListener('submit', async (ev) => {
+              ev.preventDefault();
+              const bodegaId = Number(new FormData(ev.target).get('bodega_id'));
+              const payload = { id: e.id, observacion: null, bodega_id: bodegaId };
+              try {
+                const { encolado } = await conColaSiHaceFalta('falla_fabrica', payload, () => api(`/admin/equipos/${e.id}/falla-fabrica`, { method: 'POST', body: { bodega_id: bodegaId } }));
+                cerrar();
+                if (encolado) {
+                  toast(`${e.numero_serie}: guardado sin conexión — se marcará al recuperar señal.`, 'neutro');
+                  marcarFilaPendiente('falla de fábrica pendiente');
+                } else {
+                  toast(`${e.numero_serie} marcado como falla de fábrica.`, 'alerta');
+                  await cargarTablaEquipos(estado);
+                }
+              } catch (err) { toast(err.message, 'malo'); }
+            });
           });
-          $acciones.appendChild(form);
+          $acciones.appendChild(btnFalla);
         }
         $tbody.appendChild(tr);
       }

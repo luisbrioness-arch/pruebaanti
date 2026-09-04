@@ -24,9 +24,9 @@ export async function renderBilletera(container) {
 
       <div id="saldos-resumen"><p class="vacio">Cargando…</p></div>
 
-      <label class="campo campo--inline" style="margin-top: 16px;">
+      <label class="campo" style="margin-top: 16px;">
         <span>Ver detalle de</span>
-        <select id="select-tecnico"><option value="">Elige un técnico</option></select>
+        <nav class="subtabs subtabs--tecnicos" id="subtabs-tecnico"></nav>
       </label>
 
       <div id="detalle-tecnico"></div>
@@ -34,7 +34,7 @@ export async function renderBilletera(container) {
   `));
 
   const $resumen = container.querySelector('#saldos-resumen');
-  const $select = container.querySelector('#select-tecnico');
+  const $subtabsTecnico = container.querySelector('#subtabs-tecnico');
   const $detalle = container.querySelector('#detalle-tecnico');
 
   const [{ usuarios }, { saldos }] = await Promise.all([
@@ -42,12 +42,23 @@ export async function renderBilletera(container) {
     api('/admin/billetera/saldos'),
   ]);
 
+  // Pedido: "mismo caso aqui como son pocos tecnicos que los nombres enten
+  // en un submenu" — mismo criterio que ya se usó en Bodega técnicos:
+  // como son pocos, una pestaña por técnico en vez de un <select>.
   for (const u of usuarios) {
-    $select.appendChild(el(`<option value="${u.id}">${escapeHtml(u.nombre)}</option>`));
+    const btn = el(`<button type="button" class="subtab" data-id="${u.id}">${escapeHtml(u.nombre)}</button>`);
+    btn.addEventListener('click', () => {
+      marcarTecnicoActivo(u.id);
+      cargarDetalle(Number(u.id));
+    });
+    $subtabsTecnico.appendChild(btn);
   }
-  $select.addEventListener('change', () => {
-    if ($select.value) cargarDetalle(Number($select.value));
-  });
+
+  function marcarTecnicoActivo(tecnicoId) {
+    $subtabsTecnico.querySelectorAll('.subtab').forEach((b) => {
+      b.classList.toggle('subtab--activo', String(b.dataset.id) === String(tecnicoId));
+    });
+  }
 
   function renderResumen() {
     if (!saldos.length) {
@@ -66,7 +77,7 @@ export async function renderBilletera(container) {
     `;
     $resumen.querySelectorAll('.tarjeta-saldo').forEach((btn) => {
       btn.addEventListener('click', () => {
-        $select.value = btn.dataset.id;
+        marcarTecnicoActivo(btn.dataset.id);
         cargarDetalle(Number(btn.dataset.id));
       });
     });
