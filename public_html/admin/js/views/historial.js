@@ -1,9 +1,15 @@
-// Historial (pedido: "elimina auditoria y crea un link de historial ordenes
-// vendidas y ordenes instaladas con fecha") — reemplaza a la pantalla de
-// Auditoría en el nav. Ya no hay cola de revisión manual: las órdenes se
-// auto-aprueban al enviarse (ver OrdenWizardService::confirmarEnviada), así
-// que esto es de solo lectura — dos listas con fecha, filtrables por técnico
-// y por rango de fechas.
+// Informes (pedido: "que esta pantalla no se llame historial si no que
+// INFORMES donde se vea el historial de las ultimas actividades y en otra
+// pestaña los posibles informes generados por cada tecnico") — antes era
+// solo esto: "elimina auditoria y crea un link de historial ordenes
+// vendidas y ordenes instaladas con fecha", reemplazando a la pantalla de
+// Auditoría. Ya no hay cola de revisión manual: las órdenes se auto-aprueban
+// al enviarse (ver OrdenWizardService::confirmarEnviada), así que todo esto
+// es de solo lectura.
+//
+// Dos submenús sobre el MISMO filtro (técnico / desde / hasta) y el MISMO
+// fetch — no hace falta pedirle nada nuevo al servidor para el resumen, se
+// arma agrupando por técnico lo que ya se trajo para el historial.
 import { api } from '../api.js';
 import {
   badge, escapeHtml, formatMoney, formatDateTime, el,
@@ -21,12 +27,17 @@ export async function renderHistorial(container) {
   container.appendChild(el(`
     <section class="panel-simple">
       <div class="panel-cabecera">
-        <h2>Historial</h2>
+        <h2>Informes</h2>
         <p class="panel-explicacion">
           Ventas registradas y órdenes de trabajo, con su fecha — las órdenes se auto-aprueban al
           enviarse (ya no hay una cola de auditoría manual antes de pagar).
         </p>
       </div>
+
+      <nav class="subtabs" id="subtabs-informes">
+        <button type="button" class="subtab subtab--activo" data-tab="historial">Historial</button>
+        <button type="button" class="subtab" data-tab="resumen">Resumen por técnico</button>
+      </nav>
 
       <form id="form-filtros" class="form-fila">
         <label class="campo campo--inline">
@@ -44,18 +55,37 @@ export async function renderHistorial(container) {
         <button type="submit" class="btn btn--secundario">Filtrar</button>
       </form>
 
-      <h3 style="margin-top: 20px;">Ventas registradas</h3>
-      <div id="tabla-ventas"><p class="vacio">Cargando…</p></div>
+      <div id="vista-historial">
+        <h3 style="margin-top: 20px;">Ventas registradas</h3>
+        <div id="tabla-ventas"><p class="vacio">Cargando…</p></div>
 
-      <h3 style="margin-top: 26px;">Órdenes</h3>
-      <div id="tabla-ordenes"><p class="vacio">Cargando…</p></div>
+        <h3 style="margin-top: 26px;">Órdenes</h3>
+        <div id="tabla-ordenes"><p class="vacio">Cargando…</p></div>
+      </div>
+
+      <div id="vista-resumen" hidden>
+        <div id="tabla-resumen" style="margin-top: 20px;"><p class="vacio">Cargando…</p></div>
+      </div>
     </section>
   `));
 
   const $selectTecnico = container.querySelector('select[name="tecnico_id"]');
   const $ventas = container.querySelector('#tabla-ventas');
   const $ordenes = container.querySelector('#tabla-ordenes');
+  const $resumen = container.querySelector('#tabla-resumen');
   const $form = container.querySelector('#form-filtros');
+  const $vistaHistorial = container.querySelector('#vista-historial');
+  const $vistaResumen = container.querySelector('#vista-resumen');
+  const $subtabs = Array.from(container.querySelectorAll('#subtabs-informes .subtab'));
+
+  $subtabs.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      $subtabs.forEach((b) => b.classList.toggle('subtab--activo', b === btn));
+      const esResumen = btn.dataset.tab === 'resumen';
+      $vistaHistorial.hidden = esResumen;
+      $vistaResumen.hidden = !esResumen;
+    });
+  });
 
   try {
     // Pedido: "edwin tambien es un tecnico que recibe los equipos de
@@ -144,16 +174,85 @@ export async function renderHistorial(container) {
     `;
   }
 
+  /**
+   * Resumen por técnico: una fila por técnico, agrupando lo mismo que ya
+   * se trajo para Historial — cantidad de ventas/órdenes por estado y
+   * montos totales (vendido = monto_vendedor de ventas instaladas;
+   * instalado = monto_tecnico de órdenes aprobadas/liquidadas). Agrupa por
+   * id, no por nombre, para no mezclar a dos técnicos que compartan nombre.
+   */
+  function pintarResumen(ventas, ordenes) {
+    const porTecnico = new Map(); // id -> { nombre, ...acumuladores }
+    const de = (id, nombre) => {
+      if (!porTecnico.has(id)) {
+        porTecnico.set(id, {
+          nombre,
+          ventasTotal: 0, ventasInstaladas: 0, montoVendido: 0,
+          ordenesTotal: 0, ordenesAprobadas: 0, montoInstalado: 0,
+        });
+      }
+      return porTecnico.get(id);
+    };
+    for (const v of ventas) {
+      const fila = de(v.vendedor_id, v.vendedor_nombre);
+      fila.ventasTotal++;
+      if (v.estado === 'instalada') {
+        fila.ventasInstaladas++;
+        fila.montoVendido += Number(v.monto_vendedor) || 0;
+      }
+    }
+    for (const o of ordenes) {
+      const fila = de(o.tecnico_id, o.tecnico_nombre);
+      fila.ordenesTotal++;
+      if (['aprobada', 'liquidada'].includes(o.estado)) {
+        fila.ordenesAprobadas++;
+        fila.montoInstalado += Number(o.monto_tecnico) || 0;
+      }
+    }
+    const filas = [...porTecnico.values()].sort((a, b) => a.nombre.localeCompare(b.nombre));
+    if (!filas.length) {
+      $resumen.innerHTML = '<p class="vacio">No hay actividad en este filtro.</p>';
+      return;
+    }
+    $resumen.innerHTML = `
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>Técnico</th>
+            <th>Ventas</th><th>Instaladas</th><th>Monto vendido</th>
+            <th>Órdenes</th><th>Aprobadas</th><th style="text-align: left;">Monto instalado</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filas.map((f) => `
+            <tr>
+              <td>${escapeHtml(f.nombre)}</td>
+              <td>${f.ventasTotal}</td>
+              <td>${f.ventasInstaladas}</td>
+              <td>${formatMoney(f.montoVendido)}</td>
+              <td>${f.ordenesTotal}</td>
+              <td>${f.ordenesAprobadas}</td>
+              <td>${formatMoney(f.montoInstalado)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
   async function cargar() {
     $ventas.innerHTML = '<p class="vacio">Cargando…</p>';
     $ordenes.innerHTML = '<p class="vacio">Cargando…</p>';
+    $resumen.innerHTML = '<p class="vacio">Cargando…</p>';
     try {
       const { ventas, ordenes } = await api(`/admin/historial${queryActual()}`);
       pintarVentas(ventas);
       pintarOrdenes(ordenes);
+      pintarResumen(ventas, ordenes);
     } catch (e) {
       $ventas.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
       $ordenes.innerHTML = '';
+      $resumen.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
     }
   }
 
