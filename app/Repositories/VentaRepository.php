@@ -79,7 +79,7 @@ final class VentaRepository
             "SELECT v.*, p.nombre AS plan_nombre, u.nombre AS vendedor_nombre
              FROM ventas v
              JOIN planes p ON p.id = v.plan_id
-             JOIN usuarios u ON u.id = v.vendedor_id
+             LEFT JOIN usuarios u ON u.id = v.vendedor_id
              WHERE v.estado = 'registrada'
              ORDER BY (v.fecha_instalacion_solicitada IS NULL) ASC, v.fecha_instalacion_solicitada ASC
              LIMIT ?"
@@ -102,7 +102,7 @@ final class VentaRepository
         $sql = "SELECT v.*, p.nombre AS plan_nombre, u.nombre AS vendedor_nombre
                 FROM ventas v
                 JOIN planes p ON p.id = v.plan_id
-                JOIN usuarios u ON u.id = v.vendedor_id
+                LEFT JOIN usuarios u ON u.id = v.vendedor_id
                 WHERE 1=1";
         $params = [];
         if ($vendedorId !== null) {

@@ -157,6 +157,24 @@ final class AdminBodegaController
         ));
     }
 
+    public function perdido(Request $req): void
+    {
+        Auth::requireAdmin();
+        $observacion = $req->input('observacion');
+        Response::json((new BodegaService())->marcarPerdido(
+            (int) $req->param('id'), $observacion !== null ? (string) $observacion : null
+        ));
+    }
+
+    public function devueltoTuves(Request $req): void
+    {
+        Auth::requireAdmin();
+        $observacion = $req->input('observacion');
+        Response::json((new BodegaService())->marcarDevueltoTuves(
+            (int) $req->param('id'), $observacion !== null ? (string) $observacion : null
+        ));
+    }
+
     public function ingresoBodega(Request $req): void
     {
         Auth::requireAdmin();

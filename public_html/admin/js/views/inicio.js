@@ -93,7 +93,7 @@ function pintarVentasPendientes($div, ventas) {
               <td>${escapeHtml(v.cliente_direccion || '—')}</td>
               <td>${escapeHtml(v.plan_nombre)}</td>
               <td>${escapeHtml(v.comuna)}</td>
-              <td>${escapeHtml(v.vendedor_nombre)}</td>
+              <td>${escapeHtml(v.vendedor_nombre || 'TuVes (directo)')}</td>
               <td>${tono ? `<span class="chip chip--${tono}">${escapeHtml(texto)}</span>` : escapeHtml(texto)}</td>
             </tr>
           `;

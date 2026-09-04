@@ -112,14 +112,17 @@ final class OrdenWizardService
             throw new ValidationException('Tipo de servicio desconocido: ' . $tipoServicioCodigo);
         }
 
+        // Pedido: "si la venta viene de otro lugar ya sea directa de tuvez
+        // o otro tecnico" — cualquier técnico puede instalar cualquier
+        // venta pendiente, no solo las que él mismo registró. La comisión
+        // de venta sigue yendo a quien la vendió (`venta.vendedor_id`, ver
+        // confirmarVenta()) sin importar quién la instala — este cambio no
+        // toca esa parte, solo destraba el enlace.
         $ventaId = null;
         if (!empty($datos['venta_id'])) {
             $venta = $this->ventas->find((int) $datos['venta_id']);
             if (!$venta) {
                 throw new ValidationException('La venta indicada no existe.');
-            }
-            if ((int) $venta['vendedor_id'] !== $tecnicoId) {
-                throw new ForbiddenException('Esa venta no te pertenece.');
             }
             if ($venta['estado'] !== 'registrada') {
                 throw new ValidationException('Esa venta ya fue instalada o anulada.');
@@ -464,14 +467,14 @@ final class OrdenWizardService
             }
         }
 
+        // Mismo criterio que crearOReanudarBorrador(): la venta enlazada no
+        // tiene que ser del técnico seleccionado — la comisión sigue yendo
+        // a quien la vendió, sin importar quién instala.
         $ventaId = null;
         if (!empty($datos['venta_id'])) {
             $venta = $this->ventas->find((int) $datos['venta_id']);
             if (!$venta) {
                 throw new ValidationException('La venta indicada no existe.');
-            }
-            if ((int) $venta['vendedor_id'] !== $tecnicoId) {
-                throw new ValidationException('Esa venta no pertenece al técnico seleccionado.');
             }
             if ($venta['estado'] !== 'registrada') {
                 throw new ValidationException('Esa venta ya fue instalada o anulada.');
@@ -695,6 +698,15 @@ final class OrdenWizardService
         // Si ya no está 'registrada' (otra orden ya la confirmó, o fue
         // anulada), no se reprocesa — evita sobreescribir un snapshot ya hecho.
         if (!$venta || $venta['estado'] !== 'registrada') {
+            return;
+        }
+        // Pedido: "casilla en el registro de venta del técnico" para una
+        // venta directa de TuVes sin vendedor interno — sin nadie a quien
+        // acreditarle la comisión, la venta igual pasa a 'instalada' (el
+        // trabajo se hizo), pero monto_comision/monto_vendedor quedan NULL:
+        // no hay comisión que calcular ni repartir.
+        if ($venta['vendedor_id'] === null) {
+            $this->ventas->actualizar($ventaId, ['estado' => 'instalada']);
             return;
         }
         $comision = $this->comisiones->vigentePara((int) $venta['plan_id']);

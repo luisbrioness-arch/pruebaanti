@@ -18,6 +18,10 @@ export async function renderVenta(container) {
         instalar en su pantalla de Inicio.
       </p>
       <form class="venta-form" id="form-venta" novalidate>
+        <label class="campo campo--checkbox">
+          <input type="checkbox" name="sin_vendedor">
+          <span>Venta directa de TuVes — yo no la vendí, solo la voy a instalar</span>
+        </label>
         <label class="campo">
           <span>N° de venta TuVes</span>
           <input type="text" name="numero_venta_tuves" inputmode="numeric" required>

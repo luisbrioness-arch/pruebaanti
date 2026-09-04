@@ -91,6 +91,7 @@ export const MOVIMIENTO_EQUIPO_LABEL = {
   retiro: 'Retirado en una orden',
   falla_fabrica: 'Marcado como falla de fábrica',
   devolucion_tuves: 'Devuelto a TuVes',
+  perdido: 'Marcado como perdido',
   ajuste_descuadre: 'Ajuste manual',
 };
 

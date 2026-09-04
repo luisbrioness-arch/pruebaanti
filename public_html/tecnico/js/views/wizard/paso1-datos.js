@@ -40,7 +40,7 @@ export async function renderPaso1(container, ctx) {
           <input type="text" name="folio" inputmode="numeric" autocomplete="off" required>
         </label>
         <label class="campo" id="campo-venta" hidden>
-          <span>¿Viene de una venta tuya?</span>
+          <span>¿Viene de una venta pendiente?</span>
           <select name="venta_id">
             <option value="">No, no viene de una venta</option>
           </select>
@@ -74,13 +74,18 @@ export async function renderPaso1(container, ctx) {
   }
   $selectTipoServicio.addEventListener('change', actualizarVisibilidadVenta);
 
+  // Pedido: "si la venta viene de otro lugar ya sea directa de tuvez o
+  // otro tecnico esa no se paga al que instala si no al que vendio" — acá
+  // ya no son solo "mis" ventas (ver VentaController::pendientes), así que
+  // cada opción muestra quién la vendió para que quede claro que la
+  // comisión de esa venta es de otra persona, no de quien instala.
   api('/ventas/pendientes').then(({ ventas }) => {
     if (!ventas.length) return;
     hayVentasPendientes = true;
     for (const v of ventas) {
       const opt = document.createElement('option');
       opt.value = String(v.id);
-      opt.textContent = `${v.cliente_nombre} · ${v.plan_nombre} · ${v.comuna}`;
+      opt.textContent = `${v.cliente_nombre} · ${v.plan_nombre} · ${v.comuna} · vendió: ${v.vendedor_nombre || 'TuVes (directo)'}`;
       $selectVenta.appendChild(opt);
     }
     actualizarVisibilidadVenta();

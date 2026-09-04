@@ -284,6 +284,8 @@ export async function renderBodega(container, params = {}) {
             <option value="instalado">Instalado</option>
             <option value="retirado">Retirado</option>
             <option value="falla_fabrica">Falla de fábrica</option>
+            <option value="perdido">Perdido</option>
+            <option value="devuelto_tuves">Devuelto a TuVes</option>
           </select>
         </label>
         <label class="campo campo--inline">
@@ -496,6 +498,54 @@ export async function renderBodega(container, params = {}) {
             });
           });
           $acciones.appendChild(btnFalla);
+
+          // Pedido: "que nos falta" — "perdido" y "devuelto a TuVes" ya
+          // existían como estado en la base pero no tenían ninguna acción
+          // real para llegar a ellos. Los dos son terminales y sin bodega
+          // destino (el equipo sale del inventario activo), así que el
+          // modal es más simple que el de falla de fábrica: solo confirmar
+          // y, opcionalmente, dejar una nota.
+          const accionesTerminales = [
+            { tipo: 'marcar_perdido', ruta: 'perdido', boton: 'Perdido', titulo: `Marcar "${e.numero_serie}" como perdido`, explicacion: 'Sale del inventario activo — no queda en ninguna bodega ni maleta. Usalo si a un técnico se le extravió o se lo robaron.', toastOk: 'marcado como perdido.', pendienteMsg: 'perdido pendiente' },
+            { tipo: 'marcar_devuelto_tuves', ruta: 'devuelto-tuves', boton: 'Devuelto a TuVes', titulo: `Marcar "${e.numero_serie}" como devuelto a TuVes`, explicacion: 'Sale del inventario activo — se devolvió al proveedor y ya no es stock propio.', toastOk: 'marcado como devuelto a TuVes.', pendienteMsg: 'devolución pendiente' },
+          ];
+          for (const acc of accionesTerminales) {
+            const btn = el(`<button type="button" class="btn btn--secundario btn--chico">${acc.boton}</button>`);
+            btn.addEventListener('click', () => {
+              const { root, cerrar } = abrirModal(`
+                <h3>${escapeHtml(acc.titulo)}</h3>
+                <p class="modal-explicacion">${escapeHtml(acc.explicacion)}</p>
+                <form id="form-accion-terminal">
+                  <label class="campo">
+                    <span>Nota (opcional)</span>
+                    <textarea name="observacion" rows="2"></textarea>
+                  </label>
+                  <div class="modal-acciones">
+                    <button type="button" class="btn btn--secundario" id="btn-cancelar">Cancelar</button>
+                    <button type="submit" class="btn btn--malo">${acc.boton}</button>
+                  </div>
+                </form>
+              `);
+              root.querySelector('#btn-cancelar').addEventListener('click', cerrar);
+              root.querySelector('#form-accion-terminal').addEventListener('submit', async (ev) => {
+                ev.preventDefault();
+                const observacion = new FormData(ev.target).get('observacion').trim() || null;
+                const payload = { id: e.id, observacion };
+                try {
+                  const { encolado } = await conColaSiHaceFalta(acc.tipo, payload, () => api(`/admin/equipos/${e.id}/${acc.ruta}`, { method: 'POST', body: { observacion } }));
+                  cerrar();
+                  if (encolado) {
+                    toast(`${e.numero_serie}: guardado sin conexión — se ${acc.toastOk.replace('marcado', 'marcará')} al recuperar señal.`, 'neutro');
+                    marcarFilaPendiente(acc.pendienteMsg);
+                  } else {
+                    toast(`${e.numero_serie} ${acc.toastOk}`, 'alerta');
+                    await cargarTablaEquipos(estado);
+                  }
+                } catch (err) { toast(err.message, 'malo'); }
+              });
+            });
+            $acciones.appendChild(btn);
+          }
         }
         $tbody.appendChild(tr);
       }

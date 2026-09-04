@@ -7,7 +7,6 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Request;
 use App\Core\Response;
-use App\Exceptions\ForbiddenException;
 use App\Exceptions\NotFoundException;
 use App\Exceptions\ValidationException;
 use App\Repositories\PlanRepository;
@@ -22,7 +21,13 @@ final class VentaController
 {
     public function crear(Request $req): void
     {
-        $vendedorId = Auth::id();
+        // Pedido: "casilla en el registro de venta del técnico" para una
+        // venta directa de TuVes que él no vendió — sin vendedor, la
+        // comisión de venta simplemente no se calcula (ver
+        // OrdenWizardService::confirmarVenta), pero sigue apareciendo en
+        // "pendientes de instalar" como cualquier otra venta.
+        $sinVendedor = (bool) $req->input('sin_vendedor', false);
+        $vendedorId = $sinVendedor ? null : Auth::id();
 
         $numero = trim((string) $req->input('numero_venta_tuves', ''));
         $cliente = trim((string) $req->input('cliente_nombre', ''));
@@ -67,17 +72,26 @@ final class VentaController
         Response::json($repo->find($id), 201);
     }
 
+    /**
+     * Pedido: "si la venta viene de otro lugar ya sea directa de tuvez o
+     * otro tecnico esa no se paga al que instala si no al que vendio" —
+     * para que eso sea posible primero hace falta poder VER la venta de
+     * otro técnico acá. Antes esto era solo `pendientesDe(Auth::id())`
+     * (las propias); ahora trae las de todos, marcando cuál es de quién
+     * (`vendedor_nombre`) para que el técnico sepa qué está enlazando.
+     */
     public function pendientes(Request $req): void
     {
-        Response::json(['ventas' => (new VentaRepository())->pendientesDe(Auth::id())]);
+        Response::json(['ventas' => (new VentaRepository())->pendientesInstalarTodas(200)]);
     }
 
     /**
-     * Una venta propia con el nombre del plan ya resuelto — la usa el
-     * wizard (paso 2) para mostrar "este plan trae N decos" cuando la orden
-     * viene enlazada a una venta (pedido: "que aqui aparezcan si este plan
-     * por ejemplo era de 3 decos 3 series a instalar"). Restringida al
-     * dueño de la venta, igual que pendientes().
+     * El nombre del plan ya resuelto — la usa el wizard (paso 2) para
+     * mostrar "este plan trae N decos" cuando la orden viene enlazada a una
+     * venta (pedido: "que aqui aparezcan si este plan por ejemplo era de 3
+     * decos 3 series a instalar"). Ya no está restringida al dueño de la
+     * venta — cualquier técnico puede instalar la venta de otro (ver
+     * pendientes() arriba), así que necesita poder leer su detalle igual.
      */
     public function detalle(Request $req): void
     {
@@ -85,9 +99,6 @@ final class VentaController
         $venta = (new VentaRepository())->findConPlan($id);
         if (!$venta) {
             throw new NotFoundException('Venta no encontrada.');
-        }
-        if ((int) $venta['vendedor_id'] !== Auth::id()) {
-            throw new ForbiddenException('Esta venta no te pertenece.');
         }
         Response::json($venta);
     }

@@ -155,7 +155,7 @@ CREATE TABLE ventas (
     fecha_instalacion_solicitada DATE       NULL,       -- opcional — lo que pidió el cliente; alimenta "pendientes de instalar" en Inicio del admin
     comuna                  VARCHAR(80)     NOT NULL,
     plan_id                 INT UNSIGNED    NOT NULL,
-    vendedor_id             INT UNSIGNED    NOT NULL,
+    vendedor_id             INT UNSIGNED    NULL,       -- NULL = venta directa de TuVes, sin vendedor interno (no paga comisión de venta)
     estado                  ENUM('registrada','instalada','anulada') NOT NULL DEFAULT 'registrada',
 
     -- Snapshots, mismo patrón que ordenes: se completan cuando la instalación
@@ -602,6 +602,7 @@ ALTER TABLE movimientos_equipo
         'retiro',
         'falla_fabrica',
         'devolucion_tuves',
+        'perdido',
         'ajuste_descuadre'
     ) NOT NULL;
 

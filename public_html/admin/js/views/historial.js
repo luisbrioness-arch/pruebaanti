@@ -14,6 +14,9 @@ import { api } from '../api.js';
 import {
   badge, escapeHtml, formatMoney, formatDateTime, el,
 } from '../utils.js';
+import { abrirModal } from '../modal.js';
+import { conColaSiHaceFalta } from '../offline.js';
+import { toast } from '../toast.js';
 
 /** dd-mm-aaaa sin hora — para columnas de fecha "de calendario" (venta, instalación pedida). */
 function formatDate(s) {
@@ -37,6 +40,7 @@ export async function renderHistorial(container) {
       <nav class="subtabs" id="subtabs-informes">
         <button type="button" class="subtab subtab--activo" data-tab="historial">Historial</button>
         <button type="button" class="subtab" data-tab="resumen">Resumen por técnico</button>
+        <button type="button" class="subtab" data-tab="conflictos" id="subtab-conflictos">Conflictos</button>
       </nav>
 
       <form id="form-filtros" class="form-fila">
@@ -64,7 +68,20 @@ export async function renderHistorial(container) {
       </div>
 
       <div id="vista-resumen" hidden>
-        <div id="tabla-resumen" style="margin-top: 20px;"><p class="vacio">Cargando…</p></div>
+        <div class="form-fila" style="margin-top: 20px;">
+          <button type="button" class="btn btn--secundario btn--chico" id="btn-exportar-resumen">⬇ Exportar CSV</button>
+          <button type="button" class="btn btn--secundario btn--chico" id="btn-imprimir-resumen">🖶 Imprimir</button>
+        </div>
+        <div id="tabla-resumen" style="margin-top: 10px;"><p class="vacio">Cargando…</p></div>
+      </div>
+
+      <div id="vista-conflictos" hidden>
+        <p class="panel-explicacion" style="margin-top: 20px;">
+          Dos técnicos (o el mismo, offline) escanearon el mismo folio — la orden queda sin pagar
+          hasta que decidís acá cuál fue la visita real ("Aceptar") o si el folio se repitió por error
+          ("Invalidar", cierra esa orden sin pago).
+        </p>
+        <div id="tabla-conflictos" style="margin-top: 10px;"><p class="vacio">Cargando…</p></div>
       </div>
     </section>
   `));
@@ -73,17 +90,23 @@ export async function renderHistorial(container) {
   const $ventas = container.querySelector('#tabla-ventas');
   const $ordenes = container.querySelector('#tabla-ordenes');
   const $resumen = container.querySelector('#tabla-resumen');
+  const $conflictos = container.querySelector('#tabla-conflictos');
   const $form = container.querySelector('#form-filtros');
   const $vistaHistorial = container.querySelector('#vista-historial');
   const $vistaResumen = container.querySelector('#vista-resumen');
+  const $vistaConflictos = container.querySelector('#vista-conflictos');
+  const $subtabConflictos = container.querySelector('#subtab-conflictos');
   const $subtabs = Array.from(container.querySelectorAll('#subtabs-informes .subtab'));
+  let ultimoResumen = []; // filas ya agrupadas — para exportar sin recalcular
 
   $subtabs.forEach((btn) => {
     btn.addEventListener('click', () => {
       $subtabs.forEach((b) => b.classList.toggle('subtab--activo', b === btn));
-      const esResumen = btn.dataset.tab === 'resumen';
-      $vistaHistorial.hidden = esResumen;
-      $vistaResumen.hidden = !esResumen;
+      $form.hidden = btn.dataset.tab === 'conflictos';
+      $vistaHistorial.hidden = btn.dataset.tab !== 'historial';
+      $vistaResumen.hidden = btn.dataset.tab !== 'resumen';
+      $vistaConflictos.hidden = btn.dataset.tab !== 'conflictos';
+      if (btn.dataset.tab === 'conflictos') cargarConflictos();
     });
   });
 
@@ -133,7 +156,7 @@ export async function renderHistorial(container) {
               <td>${escapeHtml(v.cliente_nombre)}</td>
               <td>${escapeHtml(v.plan_nombre)}</td>
               <td>${escapeHtml(v.comuna)}</td>
-              <td>${escapeHtml(v.vendedor_nombre)}</td>
+              <td>${escapeHtml(v.vendedor_nombre || 'TuVes (directo)')}</td>
               <td>${formatDate(v.creado_en)}</td>
               <td>${formatDate(v.fecha_instalacion_solicitada)}</td>
               <td>${badge(v.estado)}</td>
@@ -194,7 +217,12 @@ export async function renderHistorial(container) {
       return porTecnico.get(id);
     };
     for (const v of ventas) {
-      const fila = de(v.vendedor_id, v.vendedor_nombre);
+      // Venta directa de TuVes (checkbox "yo no la vendí") — sin
+      // vendedor_id, se agrupa en su propia fila en vez de romper el
+      // agrupador (no hay id de técnico al que sumarle esto).
+      const fila = v.vendedor_id === null
+        ? de('sin_vendedor', 'TuVes (directo)')
+        : de(v.vendedor_id, v.vendedor_nombre);
       fila.ventasTotal++;
       if (v.estado === 'instalada') {
         fila.ventasInstaladas++;
@@ -210,6 +238,7 @@ export async function renderHistorial(container) {
       }
     }
     const filas = [...porTecnico.values()].sort((a, b) => a.nombre.localeCompare(b.nombre));
+    ultimoResumen = filas;
     if (!filas.length) {
       $resumen.innerHTML = '<p class="vacio">No hay actividad en este filtro.</p>';
       return;
@@ -240,6 +269,117 @@ export async function renderHistorial(container) {
     `;
   }
 
+  /** CSV simple, sin librería — separador ";" (Excel en español lo abre directo sin pedir importar). */
+  container.querySelector('#btn-exportar-resumen').addEventListener('click', () => {
+    if (!ultimoResumen.length) { toast('No hay filas para exportar en este filtro.', 'malo'); return; }
+    const encabezados = ['Técnico', 'Ventas', 'Instaladas', 'Monto vendido', 'Órdenes', 'Aprobadas', 'Monto instalado'];
+    const filasCsv = ultimoResumen.map((f) => [
+      f.nombre, f.ventasTotal, f.ventasInstaladas, f.montoVendido, f.ordenesTotal, f.ordenesAprobadas, f.montoInstalado,
+    ]);
+    const csv = [encabezados, ...filasCsv]
+      .map((fila) => fila.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';'))
+      .join('\r\n');
+    const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = el(`<a href="${url}" download="resumen-por-tecnico.csv"></a>`);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  container.querySelector('#btn-imprimir-resumen').addEventListener('click', () => window.print());
+
+  /**
+   * Conflictos de folio (pedido: "que nos falta" — el backend ya tenía
+   * GET/POST /admin/conflictos completos, pero ninguna pantalla los usaba;
+   * una orden en conflicto quedaba visible en Historial pero sin forma de
+   * resolverla, atascada para siempre sin poder liquidarse).
+   */
+  function pintarConflictos(conflictos) {
+    $subtabConflictos.textContent = conflictos.length ? `Conflictos (${conflictos.length})` : 'Conflictos';
+    if (!conflictos.length) {
+      $conflictos.innerHTML = '<p class="vacio">No hay conflictos pendientes — todo al día.</p>';
+      return;
+    }
+    $conflictos.innerHTML = `
+      <table class="tabla">
+        <thead>
+          <tr><th>Folio</th><th>Técnico</th><th>Descripción</th><th>Fecha</th><th style="text-align: left;">Acciones</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    `;
+    const $tbody = $conflictos.querySelector('tbody');
+    for (const c of conflictos) {
+      const tr = el(`
+        <tr>
+          <td>${escapeHtml(c.folio)}</td>
+          <td>${escapeHtml(c.tecnico_nombre)}</td>
+          <td>${escapeHtml(c.descripcion || '—')}</td>
+          <td>${formatDateTime(c.creado_en)}</td>
+          <td class="celda-acciones">
+            <button type="button" class="btn btn--secundario btn--chico" data-accion="aceptar">Aceptar</button>
+            <button type="button" class="btn btn--malo btn--chico" data-accion="invalidar">Invalidar</button>
+          </td>
+        </tr>
+      `);
+      tr.querySelector('[data-accion="aceptar"]').addEventListener('click', () => confirmarResolver(c, 'aceptar'));
+      tr.querySelector('[data-accion="invalidar"]').addEventListener('click', () => confirmarResolver(c, 'invalidar'));
+      $tbody.appendChild(tr);
+    }
+  }
+
+  function confirmarResolver(conflicto, accion) {
+    const esAceptar = accion === 'aceptar';
+    const { root, cerrar } = abrirModal(`
+      <h3>${esAceptar ? 'Aceptar' : 'Invalidar'} conflicto — folio ${escapeHtml(conflicto.folio)}</h3>
+      <p class="modal-explicacion">
+        ${esAceptar
+          ? 'La orden se confirma como una visita legítima (ej. garantía): se calcula su monto, se descuenta el material de la maleta del técnico y — si venía de una venta propia — se confirma la comisión, exactamente como una orden enviada sin conflicto.'
+          : 'La orden se cierra sin pago (motivo: folio duplicado). No se descuenta nada del inventario ni se calcula monto.'}
+      </p>
+      <form id="form-resolver">
+        <label class="campo">
+          <span>Comentario (opcional)</span>
+          <textarea name="comentario" rows="2"></textarea>
+        </label>
+        <div class="modal-acciones">
+          <button type="button" class="btn btn--secundario" id="btn-cancelar">Cancelar</button>
+          <button type="submit" class="btn ${esAceptar ? 'btn--primario' : 'btn--malo'}">${esAceptar ? 'Aceptar' : 'Invalidar'}</button>
+        </div>
+      </form>
+    `);
+    root.querySelector('#btn-cancelar').addEventListener('click', cerrar);
+    root.querySelector('#form-resolver').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const comentario = new FormData(ev.target).get('comentario').trim() || null;
+      try {
+        const { encolado } = await conColaSiHaceFalta(
+          'resolver_conflicto', { id: conflicto.id, accion, comentario },
+          () => api(`/admin/conflictos/${conflicto.id}/resolver`, { method: 'POST', body: { accion, comentario } })
+        );
+        cerrar();
+        if (encolado) {
+          toast(`Folio ${conflicto.folio}: guardado sin conexión — se resolverá al recuperar señal.`, 'neutro');
+        } else {
+          toast(`Folio ${conflicto.folio}: conflicto ${esAceptar ? 'aceptado' : 'invalidado'}.`, 'ok');
+          await cargarConflictos();
+        }
+      } catch (e) { toast(e.message, 'malo'); }
+    });
+  }
+
+  async function cargarConflictos() {
+    $conflictos.innerHTML = '<p class="vacio">Cargando…</p>';
+    try {
+      const { conflictos } = await api('/admin/conflictos');
+      pintarConflictos(conflictos);
+    } catch (e) {
+      $conflictos.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
+    }
+  }
+
   async function cargar() {
     $ventas.innerHTML = '<p class="vacio">Cargando…</p>';
     $ordenes.innerHTML = '<p class="vacio">Cargando…</p>';
@@ -256,5 +396,5 @@ export async function renderHistorial(container) {
     }
   }
 
-  await cargar();
+  await Promise.all([cargar(), cargarConflictos()]);
 }

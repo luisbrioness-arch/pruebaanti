@@ -338,6 +338,34 @@ final class BodegaService
     }
 
     /**
+     * "Perdido" y "Devuelto a TuVes" (pedido: "que nos falta" → estos dos
+     * estados ya existían en el ENUM de `equipos.estado` desde el diseño
+     * original, pero nunca tuvieron una acción real para llegar a ellos —
+     * ni acá ni en el panel. Los dos son terminales: el equipo sale del
+     * inventario activo (sin bodega, sin dueño) y no hay bodega destino que
+     * elegir, a diferencia de "Falla de fábrica".
+     */
+    public function marcarPerdido(int $equipoId, ?string $observacion): array
+    {
+        $equipo = $this->requerirEquipo($equipoId);
+        $tecnicoActual = $equipo['usuario_actual_id'] !== null ? (int) $equipo['usuario_actual_id'] : null;
+
+        $this->equipos->actualizarEstado($equipoId, 'perdido', null, null, null, null);
+        $this->movimientosEquipo->crear($equipoId, 'perdido', $tecnicoActual, null, null, $observacion);
+        return $this->equipos->find($equipoId);
+    }
+
+    public function marcarDevueltoTuves(int $equipoId, ?string $observacion): array
+    {
+        $equipo = $this->requerirEquipo($equipoId);
+        $tecnicoActual = $equipo['usuario_actual_id'] !== null ? (int) $equipo['usuario_actual_id'] : null;
+
+        $this->equipos->actualizarEstado($equipoId, 'devuelto_tuves', null, null, null, null);
+        $this->movimientosEquipo->crear($equipoId, 'devolucion_tuves', $tecnicoActual, null, null, $observacion);
+        return $this->equipos->find($equipoId);
+    }
+
+    /**
      * El retorno físico a bodega tras un retiro (o tras salir reparado de
      * la bodega de reversa) es un evento propio, no parte de la orden de
      * retiro (ver docs/modelo-datos-fase1.md) — puede pasar días después,

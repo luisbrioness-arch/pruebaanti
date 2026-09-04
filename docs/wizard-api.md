@@ -148,15 +148,30 @@ Después de `enviar()`, la orden ya no es editable por el técnico (`409 orden_n
 
 ```
 POST /api/ventas
-{ numero_venta_tuves, cliente_nombre, comuna, plan: "plan_full" }
-→ 201 { id, numero_venta_tuves, estado: "registrada", ... }
+{ numero_venta_tuves, cliente_nombre, comuna, plan: "plan_full", sin_vendedor: false }
+→ 201 { id, numero_venta_tuves, estado: "registrada", vendedor_id, ... }
 
 GET /api/ventas/pendientes
-→ { ventas: [...] }   // propias, estado "registrada" — para el selector del paso 1
+→ { ventas: [...] }   // TODAS las pendientes (estado "registrada"), no solo las propias — para el selector del paso 1
 
 GET /api/ventas/{id}
-→ { ...venta, plan_nombre }   // 403 si la venta no es del técnico logueado
+→ { ...venta, plan_nombre }
 ```
+
+**Cross-técnico y venta directa de TuVes** (pedido: *"si la venta viene de
+otro lugar ya sea directa de tuvez o otro tecnico esa no se paga al que
+instala si no al que vendio"*) — dos cambios relacionados:
+- `GET /api/ventas/pendientes` y `GET /api/ventas/{id}` ya NO están
+  restringidas al técnico dueño de la venta (antes tiraban 403). Cualquier
+  técnico puede enlazar (paso 1) o registrar retroactivamente (admin) la
+  venta de otro — el selector muestra `vendedor_nombre` para que quede
+  claro de quién es. La comisión se sigue acreditando siempre a
+  `venta.vendedor_id`, nunca a quien instala (ver `docs/modelo-datos-fase1.md`).
+- `POST /api/ventas` acepta `sin_vendedor: true` (casilla "Venta directa de
+  TuVes — yo no la vendí" en el formulario) — la venta queda con
+  `vendedor_id = NULL`. Al instalarse, pasa a `estado='instalada'` igual
+  que cualquier otra, pero sin `monto_comision`/`monto_vendedor`: no hay
+  nadie a quien pagarle la venta.
 
 `GET /api/ventas/{id}` (pedido: *"que aqui aparezcan si este plan por
 ejemplo era de 3 decos 3 series a instalar"*) lo usa el paso 2 del wizard

@@ -146,6 +146,8 @@ $router->post('/api/admin/equipos/{id}/asignar', fn(Request $r) => (new AdminBod
 $router->post('/api/admin/equipos/{id}/traspasar', fn(Request $r) => (new AdminBodegaController())->traspasarEquipo($r));
 $router->post('/api/admin/equipos/{id}/cancelar-traspaso', fn(Request $r) => (new AdminBodegaController())->cancelarTraspasoEquipo($r));
 $router->post('/api/admin/equipos/{id}/falla-fabrica', fn(Request $r) => (new AdminBodegaController())->fallaFabrica($r));
+$router->post('/api/admin/equipos/{id}/perdido', fn(Request $r) => (new AdminBodegaController())->perdido($r));
+$router->post('/api/admin/equipos/{id}/devuelto-tuves', fn(Request $r) => (new AdminBodegaController())->devueltoTuves($r));
 $router->post('/api/admin/equipos/{id}/ingreso-bodega', fn(Request $r) => (new AdminBodegaController())->ingresoBodega($r));
 
 // Bodega — ferretería

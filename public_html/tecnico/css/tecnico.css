@@ -97,6 +97,10 @@ button { font: inherit; }
 /* ---------- Campos ---------- */
 .campo { display: flex; flex-direction: column; gap: 6px; }
 .campo > span { font-size: .82rem; font-weight: 600; color: var(--tinta-2); }
+/* Casilla suelta (ej. "venta directa de TuVes") — fila horizontal, no columna como los demás campos. */
+.campo--checkbox { flex-direction: row; align-items: center; gap: 10px; }
+.campo--checkbox input[type="checkbox"] { width: 20px; height: 20px; flex-shrink: 0; }
+.campo--checkbox > span { font-weight: 500; }
 .campo input, .campo select, .campo textarea {
   font: inherit; font-size: 16px;
   padding: 13px 14px;
