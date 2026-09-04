@@ -7,12 +7,12 @@ import { api } from '../api.js';
 import { el, escapeHtml, formatMoney } from '../utils.js';
 
 const ACCESOS = [
-  { ruta: 'historial', icono: '📋', etiqueta: 'Informes' },
   { ruta: 'bodega', icono: '📦', etiqueta: 'Bodega' },
   { ruta: 'bodega?vista=tecnicos', icono: '🧑‍🔧', etiqueta: 'Bodega técnicos' },
   { ruta: 'billetera', icono: '👛', etiqueta: 'Billetera' },
   { ruta: 'tarifario', icono: '💲', etiqueta: 'Tarifario' },
   { ruta: 'usuarios', icono: '👥', etiqueta: 'Usuarios' },
+  { ruta: 'historial', icono: '📋', etiqueta: 'Informes' },
 ];
 
 export async function renderInicio(container) {
