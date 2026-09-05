@@ -43,36 +43,9 @@
      blanco encima quedaba casi ilegible en modo oscuro. */
   --tile-total-bg: #084F54;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0E1517; --bg-tint: #131B1D; --superficie: #172120; --superficie-2: #1C2828;
-    --borde: #263434; --borde-fuerte: #344444;
-    --tinta: #EAF1F1; --tinta-2: #A9BABA; --tinta-3: #7C8F8F;
-    --acento: #29A8AF; --acento-2: #7CD9DE; --acento-suave: #163336;
-    --ok: #4FCE93; --ok-suave: #123024;
-    --alerta: #F0B252; --alerta-suave: #33270F;
-    --malo: #F09A9A; --malo-suave: #3A1E1E;
-    --pendiente: #8FB0DD; --pendiente-suave: #1B2836;
-    --neutro: #9BAAAA; --neutro-suave: #202B2B;
-    --sombra: 0 1px 2px rgba(0,0,0,.3), 0 10px 28px -16px rgba(0,0,0,.6);
-    --sombra-chica: 0 1px 2px rgba(0,0,0,.35);
-    --tile-total-bg: #0A2E30;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0E1517; --bg-tint: #131B1D; --superficie: #172120; --superficie-2: #1C2828;
-  --borde: #263434; --borde-fuerte: #344444;
-  --tinta: #EAF1F1; --tinta-2: #A9BABA; --tinta-3: #7C8F8F;
-  --acento: #29A8AF; --acento-2: #7CD9DE; --acento-suave: #163336;
-  --ok: #4FCE93; --ok-suave: #123024;
-  --alerta: #F0B252; --alerta-suave: #33270F;
-  --malo: #F09A9A; --malo-suave: #3A1E1E;
-  --pendiente: #8FB0DD; --pendiente-suave: #1B2836;
-  --neutro: #9BAAAA; --neutro-suave: #202B2B;
-  --sombra: 0 1px 2px rgba(0,0,0,.3), 0 10px 28px -16px rgba(0,0,0,.6);
-  --sombra-chica: 0 1px 2px rgba(0,0,0,.35);
-  --tile-total-bg: #0A2E30;
-}
+
+/* Sin modo oscuro: panel de uso interno, siempre en el mismo tema
+   independiente de la configuración del sistema operativo. */
 
 * { box-sizing: border-box; }
 /* Regla de seguridad: cualquier display:flex/grid propio (login-screen,
