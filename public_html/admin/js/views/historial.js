@@ -352,6 +352,42 @@ export async function renderHistorial(container) {
           `).join('')}
         </tbody>
       </table>
+
+      <h4>Gráfico por técnico</h4>
+      ${graficoPorTecnico(filas)}
+    `;
+  }
+
+  /**
+   * Reporte #20: "en informe general abajo quiero graficos" — barras
+   * horizontales de monto vendido vs. monto instalado por técnico, sin
+   * librería (mismo criterio del resto del panel: nada que dependa de
+   * internet en terreno). Ambas series comparten la misma escala (pesos
+   * chilenos), así que una sola pista por técnico con dos barras es
+   * suficiente — no hace falta un eje doble.
+   */
+  function graficoPorTecnico(filas) {
+    const max = Math.max(1, ...filas.map((f) => Math.max(f.montoVendido, f.montoInstalado)));
+    return `
+      <div class="grafico-tecnicos">
+        <div class="grafico-leyenda">
+          <span><i class="grafico-swatch grafico-swatch--vendido"></i>Monto vendido</span>
+          <span><i class="grafico-swatch grafico-swatch--instalado"></i>Monto instalado</span>
+        </div>
+        ${filas.map((f) => `
+          <div class="grafico-tecnico">
+            <div class="grafico-tecnico-nombre">${escapeHtml(f.nombre)}</div>
+            <div class="barra-fila">
+              <div class="barra-pista"><div class="barra-relleno barra-relleno--vendido" style="width: ${Math.round((f.montoVendido / max) * 100)}%"></div></div>
+              <span class="barra-valor">${formatMoney(f.montoVendido)}</span>
+            </div>
+            <div class="barra-fila">
+              <div class="barra-pista"><div class="barra-relleno barra-relleno--instalado" style="width: ${Math.round((f.montoInstalado / max) * 100)}%"></div></div>
+              <span class="barra-valor">${formatMoney(f.montoInstalado)}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
     `;
   }
 

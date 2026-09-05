@@ -480,3 +480,23 @@ body.reportar-eligiendo, body.reportar-eligiendo * { cursor: crosshair !importan
   body, .panel-simple { background: #fff !important; }
   .tabla, .tabla th, .tabla td { border-color: #999 !important; }
 }
+
+/* ---------- Gráfico "Por técnico" de Historial (reporte #20) ---------- */
+.grafico-tecnicos { display: flex; flex-direction: column; gap: 16px; margin-bottom: 8px; }
+.grafico-leyenda { display: flex; gap: 18px; font-size: .78rem; color: var(--tinta-2); }
+.grafico-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: middle; }
+.grafico-swatch--vendido { background: var(--pendiente); }
+.grafico-swatch--instalado { background: var(--acento); }
+.grafico-tecnico { display: flex; flex-direction: column; gap: 4px; }
+.grafico-tecnico-nombre { font-weight: 600; font-size: .85rem; }
+.barra-fila { display: flex; align-items: center; gap: 10px; }
+.barra-pista { flex: 1; background: var(--superficie-2); border-radius: 4px; height: 14px; overflow: hidden; }
+.barra-relleno { height: 100%; border-radius: 4px; min-width: 2px; }
+.barra-relleno--vendido { background: var(--pendiente); }
+.barra-relleno--instalado { background: var(--acento); }
+.barra-valor { font-family: var(--fuente-mono); font-size: .78rem; min-width: 88px; text-align: right; color: var(--tinta-2); }
+
+/* ---------- Modal de rastreo de equipo (reporte #22): la tabla de
+   historial trae 6 columnas y no cabe en los 420px del modal — antes se
+   cortaba en silencio (overflow visible), ahora scrollea horizontal. ---- */
+#rastreo-resumen .tabla-envoltorio { overflow-x: auto; }

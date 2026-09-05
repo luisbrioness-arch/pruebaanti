@@ -10,11 +10,11 @@ const ETIQUETA_MOVIMIENTO = {
   ajuste: 'Ajuste',
 };
 
-// Pedido/reportes #17 y #18: "elimina esto" (la explicación de arriba) y
-// "y elimina esto" (las tarjetas de saldo por técnico) — mismo espíritu que
-// #16 (sacar "Cerrar período"): simplificar Billetera mientras no se use
-// el cierre de mes. La selección de técnico sigue funcionando igual, por
-// las pestañas — las tarjetas nunca fueron la única forma de elegir uno.
+// Pedido/reportes #17, #18 y #24: "elimina esto" (la explicación de
+// arriba), "y elimina esto" (las tarjetas de saldo por técnico) y "elimina
+// esti[queta]" (el rótulo "Ver detalle de" sobre las pestañas) — mismo
+// espíritu que #16 (sacar "Cerrar período"): simplificar Billetera. Las
+// pestañas de técnico ya se explican solas sin el rótulo encima.
 export async function renderBilletera(container) {
   container.appendChild(el(`
     <section class="panel-simple">
@@ -22,10 +22,7 @@ export async function renderBilletera(container) {
         <h2>Billetera</h2>
       </div>
 
-      <label class="campo">
-        <span>Ver detalle de</span>
-        <nav class="subtabs subtabs--tecnicos" id="subtabs-tecnico"></nav>
-      </label>
+      <nav class="subtabs subtabs--tecnicos" id="subtabs-tecnico"></nav>
 
       <div id="detalle-tecnico"></div>
     </section>

@@ -106,7 +106,7 @@ async function abrirRastreoEquipo(equipoId, numeroSerie) {
     root.querySelector('#rastreo-resumen').innerHTML = `
       ${resumenHtml}
       <h4>Historial completo</h4>
-      ${filaHistorialHtml(movimientos)}
+      <div class="tabla-envoltorio">${filaHistorialHtml(movimientos)}</div>
     `;
   } catch (e) {
     root.querySelector('#rastreo-resumen').innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
