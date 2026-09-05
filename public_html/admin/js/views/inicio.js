@@ -7,24 +7,13 @@ import { api } from '../api.js';
 import { el, escapeHtml, formatMoney } from '../utils.js';
 import { abrirModal } from '../modal.js';
 
-// Iconos SVG en línea en vez de emoji (mejora visual: mismo trazo y peso
-// que los del riel de navegación, se ven parejos en cualquier plataforma).
-const ICONOS = {
-  bodega: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7.5 12 4l9 3.5v9L12 20l-9-3.5z"/><path d="M12 11v9M3 7.5 12 11l9-3.5"/></svg>',
-  bodegaTecnicos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="7.5" r="3.2"/><path d="M5.5 20c0-4 3-6.8 6.5-6.8s6.5 2.8 6.5 6.8"/></svg>',
-  billetera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="13" rx="1.5"/><path d="M3 10h18"/></svg>',
-  tarifario: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3h6a1.8 1.8 0 0 1 1.8 1.8v6L11 20 3 12l8.8-9Z"/></svg>',
-  usuarios: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.6 2.7-6 6-6s6 2.4 6 6"/><path d="M15.5 8a2.7 2.7 0 0 1 0 5"/><path d="M17.3 14c2 .4 3.7 2.2 3.7 6"/></svg>',
-  informes: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M8.3 11h7.4M8.3 15h7.4"/></svg>',
-};
-
 const ACCESOS = [
-  { ruta: 'bodega', icono: ICONOS.bodega, etiqueta: 'Bodega' },
-  { ruta: 'bodega?vista=tecnicos', icono: ICONOS.bodegaTecnicos, etiqueta: 'Bodega técnicos' },
-  { ruta: 'billetera', icono: ICONOS.billetera, etiqueta: 'Billetera' },
-  { ruta: 'tarifario', icono: ICONOS.tarifario, etiqueta: 'Tarifario' },
-  { ruta: 'usuarios', icono: ICONOS.usuarios, etiqueta: 'Usuarios' },
-  { ruta: 'historial', icono: ICONOS.informes, etiqueta: 'Informes' },
+  { ruta: 'bodega', icono: '📦', etiqueta: 'Bodega' },
+  { ruta: 'bodega?vista=tecnicos', icono: '🧑‍🔧', etiqueta: 'Bodega técnicos' },
+  { ruta: 'billetera', icono: '👛', etiqueta: 'Billetera' },
+  { ruta: 'tarifario', icono: '💲', etiqueta: 'Tarifario' },
+  { ruta: 'usuarios', icono: '👥', etiqueta: 'Usuarios' },
+  { ruta: 'historial', icono: '📋', etiqueta: 'Informes' },
 ];
 
 /** 'YYYY-MM' de hoy, según el reloj del navegador. */
