@@ -455,3 +455,14 @@ body.reportar-eligiendo, body.reportar-eligiendo * { cursor: crosshair !importan
 .alerta-fila--malo { background: var(--malo-suave); color: var(--malo); border-color: var(--malo); }
 .alerta-fila--neutro { background: var(--neutro-suave); color: var(--neutro); border-color: var(--borde); }
 .alerta-fila:hover { filter: brightness(0.97); }
+
+/* ---------- Imprimir (pedido #8: "exportables a pdf") ----------
+   El navegador ya deja "Guardar como PDF" desde el diálogo de impresión —
+   sin librería. .no-imprimir tapa todo lo que no es el informe en sí
+   (topbar, nav de pestañas, filtros, botones de acción) para que el PDF
+   resultante sea solo el contenido, no el panel completo. */
+@media print {
+  .topbar, .no-imprimir { display: none !important; }
+  body, .panel-simple { background: #fff !important; }
+  .tabla, .tabla th, .tabla td { border-color: #999 !important; }
+}

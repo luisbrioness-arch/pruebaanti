@@ -30,6 +30,23 @@ function formatPeriodoLabel(desde, hasta) {
   return `Período: ${d1.getDate()} al ${d2.getDate()} de ${mesTexto}`;
 }
 
+/**
+ * Pedido: "que el otro periodo salga en modo lista" — reemplaza el
+ * `<input type="month">` (calendario nativo) por un `<select>` con los
+ * últimos N meses, el más reciente primero.
+ */
+function listaUltimosMeses(n) {
+  const hoy = new Date();
+  const meses = [];
+  for (let i = 0; i < n; i++) {
+    const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+    const valor = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const etiqueta = d.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
+    meses.push({ valor, etiqueta: etiqueta.charAt(0).toUpperCase() + etiqueta.slice(1) });
+  }
+  return meses;
+}
+
 export async function renderInicio(container) {
   const seccion = el(`
     <section class="inicio">
@@ -101,7 +118,9 @@ export async function renderInicio(container) {
       <form id="form-periodo">
         <label class="campo">
           <span>Mes</span>
-          <input type="month" name="mes" value="${mesMostrado}" required>
+          <select name="mes" required>
+            ${listaUltimosMeses(24).map((m) => `<option value="${m.valor}" ${m.valor === mesMostrado ? 'selected' : ''}>${escapeHtml(m.etiqueta)}</option>`).join('')}
+          </select>
         </label>
         <div class="modal-acciones">
           <button type="button" class="btn btn--secundario" id="btn-cancelar">Cancelar</button>
