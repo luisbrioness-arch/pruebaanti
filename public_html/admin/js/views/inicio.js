@@ -5,6 +5,7 @@
 // para no tener dos tableros parecidos compitiendo por atención.
 import { api } from '../api.js';
 import { el, escapeHtml, formatMoney } from '../utils.js';
+import { abrirModal } from '../modal.js';
 
 const ACCESOS = [
   { ruta: 'bodega', icono: '📦', etiqueta: 'Bodega' },
@@ -19,13 +20,6 @@ const ACCESOS = [
 function mesActualStr() {
   const hoy = new Date();
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
-}
-
-/** Suma (o resta) meses a un 'YYYY-MM'. */
-function sumarMeses(mesStr, delta) {
-  const [y, m] = mesStr.split('-').map(Number);
-  const d = new Date(y, m - 1 + delta, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
 /** "Período: 1 al 30 de septiembre de 2026" — a partir de lo que devolvió el servidor (fuente de verdad del rango real usado). */
@@ -56,9 +50,8 @@ export async function renderInicio(container) {
       <div id="inicio-ventas-pendientes"><p class="vacio">Cargando…</p></div>
 
       <div class="form-fila" style="margin-top: 26px; align-items: center;">
-        <button type="button" class="btn btn--secundario btn--chico" id="periodo-anterior" aria-label="Mes anterior">◀</button>
         <h3 id="periodo-titulo" style="margin: 0;">Este mes</h3>
-        <button type="button" class="btn btn--secundario btn--chico" id="periodo-siguiente" aria-label="Mes siguiente">▶</button>
+        <button type="button" class="btn btn--secundario btn--chico" id="periodo-consultar">Consultar otro período</button>
         <button type="button" class="btn btn--texto btn--chico" id="periodo-hoy" hidden>Volver a este mes</button>
       </div>
       <div id="inicio-tiles"><p class="vacio">Cargando…</p></div>
@@ -75,11 +68,12 @@ export async function renderInicio(container) {
 
   // Pedido/reporte #7: "Que diga periodo septiembre del 1 al 30 y que
   // cambie cuando sea otro mes y que tambien deje cambiar para mirar de
-  // forma rapida otros periodos" — ◀/▶ navegan mes a mes.
+  // forma rapida otros periodos" — ajustado después a "prefiero que tenga
+  // un boton que diga consultar otro periodo" (en vez de flechas ◀/▶): un
+  // botón abre un modal con un selector de mes.
   const $titulo = seccion.querySelector('#periodo-titulo');
   const $tiles = seccion.querySelector('#inicio-tiles');
-  const $btnAnterior = seccion.querySelector('#periodo-anterior');
-  const $btnSiguiente = seccion.querySelector('#periodo-siguiente');
+  const $btnConsultar = seccion.querySelector('#periodo-consultar');
   const $btnHoy = seccion.querySelector('#periodo-hoy');
   const mesDeHoy = mesActualStr();
   let mesMostrado = mesDeHoy;
@@ -101,8 +95,28 @@ export async function renderInicio(container) {
     }
   }
 
-  $btnAnterior.addEventListener('click', () => cargarPeriodo(sumarMeses(mesMostrado, -1)));
-  $btnSiguiente.addEventListener('click', () => cargarPeriodo(sumarMeses(mesMostrado, 1)));
+  $btnConsultar.addEventListener('click', () => {
+    const { root, cerrar } = abrirModal(`
+      <h3>Consultar otro período</h3>
+      <form id="form-periodo">
+        <label class="campo">
+          <span>Mes</span>
+          <input type="month" name="mes" value="${mesMostrado}" required>
+        </label>
+        <div class="modal-acciones">
+          <button type="button" class="btn btn--secundario" id="btn-cancelar">Cancelar</button>
+          <button type="submit" class="btn btn--primario">Ver</button>
+        </div>
+      </form>
+    `);
+    root.querySelector('#btn-cancelar').addEventListener('click', cerrar);
+    root.querySelector('#form-periodo').addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const mes = new FormData(ev.target).get('mes');
+      cerrar();
+      cargarPeriodo(mes);
+    });
+  });
   $btnHoy.addEventListener('click', () => cargarPeriodo(mesDeHoy));
 
   await cargarPeriodo(mesDeHoy);
