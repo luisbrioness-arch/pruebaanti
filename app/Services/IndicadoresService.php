@@ -135,6 +135,13 @@ final class IndicadoresService
         $traspasosEquipoViejos = (int) $pdo->query(
             "SELECT COUNT(*) FROM equipos WHERE estado = 'en_transito' AND actualizado_en < DATE_SUB(NOW(), INTERVAL 3 DAY)"
         )->fetchColumn();
+        // Reporte #19: "que aqui tambien aparezca si un tecnico no ha
+        // aceptado algun traspaso" — no solo los que ya llevan 3+ días
+        // (ese caso, más urgente, ya lo cubre traspasosEquipoViejos arriba),
+        // sino cualquiera recién enviado que todavía espera confirmación.
+        $traspasosEquipoPendientes = (int) $pdo->query(
+            "SELECT COUNT(*) FROM equipos WHERE estado = 'en_transito'"
+        )->fetchColumn();
         $entregasFerreteriaViejas = (int) $pdo->query(
             "SELECT COUNT(*) FROM entregas_ferreteria_pendientes WHERE estado = 'pendiente' AND creado_en < DATE_SUB(NOW(), INTERVAL 3 DAY)"
         )->fetchColumn();
@@ -154,6 +161,7 @@ final class IndicadoresService
             'pendientes_auditoria' => $pendientesAuditoria,
             'conflictos_abiertos' => $conflictosAbiertos,
             'traspasos_equipo_viejos' => $traspasosEquipoViejos,
+            'traspasos_equipo_pendientes' => $traspasosEquipoPendientes,
             'entregas_ferreteria_viejas' => $entregasFerreteriaViejas,
         ];
     }

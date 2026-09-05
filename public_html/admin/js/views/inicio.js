@@ -198,14 +198,17 @@ function pintarAlertas($div, r) {
     r.traspasos_equipo_viejos > 0 && {
       texto: `${r.traspasos_equipo_viejos} traspaso(s) de equipo llevan 3+ días sin confirmar`, ruta: 'bodega', tono: 'malo',
     },
+    // Reporte #19: "que aqui tambien aparezca si un tecnico no ha aceptado
+    // algun traspaso" — los recién enviados (todavía no llegan a 3 días)
+    // no son urgentes como el de arriba, pero igual conviene que se vean.
+    (r.traspasos_equipo_pendientes - r.traspasos_equipo_viejos) > 0 && {
+      texto: `${r.traspasos_equipo_pendientes - r.traspasos_equipo_viejos} traspaso(s) de equipo esperando que el técnico confirme`, ruta: 'bodega', tono: 'neutro',
+    },
     r.entregas_ferreteria_viejas > 0 && {
       texto: `${r.entregas_ferreteria_viejas} entrega(s) de ferretería llevan 3+ días sin confirmar`, ruta: 'bodega', tono: 'malo',
     },
     r.ferreteria_pendiente_confirmar > 0 && {
       texto: `${r.ferreteria_pendiente_confirmar} entrega(s) de ferretería esperando confirmación`, ruta: 'bodega', tono: 'alerta',
-    },
-    r.saldo_pendiente_total > 0 && {
-      texto: `${formatMoney(r.saldo_pendiente_total)} a favor de los técnicos en billetera`, ruta: 'billetera', tono: 'neutro',
     },
   ].filter(Boolean);
 

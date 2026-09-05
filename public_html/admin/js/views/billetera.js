@@ -10,21 +10,19 @@ const ETIQUETA_MOVIMIENTO = {
   ajuste: 'Ajuste',
 };
 
+// Pedido/reportes #17 y #18: "elimina esto" (la explicación de arriba) y
+// "y elimina esto" (las tarjetas de saldo por técnico) — mismo espíritu que
+// #16 (sacar "Cerrar período"): simplificar Billetera mientras no se use
+// el cierre de mes. La selección de técnico sigue funcionando igual, por
+// las pestañas — las tarjetas nunca fueron la única forma de elegir uno.
 export async function renderBilletera(container) {
   container.appendChild(el(`
     <section class="panel-simple">
       <div class="panel-cabecera">
         <h2>Billetera</h2>
-        <p class="panel-explicacion">
-          El detalle de cada técnico suma todo lo que tiene aprobado (órdenes) o instalado (ventas)
-          y sin liquidar todavía. El cierre final del mes se hace aparte, con el total acumulado —
-          por ahora acá solo se ve el detalle, sin un botón de "Cerrar período".
-        </p>
       </div>
 
-      <div id="saldos-resumen"><p class="vacio">Cargando…</p></div>
-
-      <label class="campo" style="margin-top: 16px;">
+      <label class="campo">
         <span>Ver detalle de</span>
         <nav class="subtabs subtabs--tecnicos" id="subtabs-tecnico"></nav>
       </label>
@@ -33,14 +31,10 @@ export async function renderBilletera(container) {
     </section>
   `));
 
-  const $resumen = container.querySelector('#saldos-resumen');
   const $subtabsTecnico = container.querySelector('#subtabs-tecnico');
   const $detalle = container.querySelector('#detalle-tecnico');
 
-  const [{ usuarios }, { saldos }] = await Promise.all([
-    api('/admin/usuarios'),
-    api('/admin/billetera/saldos'),
-  ]);
+  const { usuarios } = await api('/admin/usuarios');
 
   // Pedido: "mismo caso aqui como son pocos tecnicos que los nombres enten
   // en un submenu" — mismo criterio que ya se usó en Bodega técnicos:
@@ -58,39 +52,6 @@ export async function renderBilletera(container) {
     $subtabsTecnico.querySelectorAll('.subtab').forEach((b) => {
       b.classList.toggle('subtab--activo', String(b.dataset.id) === String(tecnicoId));
     });
-  }
-
-  function renderResumen() {
-    if (!saldos.length) {
-      $resumen.innerHTML = '<p class="vacio">Todavía no hay ningún movimiento de billetera registrado.</p>';
-      return;
-    }
-    $resumen.innerHTML = `
-      <div class="tarjetas-saldo">
-        ${saldos.map((s) => `
-          <button type="button" class="tarjeta-saldo" data-id="${s.tecnico_id}">
-            <span class="tarjeta-saldo-nombre">${escapeHtml(s.tecnico_nombre)}</span>
-            <span class="tarjeta-saldo-monto ${Number(s.saldo) < 0 ? 'celda-negativa' : ''}">${formatMoney(s.saldo)}</span>
-          </button>
-        `).join('')}
-      </div>
-    `;
-    $resumen.querySelectorAll('.tarjeta-saldo').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        marcarTecnicoActivo(btn.dataset.id);
-        cargarDetalle(Number(btn.dataset.id));
-      });
-    });
-  }
-  renderResumen();
-
-  async function refrescarSaldos() {
-    try {
-      const { saldos: nuevos } = await api('/admin/billetera/saldos');
-      saldos.length = 0;
-      saldos.push(...nuevos);
-      renderResumen();
-    } catch { /* no crítico — el detalle abierto ya se actualizó solo */ }
   }
 
   async function cargarDetalle(tecnicoId) {
@@ -284,7 +245,6 @@ export async function renderBilletera(container) {
         } else {
           toast('Pago registrado.', 'ok');
           await cargarDetalle(tecnicoId);
-          await refrescarSaldos();
         }
       } catch (e) {
         toast(e.message, 'malo');
@@ -335,7 +295,6 @@ export async function renderBilletera(container) {
         } else {
           toast('Ajuste registrado.', 'ok');
           await cargarDetalle(tecnicoId);
-          await refrescarSaldos();
         }
       } catch (e) {
         toast(e.message, 'malo');
