@@ -37,6 +37,11 @@
   --sombra-chica: 0 1px 2px rgba(16,31,36,.06);
   --fuente: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --fuente-mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  /* Fondo sólido del tile "Total mes" — token propio, no --acento-2: ese
+     token se invierte a un teal claro en modo oscuro (pensado para texto
+     sobre fondo oscuro), así que reutilizarlo como relleno con texto
+     blanco encima quedaba casi ilegible en modo oscuro. */
+  --tile-total-bg: #084F54;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -51,6 +56,7 @@
     --neutro: #9BAAAA; --neutro-suave: #202B2B;
     --sombra: 0 1px 2px rgba(0,0,0,.3), 0 10px 28px -16px rgba(0,0,0,.6);
     --sombra-chica: 0 1px 2px rgba(0,0,0,.35);
+    --tile-total-bg: #0A2E30;
   }
 }
 :root[data-theme="dark"] {
@@ -65,6 +71,7 @@
   --neutro: #9BAAAA; --neutro-suave: #202B2B;
   --sombra: 0 1px 2px rgba(0,0,0,.3), 0 10px 28px -16px rgba(0,0,0,.6);
   --sombra-chica: 0 1px 2px rgba(0,0,0,.35);
+  --tile-total-bg: #0A2E30;
 }
 
 * { box-sizing: border-box; }
@@ -466,7 +473,7 @@ body.reportar-eligiendo, body.reportar-eligiendo * { cursor: crosshair !importan
 .tile--alerta { --tile-color: var(--alerta); }
 .tile--malo { --tile-color: var(--malo); }
 .tile--pendiente { --tile-color: var(--pendiente); }
-.tile--total { background: var(--acento-2); border-color: var(--acento-2); }
+.tile--total { background: var(--tile-total-bg); border-color: var(--tile-total-bg); }
 .tile--total::before { display: none; }
 .tile--total .tile-valor, .tile--total .tile-dinero { color: #fff; }
 .tile--total .tile-etiqueta { color: rgba(255,255,255,.75); }
