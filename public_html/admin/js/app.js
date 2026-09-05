@@ -10,6 +10,7 @@ import { renderUsuarios } from './views/usuarios.js';
 import { renderGuia } from './views/guia.js';
 import { renderInicio } from './views/inicio.js';
 import { initModoReportar } from './reportar.js';
+import { initAjustes } from './ajustes.js';
 
 route('inicio', renderInicio);
 route('historial', renderHistorial);
@@ -56,6 +57,7 @@ async function boot() {
     actualizarBadgePendientes();
     procesarCola();
     initModoReportar();
+    initAjustes();
   } catch {
     mostrarLogin();
   }

@@ -15,33 +15,48 @@ use App\Core\Database;
  */
 final class IndicadoresService
 {
-    public function resumen(): array
+    /**
+     * Pedido/reporte #7: "Que diga periodo septiembre del 1 al 30 y que
+     * cambie cuando sea otro mes y que tambien deje cambiar para mirar de
+     * forma rapida otros periodos" — antes "este mes" era literal
+     * (DATE_FORMAT(NOW(),'%Y-%m-01'), sin forma de mirar otro). $desde/
+     * $hasta (YYYY-MM-DD, ambos inclusive) reemplazan eso; por defecto son
+     * el 1° y el último día del mes actual (ver AdminIndicadoresController).
+     */
+    public function resumen(string $desde, string $hasta): array
     {
         $pdo = Database::connection();
+        // Exclusivo del lado de arriba — así una orden de las 23:50 del
+        // último día del período no queda afuera por comparar solo la fecha.
+        $hastaExclusivo = $hasta . ' 23:59:59';
 
         // Tiles accionables de Inicio (pedido: "que diga instalaciones este
         // mes y otro ventas este mes ... y a la derecha el valor en dinero
         // que lo que llevamos"). Solo cuenta lo confirmado (aprobada/
         // liquidada) — una rechazada no suma acá, por eso además ya no
         // hace falta un tile aparte de "Rechazadas".
-        $instalacionesMes = $pdo->query(
+        $stmt = $pdo->prepare(
             "SELECT COUNT(*) AS n, COALESCE(SUM(o.monto_bruto), 0) AS monto
              FROM ordenes o
              JOIN tipos_servicio ts ON ts.id = o.tipo_servicio_id
              WHERE ts.codigo = 'instalacion_nueva'
-               AND o.creado_en >= DATE_FORMAT(NOW(), '%Y-%m-01')
+               AND o.creado_en BETWEEN :desde AND :hasta
                AND o.estado IN ('aprobada', 'liquidada')"
-        )->fetch();
+        );
+        $stmt->execute(['desde' => $desde, 'hasta' => $hastaExclusivo]);
+        $instalacionesMes = $stmt->fetch();
 
-        // Ventas: se cuentan todas las registradas este mes (actividad de
-        // venta), pero el monto solo suma la comisión ya confirmada
+        // Ventas: se cuentan todas las registradas en el período (actividad
+        // de venta), pero el monto solo suma la comisión ya confirmada
         // (instalada) — una venta todavía 'registrada' no tiene
         // monto_comision hasta que se instale.
-        $ventasMes = $pdo->query(
+        $stmt = $pdo->prepare(
             "SELECT COUNT(*) AS n, COALESCE(SUM(monto_comision), 0) AS monto
              FROM ventas
-             WHERE creado_en >= DATE_FORMAT(NOW(), '%Y-%m-01')"
-        )->fetch();
+             WHERE creado_en BETWEEN :desde AND :hasta"
+        );
+        $stmt->execute(['desde' => $desde, 'hasta' => $hastaExclusivo]);
+        $ventasMes = $stmt->fetch();
 
         // Pedido: "eliminemos el concepto de aprobadas si se instala ya es
         // sumada ... en liquidado cambiarlo por total mes con solo lo que
@@ -50,19 +65,24 @@ final class IndicadoresService
         // billetera, que en la práctica casi siempre daba $0 (los cierres
         // son manuales y esporádicos). "Total mes" es la plata real que
         // generaron las órdenes aprobadas/liquidadas de CUALQUIER tipo de
-        // servicio este mes (monto_tecnico, no el bruto) más la comisión de
-        // las ventas ya instaladas este mes (mismo filtro por creado_en que
-        // "Ventas este mes", para que ambos tiles hablen del mismo mes).
-        $totalMesOrdenes = (float) $pdo->query(
+        // servicio en el período (monto_tecnico, no el bruto) más la
+        // comisión de las ventas ya instaladas (mismo filtro por creado_en
+        // que "Ventas este mes", para que ambos tiles hablen del mismo período).
+        $stmt = $pdo->prepare(
             "SELECT COALESCE(SUM(monto_tecnico), 0) FROM ordenes
              WHERE estado IN ('aprobada', 'liquidada')
-               AND creado_en >= DATE_FORMAT(NOW(), '%Y-%m-01')"
-        )->fetchColumn();
-        $totalMesVentas = (float) $pdo->query(
+               AND creado_en BETWEEN :desde AND :hasta"
+        );
+        $stmt->execute(['desde' => $desde, 'hasta' => $hastaExclusivo]);
+        $totalMesOrdenes = (float) $stmt->fetchColumn();
+
+        $stmt = $pdo->prepare(
             "SELECT COALESCE(SUM(monto_vendedor), 0) FROM ventas
              WHERE estado = 'instalada'
-               AND creado_en >= DATE_FORMAT(NOW(), '%Y-%m-01')"
-        )->fetchColumn();
+               AND creado_en BETWEEN :desde AND :hasta"
+        );
+        $stmt->execute(['desde' => $desde, 'hasta' => $hastaExclusivo]);
+        $totalMesVentas = (float) $stmt->fetchColumn();
         $totalMes = $totalMesOrdenes + $totalMesVentas;
 
         // Reemplaza al tile "Aprobadas" (redundante con "Instalaciones este
@@ -120,6 +140,7 @@ final class IndicadoresService
         )->fetchColumn();
 
         return [
+            'periodo' => ['desde' => $desde, 'hasta' => $hasta],
             'instalaciones_mes' => ['n' => (int) $instalacionesMes['n'], 'monto' => (float) $instalacionesMes['monto']],
             'ventas_mes' => ['n' => (int) $ventasMes['n'], 'monto' => (float) $ventasMes['monto']],
             'total_mes' => $totalMes,

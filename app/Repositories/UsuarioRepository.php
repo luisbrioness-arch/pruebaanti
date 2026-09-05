@@ -48,4 +48,23 @@ final class UsuarioRepository
         $stmt->execute($datos);
         return (int) Database::connection()->lastInsertId();
     }
+
+    /**
+     * Para "Ajustes" (editar el propio perfil): $campos solo con 'nombre'
+     * y/o 'password_hash' — mismo cuidado que OrdenRepository::actualizar(),
+     * las claves las arma el controller, nunca vienen directo del request.
+     */
+    public function actualizar(int $id, array $campos): void
+    {
+        if (!$campos) {
+            return;
+        }
+        $sets = [];
+        foreach (array_keys($campos) as $columna) {
+            $sets[] = "$columna = :$columna";
+        }
+        $sql = 'UPDATE usuarios SET ' . implode(', ', $sets) . ' WHERE id = :id';
+        $campos['id'] = $id;
+        Database::connection()->prepare($sql)->execute($campos);
+    }
 }

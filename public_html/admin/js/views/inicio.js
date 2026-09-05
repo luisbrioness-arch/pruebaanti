@@ -15,6 +15,27 @@ const ACCESOS = [
   { ruta: 'historial', icono: '📋', etiqueta: 'Informes' },
 ];
 
+/** 'YYYY-MM' de hoy, según el reloj del navegador. */
+function mesActualStr() {
+  const hoy = new Date();
+  return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/** Suma (o resta) meses a un 'YYYY-MM'. */
+function sumarMeses(mesStr, delta) {
+  const [y, m] = mesStr.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/** "Período: 1 al 30 de septiembre de 2026" — a partir de lo que devolvió el servidor (fuente de verdad del rango real usado). */
+function formatPeriodoLabel(desde, hasta) {
+  const d1 = new Date(desde + 'T00:00:00');
+  const d2 = new Date(hasta + 'T00:00:00');
+  const mesTexto = d1.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
+  return `Período: ${d1.getDate()} al ${d2.getDate()} de ${mesTexto}`;
+}
+
 export async function renderInicio(container) {
   const seccion = el(`
     <section class="inicio">
@@ -34,20 +55,16 @@ export async function renderInicio(container) {
       <h3 style="margin-top: 26px;">Ventas pendientes de instalar</h3>
       <div id="inicio-ventas-pendientes"><p class="vacio">Cargando…</p></div>
 
-      <h3 style="margin-top: 26px;">Este mes</h3>
+      <div class="form-fila" style="margin-top: 26px; align-items: center;">
+        <button type="button" class="btn btn--secundario btn--chico" id="periodo-anterior" aria-label="Mes anterior">◀</button>
+        <h3 id="periodo-titulo" style="margin: 0;">Este mes</h3>
+        <button type="button" class="btn btn--secundario btn--chico" id="periodo-siguiente" aria-label="Mes siguiente">▶</button>
+        <button type="button" class="btn btn--texto btn--chico" id="periodo-hoy" hidden>Volver a este mes</button>
+      </div>
       <div id="inicio-tiles"><p class="vacio">Cargando…</p></div>
     </section>
   `);
   container.appendChild(seccion);
-
-  try {
-    const r = await api('/admin/indicadores');
-    pintarAlertas(seccion.querySelector('#inicio-alertas'), r);
-    pintarTiles(seccion.querySelector('#inicio-tiles'), r);
-  } catch (e) {
-    seccion.querySelector('#inicio-alertas').innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
-    seccion.querySelector('#inicio-tiles').innerHTML = '';
-  }
 
   try {
     const { ventas } = await api('/admin/ventas/pendientes-instalar');
@@ -55,6 +72,40 @@ export async function renderInicio(container) {
   } catch (e) {
     seccion.querySelector('#inicio-ventas-pendientes').innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
   }
+
+  // Pedido/reporte #7: "Que diga periodo septiembre del 1 al 30 y que
+  // cambie cuando sea otro mes y que tambien deje cambiar para mirar de
+  // forma rapida otros periodos" — ◀/▶ navegan mes a mes.
+  const $titulo = seccion.querySelector('#periodo-titulo');
+  const $tiles = seccion.querySelector('#inicio-tiles');
+  const $btnAnterior = seccion.querySelector('#periodo-anterior');
+  const $btnSiguiente = seccion.querySelector('#periodo-siguiente');
+  const $btnHoy = seccion.querySelector('#periodo-hoy');
+  const mesDeHoy = mesActualStr();
+  let mesMostrado = mesDeHoy;
+
+  async function cargarPeriodo(mes) {
+    mesMostrado = mes;
+    $btnHoy.hidden = mes === mesDeHoy;
+    $tiles.innerHTML = '<p class="vacio">Cargando…</p>';
+    try {
+      const r = await api(`/admin/indicadores?mes=${mes}`);
+      $titulo.textContent = formatPeriodoLabel(r.periodo.desde, r.periodo.hasta);
+      pintarTiles($tiles, r);
+      // Las alertas ("Importante") no dependen del período — son la cola
+      // de trabajo real de AHORA (conflictos, traspasos viejos, etc.), el
+      // backend las calcula igual sin importar qué mes se haya pedido.
+      pintarAlertas(seccion.querySelector('#inicio-alertas'), r);
+    } catch (e) {
+      $tiles.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
+    }
+  }
+
+  $btnAnterior.addEventListener('click', () => cargarPeriodo(sumarMeses(mesMostrado, -1)));
+  $btnSiguiente.addEventListener('click', () => cargarPeriodo(sumarMeses(mesMostrado, 1)));
+  $btnHoy.addEventListener('click', () => cargarPeriodo(mesDeHoy));
+
+  await cargarPeriodo(mesDeHoy);
 }
 
 /** "hoy", "en 3 días", "vencida hace 2 días" — sin depender de ninguna librería de fechas. */

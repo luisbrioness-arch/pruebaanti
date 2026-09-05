@@ -35,6 +35,7 @@ $router = new Router();
 $router->post('/api/auth/login', fn(Request $r) => (new AuthController())->login($r));
 $router->post('/api/auth/logout', fn(Request $r) => (new AuthController())->logout($r));
 $router->get('/api/auth/yo', fn(Request $r) => (new AuthController())->yo($r));
+$router->put('/api/auth/perfil', fn(Request $r) => (new AuthController())->actualizarPerfil($r));
 
 // --- Catálogos y maleta offline ---------------------------------------------
 $router->get('/api/catalogo/tipos-servicio', fn(Request $r) => (new CatalogoController())->tiposServicio($r));
