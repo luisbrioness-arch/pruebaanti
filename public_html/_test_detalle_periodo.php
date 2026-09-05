@@ -37,17 +37,17 @@ try {
         'porcentaje_reparto' => 100,
     ]);
 
-    // Idempotente: si una corrida anterior fallida ya dejó una orden de
-    // prueba pendiente (aprobada, sin período todavía) para este técnico,
-    // se reusa/corrige en vez de crear otra más al reintentar.
+    // Idempotente: si corridas anteriores fallidas ya dejaron órdenes de
+    // prueba pendientes (aprobada, sin período todavía) para este técnico,
+    // se corrigen TODAS (fecha_auditoria) en vez de crear otra más.
     $stmtBuscar = Database::connection()->prepare(
-        "SELECT id FROM ordenes WHERE tecnico_id = ? AND folio = 'zz-test-periodo' AND estado = 'aprobada' AND periodo_liquidacion_id IS NULL LIMIT 1"
+        "SELECT id FROM ordenes WHERE tecnico_id = ? AND folio = 'zz-test-periodo' AND estado = 'aprobada' AND periodo_liquidacion_id IS NULL"
     );
     $stmtBuscar->execute([$tecnicoId]);
-    $ordenId = $stmtBuscar->fetchColumn();
+    $ordenIds = $stmtBuscar->fetchAll(\PDO::FETCH_COLUMN);
 
-    if (!$ordenId) {
-        $ordenId = $ordenes->crear([
+    if (!$ordenIds) {
+        $ordenIds = [$ordenes->crear([
             'uuid_dispositivo' => bin2hex(random_bytes(16)),
             'folio' => 'zz-test-periodo',
             'tipo_servicio_id' => $tipo['id'],
@@ -56,14 +56,16 @@ try {
             'estado' => 'borrador',
             'fecha_trabajo_dispositivo' => date('Y-m-d H:i:s'),
             'creado_por_admin' => 1,
-        ]);
+        ])];
     }
     // Fuerza directo a 'aprobada' con monto (y fecha_auditoria, que
     // cerrarPeriodo() necesita) — simular todo el wizard (paso1..5) para
     // una orden de prueba es más riesgo que este UPDATE puntual y aislado.
-    Database::connection()->prepare(
-        "UPDATE ordenes SET estado = 'aprobada', monto_bruto = 1000, porcentaje_aplicado = 100, monto_tecnico = 1000, fecha_auditoria = NOW() WHERE id = ?"
-    )->execute([$ordenId]);
+    foreach ($ordenIds as $id) {
+        Database::connection()->prepare(
+            "UPDATE ordenes SET estado = 'aprobada', monto_bruto = 1000, porcentaje_aplicado = 100, monto_tecnico = 1000, fecha_auditoria = NOW() WHERE id = ?"
+        )->execute([$id]);
+    }
 
     $debugPendientes = $ordenes->pendientesDeLiquidar($tecnicoId);
     echo "DEBUG pendientes=" . json_encode($debugPendientes) . "\n";
