@@ -152,6 +152,25 @@ final class LiquidacionService
         return $this->resumenDe($tecnicoId);
     }
 
+    /**
+     * Pedido/reporte #11: "que se vean los trabajos liquidados todo lo que
+     * se ha completado como venta o instalacion" — "Historial de cierres"
+     * solo mostraba el total de cada período; esto trae el detalle real
+     * (qué órdenes y qué ventas específicas quedaron adentro), que ya
+     * estaba en la base (ordenes/ventas.periodo_liquidacion_id) desde que
+     * se cerró, solo no había forma de consultarlo.
+     */
+    public function detalleDePeriodo(int $periodoId): array
+    {
+        if (!$this->periodos->find($periodoId)) {
+            throw new ValidationException('Período de liquidación inexistente.');
+        }
+        return [
+            'ordenes' => $this->ordenes->porPeriodo($periodoId),
+            'ventas' => $this->ventas->porPeriodo($periodoId),
+        ];
+    }
+
     public function resumenDe(int $tecnicoId): array
     {
         return [

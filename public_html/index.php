@@ -123,6 +123,7 @@ $router->post('/api/admin/usuarios', fn(Request $r) => (new AdminUsuarioControll
 $router->get('/api/admin/billetera/saldos', fn(Request $r) => (new AdminBilleteraController())->saldos($r));
 $router->get('/api/admin/billetera/{tecnicoId}', fn(Request $r) => (new AdminBilleteraController())->resumen($r));
 $router->get('/api/admin/billetera/{tecnicoId}/pendiente', fn(Request $r) => (new AdminBilleteraController())->pendiente($r));
+$router->get('/api/admin/billetera/periodos/{periodoId}/detalle', fn(Request $r) => (new AdminBilleteraController())->detallePeriodo($r));
 $router->post('/api/admin/billetera/{tecnicoId}/cerrar', fn(Request $r) => (new AdminBilleteraController())->cerrar($r));
 $router->post('/api/admin/billetera/{tecnicoId}/pago', fn(Request $r) => (new AdminBilleteraController())->pago($r));
 $router->post('/api/admin/billetera/{tecnicoId}/ajuste', fn(Request $r) => (new AdminBilleteraController())->ajuste($r));

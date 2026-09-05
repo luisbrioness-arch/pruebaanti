@@ -136,6 +136,25 @@ final class VentaRepository
         return $stmt->fetchAll();
     }
 
+    /**
+     * Detalle de las ventas que un cierre de período dejó marcadas (pedido/
+     * reporte #11: "que se vean los trabajos liquidados todo lo que se ha
+     * completado como venta o instalacion") — mismo shape que historial().
+     */
+    public function porPeriodo(int $periodoId): array
+    {
+        $stmt = Database::connection()->prepare(
+            "SELECT v.*, p.nombre AS plan_nombre, u.nombre AS vendedor_nombre
+             FROM ventas v
+             JOIN planes p ON p.id = v.plan_id
+             JOIN usuarios u ON u.id = v.vendedor_id
+             WHERE v.periodo_liquidacion_id = ?
+             ORDER BY v.creado_en ASC"
+        );
+        $stmt->execute([$periodoId]);
+        return $stmt->fetchAll();
+    }
+
     /** Las ata al período que se acaba de cerrar — el estado 'instalada' no cambia, solo queda marcada como ya pagada. */
     public function marcarLiquidadas(array $ids, int $periodoId): void
     {

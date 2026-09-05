@@ -133,7 +133,7 @@ export async function renderBilletera(container) {
       <h3>Historial de cierres</h3>
       ${resumen.periodos.length ? `
         <table class="tabla">
-          <thead><tr><th>Cerrado</th><th>Rango</th><th>Órdenes</th><th>Ventas</th><th>Total</th><th>Por</th></tr></thead>
+          <thead><tr><th>Cerrado</th><th>Rango</th><th>Órdenes</th><th>Ventas</th><th>Total</th><th>Por</th><th style="text-align: left;"></th></tr></thead>
           <tbody>
             ${resumen.periodos.map((p) => `
               <tr>
@@ -143,6 +143,7 @@ export async function renderBilletera(container) {
                 <td>${formatMoney(p.monto_ventas)}</td>
                 <td>${formatMoney(p.monto_total)}</td>
                 <td>${escapeHtml(p.cerrado_por_nombre)}</td>
+                <td><button type="button" class="btn btn--secundario btn--chico" data-ver-periodo="${p.id}">Ver detalle</button></td>
               </tr>
             `).join('')}
           </tbody>
@@ -171,6 +172,69 @@ export async function renderBilletera(container) {
     $detalle.querySelector('#btn-cerrar-periodo')?.addEventListener('click', () => abrirModalCerrar(tecnicoId, nombreTecnico, pendiente));
     $detalle.querySelector('#btn-registrar-pago').addEventListener('click', () => abrirModalPago(tecnicoId, nombreTecnico));
     $detalle.querySelector('#btn-registrar-ajuste').addEventListener('click', () => abrirModalAjuste(tecnicoId, nombreTecnico));
+    $detalle.querySelectorAll('[data-ver-periodo]').forEach((btn) => {
+      btn.addEventListener('click', () => abrirModalDetallePeriodo(Number(btn.dataset.verPeriodo)));
+    });
+  }
+
+  /**
+   * Pedido/reporte #11: "aca que se vean los trabajos liquidados todo lo
+   * que se ha completado como venta o instalacion" — "Historial de
+   * cierres" solo mostraba el total de cada período; esto trae el detalle
+   * real (qué órdenes y qué ventas específicas quedaron adentro de ESE
+   * cierre puntual).
+   */
+  async function abrirModalDetallePeriodo(periodoId) {
+    const { root, cerrar } = abrirModal(`
+      <h3>Detalle del cierre</h3>
+      <div id="detalle-periodo-contenido"><p class="vacio">Cargando…</p></div>
+      <div class="modal-acciones">
+        <button type="button" class="btn btn--secundario" id="btn-cerrar-detalle">Cerrar</button>
+      </div>
+    `);
+    root.querySelector('#btn-cerrar-detalle').addEventListener('click', cerrar);
+    const $contenido = root.querySelector('#detalle-periodo-contenido');
+    try {
+      const { ordenes, ventas } = await api(`/admin/billetera/periodos/${periodoId}/detalle`);
+      $contenido.innerHTML = `
+        <h4>Órdenes instaladas (${ordenes.length})</h4>
+        ${ordenes.length ? `
+          <table class="tabla">
+            <thead><tr><th>Folio</th><th>Tipo</th><th>Cliente</th><th>Fecha</th><th style="text-align: left;">Monto</th></tr></thead>
+            <tbody>
+              ${ordenes.map((o) => `
+                <tr>
+                  <td>${escapeHtml(o.folio)}</td>
+                  <td>${escapeHtml(o.tipo_servicio_nombre)}</td>
+                  <td>${escapeHtml(o.venta_cliente_nombre || '—')}</td>
+                  <td>${formatDateTime(o.fecha_trabajo_dispositivo)}</td>
+                  <td>${formatMoney(o.monto_tecnico)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        ` : '<p class="vacio">Ninguna.</p>'}
+
+        <h4 style="margin-top: 20px;">Ventas instaladas (${ventas.length})</h4>
+        ${ventas.length ? `
+          <table class="tabla">
+            <thead><tr><th>Cliente</th><th>Plan</th><th>Comuna</th><th style="text-align: left;">Monto</th></tr></thead>
+            <tbody>
+              ${ventas.map((v) => `
+                <tr>
+                  <td>${escapeHtml(v.cliente_nombre)}</td>
+                  <td>${escapeHtml(v.plan_nombre)}</td>
+                  <td>${escapeHtml(v.comuna)}</td>
+                  <td>${formatMoney(v.monto_vendedor)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        ` : '<p class="vacio">Ninguna.</p>'}
+      `;
+    } catch (e) {
+      $contenido.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
+    }
   }
 
   function abrirModalCerrar(tecnicoId, nombreTecnico, pendiente) {

@@ -24,14 +24,6 @@ import { abrirModal } from '../modal.js';
 import { conColaSiHaceFalta } from '../offline.js';
 import { toast } from '../toast.js';
 
-/** dd-mm-aaaa sin hora — para columnas de fecha "de calendario" (venta, instalación pedida). */
-function formatDate(s) {
-  if (!s) return '—';
-  const d = new Date(String(s).replace(' ', 'T'));
-  if (isNaN(d.getTime())) return String(s);
-  return d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
 /** 'YYYY-MM-DD' del primer/último día del mes actual — para que Historial arranque mostrando "lo del mes", no todo el histórico. */
 function primerDiaMes() {
   const d = new Date();
@@ -54,16 +46,15 @@ export async function renderHistorial(container) {
       <div class="panel-cabecera">
         <h2>Informes</h2>
         <p class="panel-explicacion">
-          Ventas registradas y órdenes de trabajo, con su fecha — las órdenes se auto-aprueban al
-          enviarse (ya no hay una cola de auditoría manual antes de pagar).
+          Ventas y órdenes de trabajo, analizadas de distintas formas — las órdenes se auto-aprueban
+          al enviarse (ya no hay una cola de auditoría manual antes de pagar).
         </p>
       </div>
 
       <nav class="subtabs no-imprimir" id="subtabs-informes">
-        <button type="button" class="subtab subtab--activo" data-tab="historial">Historial</button>
         <button type="button" class="subtab" data-tab="ventas">Informe de ventas</button>
         <button type="button" class="subtab" data-tab="instalaciones">Informe de instalaciones</button>
-        <button type="button" class="subtab" data-tab="general">General</button>
+        <button type="button" class="subtab subtab--activo" data-tab="general">General</button>
         <button type="button" class="subtab" data-tab="conflictos" id="subtab-conflictos">Conflictos</button>
       </nav>
 
@@ -83,15 +74,6 @@ export async function renderHistorial(container) {
         <button type="submit" class="btn btn--secundario">Filtrar</button>
       </form>
 
-      <div id="vista-historial">
-        <div class="form-fila" style="margin-top: 20px;">${botonImprimirHtml('btn-imprimir-historial')}</div>
-        <h3 style="margin-top: 12px;">Ventas registradas</h3>
-        <div id="tabla-ventas"><p class="vacio">Cargando…</p></div>
-
-        <h3 style="margin-top: 26px;">Órdenes</h3>
-        <div id="tabla-ordenes"><p class="vacio">Cargando…</p></div>
-      </div>
-
       <div id="vista-informe-ventas" hidden>
         <div class="form-fila" style="margin-top: 20px;">${botonImprimirHtml('btn-imprimir-ventas')}</div>
         <div id="informe-ventas" style="margin-top: 10px;"><p class="vacio">Cargando…</p></div>
@@ -102,7 +84,7 @@ export async function renderHistorial(container) {
         <div id="informe-instalaciones" style="margin-top: 10px;"><p class="vacio">Cargando…</p></div>
       </div>
 
-      <div id="vista-general" hidden>
+      <div id="vista-general">
         <div class="form-fila" style="margin-top: 20px;">
           <button type="button" class="btn btn--secundario btn--chico no-imprimir" id="btn-exportar-general">⬇ Exportar CSV</button>
           ${botonImprimirHtml('btn-imprimir-general')}
@@ -122,14 +104,11 @@ export async function renderHistorial(container) {
   `));
 
   const $selectTecnico = container.querySelector('select[name="tecnico_id"]');
-  const $ventas = container.querySelector('#tabla-ventas');
-  const $ordenes = container.querySelector('#tabla-ordenes');
   const $informeVentas = container.querySelector('#informe-ventas');
   const $informeInstalaciones = container.querySelector('#informe-instalaciones');
   const $general = container.querySelector('#tabla-general');
   const $conflictos = container.querySelector('#tabla-conflictos');
   const $form = container.querySelector('#form-filtros');
-  const $vistaHistorial = container.querySelector('#vista-historial');
   const $vistaInformeVentas = container.querySelector('#vista-informe-ventas');
   const $vistaInformeInstalaciones = container.querySelector('#vista-informe-instalaciones');
   const $vistaGeneral = container.querySelector('#vista-general');
@@ -138,8 +117,12 @@ export async function renderHistorial(container) {
   const $subtabs = Array.from(container.querySelectorAll('#subtabs-informes .subtab'));
   let ultimoGeneral = []; // filas por técnico ya agrupadas — para exportar sin recalcular
 
+  // Pedido/reporte #13: "elimina historial y que sea solo la pantalla
+  // INFORME GENERAL CON LOS DATOS DE GENERAL" — la lista cruda de
+  // ventas/órdenes (antes "Historial") se sacó; "General" es la pantalla
+  // por defecto ahora.
   const VISTAS = {
-    historial: $vistaHistorial, ventas: $vistaInformeVentas, instalaciones: $vistaInformeInstalaciones,
+    ventas: $vistaInformeVentas, instalaciones: $vistaInformeInstalaciones,
     general: $vistaGeneral, conflictos: $vistaConflictos,
   };
   $subtabs.forEach((btn) => {
@@ -176,66 +159,6 @@ export async function renderHistorial(container) {
     }
     const qs = params.toString();
     return qs ? `?${qs}` : '';
-  }
-
-  function pintarVentas(ventas) {
-    if (!ventas.length) {
-      $ventas.innerHTML = '<p class="vacio">No hay ventas en este filtro.</p>';
-      return;
-    }
-    $ventas.innerHTML = `
-      <table class="tabla">
-        <thead>
-          <tr>
-            <th>Cliente</th><th>Plan</th><th>Comuna</th><th>Vendedor</th>
-            <th>Fecha de venta</th><th>Instalación pedida</th><th style="text-align: left;">Estado</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${ventas.map((v) => `
-            <tr>
-              <td>${escapeHtml(v.cliente_nombre)}</td>
-              <td>${escapeHtml(v.plan_nombre)}</td>
-              <td>${escapeHtml(v.comuna)}</td>
-              <td>${escapeHtml(v.vendedor_nombre || 'TuVes (directo)')}</td>
-              <td>${formatDate(v.creado_en)}</td>
-              <td>${formatDate(v.fecha_instalacion_solicitada)}</td>
-              <td>${badge(v.estado)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    `;
-  }
-
-  function pintarOrdenes(ordenes) {
-    if (!ordenes.length) {
-      $ordenes.innerHTML = '<p class="vacio">No hay órdenes en este filtro.</p>';
-      return;
-    }
-    $ordenes.innerHTML = `
-      <table class="tabla">
-        <thead>
-          <tr>
-            <th>Folio</th><th>Técnico</th><th>Tipo</th><th>Cliente</th>
-            <th>Fecha de trabajo</th><th>Estado</th><th style="text-align: left;">Monto técnico</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${ordenes.map((o) => `
-            <tr>
-              <td>${escapeHtml(o.folio)}</td>
-              <td>${escapeHtml(o.tecnico_nombre)}</td>
-              <td>${escapeHtml(o.tipo_servicio_nombre)}</td>
-              <td>${escapeHtml(o.venta_cliente_nombre || '—')}</td>
-              <td>${formatDateTime(o.fecha_trabajo_dispositivo)}</td>
-              <td>${badge(o.estado)}</td>
-              <td>${formatMoney(o.monto_tecnico)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    `;
   }
 
   /** Tabla de agrupación genérica: una fila por clave + fila de "Total" al fondo. */
@@ -451,7 +374,7 @@ export async function renderHistorial(container) {
     URL.revokeObjectURL(url);
   });
 
-  for (const id of ['btn-imprimir-historial', 'btn-imprimir-ventas', 'btn-imprimir-instalaciones', 'btn-imprimir-general']) {
+  for (const id of ['btn-imprimir-ventas', 'btn-imprimir-instalaciones', 'btn-imprimir-general']) {
     container.querySelector(`#${id}`).addEventListener('click', () => window.print());
   }
 
@@ -546,22 +469,16 @@ export async function renderHistorial(container) {
   }
 
   async function cargar() {
-    $ventas.innerHTML = '<p class="vacio">Cargando…</p>';
-    $ordenes.innerHTML = '<p class="vacio">Cargando…</p>';
     $informeVentas.innerHTML = '<p class="vacio">Cargando…</p>';
     $informeInstalaciones.innerHTML = '<p class="vacio">Cargando…</p>';
     $general.innerHTML = '<p class="vacio">Cargando…</p>';
     try {
       const { ventas, ordenes } = await api(`/admin/historial${queryActual()}`);
-      pintarVentas(ventas);
-      pintarOrdenes(ordenes);
       pintarInformeVentas(ventas);
       pintarInformeInstalaciones(ordenes);
       pintarGeneral(ventas, ordenes);
     } catch (e) {
       const msg = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
-      $ventas.innerHTML = msg;
-      $ordenes.innerHTML = '';
       $informeVentas.innerHTML = msg;
       $informeInstalaciones.innerHTML = '';
       $general.innerHTML = msg;

@@ -152,6 +152,28 @@ final class OrdenRepository
         return $stmt->fetchAll();
     }
 
+    /**
+     * Detalle de las órdenes que un cierre de período dejó 'liquidada'
+     * (pedido/reporte #11: "que se vean los trabajos liquidados todo lo
+     * que se ha completado como venta o instalacion") — mismo shape que
+     * historial() para reusar la misma tabla del lado del panel.
+     */
+    public function porPeriodo(int $periodoId): array
+    {
+        $stmt = Database::connection()->prepare(
+            "SELECT o.*, u.nombre AS tecnico_nombre, ts.nombre AS tipo_servicio_nombre,
+                    v.cliente_nombre AS venta_cliente_nombre
+             FROM ordenes o
+             JOIN usuarios u ON u.id = o.tecnico_id
+             JOIN tipos_servicio ts ON ts.id = o.tipo_servicio_id
+             LEFT JOIN ventas v ON v.id = o.venta_id
+             WHERE o.periodo_liquidacion_id = ?
+             ORDER BY o.fecha_trabajo_dispositivo ASC"
+        );
+        $stmt->execute([$periodoId]);
+        return $stmt->fetchAll();
+    }
+
     /** Las deja 'liquidada' y las ata al período que se acaba de cerrar — ver LiquidacionService. */
     public function marcarLiquidadas(array $ids, int $periodoId): void
     {

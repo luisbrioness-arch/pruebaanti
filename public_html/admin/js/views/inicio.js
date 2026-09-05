@@ -228,9 +228,9 @@ function pintarAlertas($div, r) {
  * opcional: cuando viene, se pinta aparte a la derecha del conteo
  * (pedido: "a la derecha el valor en dinero que lo que llevamos").
  */
-function tile(etiqueta, valor, { tono = '', valorDinero = null } = {}) {
+function tile(etiqueta, valor, { tono = '', valorDinero = null, ruta = 'historial' } = {}) {
   return `
-    <a href="#historial" class="tile ${tono}">
+    <a href="#${ruta}" class="tile ${tono}">
       <span class="tile-fila">
         <span class="tile-valor">${valor}</span>
         ${valorDinero !== null ? `<span class="tile-dinero">${escapeHtml(valorDinero)}</span>` : ''}
@@ -255,7 +255,7 @@ function pintarTiles($div, r) {
       ${tile('Instalaciones este mes', r.instalaciones_mes.n, { tono: 'tile--ok', valorDinero: formatMoney(r.instalaciones_mes.monto) })}
       ${tile('Ventas este mes', r.ventas_mes.n, { tono: 'tile--ok', valorDinero: formatMoney(r.ventas_mes.monto) })}
       ${tile('Ventas por instalar', r.ventas_por_instalar, { tono: 'tile--ok' })}
-      ${tile('Total mes', formatMoney(r.total_mes), { tono: 'tile--ok' })}
+      ${tile('Total mes', formatMoney(r.total_mes), { tono: 'tile--ok', ruta: 'billetera' })}
     </div>
   `;
 }

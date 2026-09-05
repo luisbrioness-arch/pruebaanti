@@ -30,6 +30,12 @@ final class AdminBilleteraController
         Response::json((new LiquidacionService())->pendientePorLiquidar((int) $req->param('tecnicoId')));
     }
 
+    public function detallePeriodo(Request $req): void
+    {
+        Auth::requireAdmin();
+        Response::json((new LiquidacionService())->detalleDePeriodo((int) $req->param('periodoId')));
+    }
+
     public function cerrar(Request $req): void
     {
         $admin = Auth::requireAdmin();
