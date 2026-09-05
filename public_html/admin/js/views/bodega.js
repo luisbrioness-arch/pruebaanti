@@ -297,6 +297,7 @@ export async function renderBodega(container, params = {}) {
         </label>
         <button type="button" class="btn btn--secundario" id="btn-escanear-serie" title="Escanear código de barras">📷 Escanear</button>
         <button type="submit" class="btn btn--primario">Dar de alta en bodega</button>
+        <button type="button" class="btn btn--secundario" id="btn-alta-masiva">+ Varios a la vez</button>
       </form>
 
       <div class="form-fila filtros-equipos">
@@ -354,6 +355,13 @@ export async function renderBodega(container, params = {}) {
       if (resultado) $contenido.querySelector('#input-numero-serie').value = resultado.serie;
     });
 
+    // Reporte #23: "que exista un boton para dar altas de equipos" —
+    // aclarado después: quiere cargar varios equipos de una sola vez (el
+    // formulario de arriba es de a uno). Mismo tipo y misma bodega para
+    // todo el lote; las series se escanean en bucle (mismo patrón que
+    // "Escanear y seleccionar" de Asignar a técnicos) o se pegan a mano.
+    $contenido.querySelector('#btn-alta-masiva').addEventListener('click', () => abrirModalAltaMasiva());
+
     $contenido.querySelector('#form-alta').addEventListener('submit', async (ev) => {
       ev.preventDefault();
       const fd = new FormData(ev.target);
@@ -376,6 +384,69 @@ export async function renderBodega(container, params = {}) {
     });
 
     await cargarTablaEquipos('');
+  }
+
+  async function abrirModalAltaMasiva() {
+    const { root, cerrar } = abrirModal(`
+      <h3>Dar de alta varios equipos</h3>
+      <p class="modal-explicacion">Mismo tipo y misma bodega para todo el lote. Escanea uno tras otro o pega las series, una por línea.</p>
+      <form id="form-alta-masiva">
+        <label class="campo">
+          <span>Tipo</span>
+          <select name="tipo_equipo" required>${tiposEquipo.map((t) => `<option value="${t.codigo}">${escapeHtml(t.nombre)}</option>`).join('')}</select>
+        </label>
+        <label class="campo">
+          <span>Bodega</span>
+          <select name="bodega_id" required>${opcionesBodegas()}</select>
+        </label>
+        <label class="campo">
+          <span>Números de serie (uno por línea)</span>
+          <textarea name="series" rows="6" placeholder="Ej: 8934221100561"></textarea>
+        </label>
+        <button type="button" class="btn btn--secundario" id="btn-escanear-masivo">📷 Escanear (se agrega a la lista)</button>
+        <div class="modal-acciones">
+          <button type="button" class="btn btn--secundario" id="btn-cancelar-masivo">Cancelar</button>
+          <button type="submit" class="btn btn--primario">Dar de alta</button>
+        </div>
+      </form>
+    `);
+    const $textarea = root.querySelector('textarea[name="series"]');
+    root.querySelector('#btn-cancelar-masivo').addEventListener('click', cerrar);
+    root.querySelector('#btn-escanear-masivo').addEventListener('click', async () => {
+      let seguirEscaneando = true;
+      while (seguirEscaneando) {
+        const resultado = await abrirScanner();
+        if (!resultado) { seguirEscaneando = false; break; }
+        const actual = $textarea.value.trim();
+        $textarea.value = actual ? `${actual}\n${resultado.serie}` : resultado.serie;
+        toast(`"${resultado.serie}" agregado a la lista.`, 'ok');
+      }
+    });
+    root.querySelector('#form-alta-masiva').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const $submit = ev.target.querySelector('button[type="submit"]');
+      if ($submit.disabled) return;
+      const fd = new FormData(ev.target);
+      const tipo_equipo = fd.get('tipo_equipo');
+      const bodega_id = Number(fd.get('bodega_id'));
+      const series = [...new Set($textarea.value.split('\n').map((s) => s.trim()).filter(Boolean))];
+      if (!series.length) { toast('Agrega al menos una serie.', 'malo'); return; }
+      $submit.disabled = true;
+      let dadasDeAlta = 0;
+      const fallidas = [];
+      for (const numero_serie of series) {
+        try {
+          await api('/admin/equipos', { method: 'POST', body: { tipo_equipo, numero_serie, bodega_id } });
+          dadasDeAlta++;
+        } catch (e) {
+          fallidas.push(`${numero_serie}: ${e.message}`);
+        }
+      }
+      cerrar();
+      if (dadasDeAlta) toast(`${dadasDeAlta} equipo(s) dado(s) de alta.`, 'ok');
+      if (fallidas.length) toast(`${fallidas.length} no se pudieron dar de alta — ${fallidas[0]}`, 'malo');
+      await cargarTablaEquipos(estadoActual);
+    });
   }
 
   let equiposCache = [];
