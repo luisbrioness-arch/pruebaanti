@@ -363,9 +363,14 @@ body.reportar-eligiendo, body.reportar-eligiendo * { cursor: crosshair !importan
 .subtab--activo { color: var(--acento-2); border-bottom-color: var(--acento); }
 /* Submenú de nivel 1 dentro de Bodega ("Bodega principal" / "Bodega
    técnicos") — un poco más grande que las pestañas de nivel 2, para que
-   la jerarquía se note sin necesidad de leer el texto. */
-.subtabs--nivel1 { margin-bottom: 20px; border-bottom-width: 2px; }
-.subtabs--nivel1 .subtab { font-size: 1rem; padding-bottom: 12px; }
+   la jerarquía se note sin necesidad de leer el texto. Mejora visual: el
+   tamaño solo no alcanzaba a simple vista (ambos niveles usan el mismo
+   estilo de subrayado) — una banda de fondo propia lo hace más obvio. */
+.subtabs--nivel1 {
+  margin: -20px -20px 20px; padding: 0 20px; border-bottom-width: 2px;
+  background: var(--superficie); border-bottom-color: var(--borde-fuerte);
+}
+.subtabs--nivel1 .subtab { font-size: 1rem; padding: 14px 4px 12px; }
 
 /* Toggle de dos opciones dentro de una pestaña (ej. Asignar a técnicos: "En bodega" / "En maletas"). */
 .segmentado { display: inline-flex; border: 1px solid var(--borde-fuerte); border-radius: 8px; overflow: hidden; margin-bottom: 14px; }
@@ -436,7 +441,16 @@ body.reportar-eligiendo, body.reportar-eligiendo * { cursor: crosshair !importan
   .guia-despacho { max-width: none; }
 }
 
-/* ---------- Inicio ---------- */
+/* ---------- Inicio ----------
+   Mejora visual: antes cada sección tenía su propio margin-top inline
+   (26px, repetido a mano en cada una) y no había ninguna separación salvo
+   el espacio en blanco — de un vistazo, todo el dashboard se leía como un
+   solo bloque largo. Un borde superior suave marca dónde empieza cada
+   sección nueva. */
+.inicio-seccion { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--borde); }
+.inicio-seccion--primera { margin-top: 0; padding-top: 0; border-top: none; }
+.inicio-seccion h3 { margin-bottom: 12px; }
+
 .accesos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
 .acceso-tarjeta {
   background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio);

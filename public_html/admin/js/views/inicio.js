@@ -50,28 +50,36 @@ function listaUltimosMeses(n) {
 export async function renderInicio(container) {
   const seccion = el(`
     <section class="inicio">
-      <h3>Accesos</h3>
-      <div class="accesos-grid">
-        ${ACCESOS.map((a) => `
-          <a href="#${a.ruta}" class="acceso-tarjeta">
-            <span class="acceso-icono">${a.icono}</span>
-            <span>${escapeHtml(a.etiqueta)}</span>
-          </a>
-        `).join('')}
+      <div class="inicio-seccion inicio-seccion--primera">
+        <h3>Accesos</h3>
+        <div class="accesos-grid">
+          ${ACCESOS.map((a) => `
+            <a href="#${a.ruta}" class="acceso-tarjeta">
+              <span class="acceso-icono">${a.icono}</span>
+              <span>${escapeHtml(a.etiqueta)}</span>
+            </a>
+          `).join('')}
+        </div>
       </div>
 
-      <h3 style="margin-top: 26px;">Importante</h3>
-      <div id="inicio-alertas"><p class="vacio">Cargando…</p></div>
-
-      <h3 style="margin-top: 26px;">Ventas pendientes de instalar</h3>
-      <div id="inicio-ventas-pendientes"><p class="vacio">Cargando…</p></div>
-
-      <div class="form-fila" style="margin-top: 26px; align-items: center;">
-        <h3 id="periodo-titulo" style="margin: 0;">Este mes</h3>
-        <button type="button" class="btn btn--secundario btn--chico" id="periodo-consultar">Consultar otro período</button>
-        <button type="button" class="btn btn--texto btn--chico" id="periodo-hoy" hidden>Volver a este mes</button>
+      <div class="inicio-seccion">
+        <h3>Importante</h3>
+        <div id="inicio-alertas"><p class="vacio">Cargando…</p></div>
       </div>
-      <div id="inicio-tiles"><p class="vacio">Cargando…</p></div>
+
+      <div class="inicio-seccion">
+        <h3>Ventas pendientes de instalar</h3>
+        <div id="inicio-ventas-pendientes"><p class="vacio">Cargando…</p></div>
+      </div>
+
+      <div class="inicio-seccion">
+        <div class="form-fila" style="align-items: center;">
+          <h3 id="periodo-titulo" style="margin: 0;">Este mes</h3>
+          <button type="button" class="btn btn--secundario btn--chico" id="periodo-consultar">Consultar otro período</button>
+          <button type="button" class="btn btn--texto btn--chico" id="periodo-hoy" hidden>Volver a este mes</button>
+        </div>
+        <div id="inicio-tiles"><p class="vacio">Cargando…</p></div>
+      </div>
     </section>
   `);
   container.appendChild(seccion);

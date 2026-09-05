@@ -172,7 +172,7 @@ export async function renderTarifario(container) {
           <td>
             <div class="fila-tarifa-acciones">
               <button type="button" class="btn btn--secundario btn--chico" data-editar>Editar</button>
-              <button type="button" class="btn btn--malo btn--chico" data-eliminar>Eliminar</button>
+              <button type="button" class="btn btn--secundario btn--chico" data-eliminar>Eliminar</button>
             </div>
           </td>
         </tr>
@@ -277,7 +277,7 @@ export async function renderTarifario(container) {
           <td>
             <div class="fila-tarifa-acciones">
               <button type="button" class="btn btn--secundario btn--chico" data-editar>Editar</button>
-              <button type="button" class="btn btn--malo btn--chico" data-eliminar-plan>Eliminar</button>
+              <button type="button" class="btn btn--secundario btn--chico" data-eliminar-plan>Eliminar</button>
             </div>
           </td>
         </tr>
@@ -395,7 +395,7 @@ export async function renderTarifario(container) {
           <td>
             <div class="fila-tarifa-acciones">
               <button type="button" class="btn btn--secundario btn--chico" data-editar>Editar</button>
-              ${tieneTarifa ? '<button type="button" class="btn btn--malo btn--chico" data-eliminar>Eliminar</button>' : ''}
+              ${tieneTarifa ? '<button type="button" class="btn btn--secundario btn--chico" data-eliminar>Eliminar</button>' : ''}
             </div>
           </td>
         </tr>
