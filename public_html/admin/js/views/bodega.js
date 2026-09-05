@@ -12,6 +12,43 @@ function diasDesde(fechaServidor) {
 }
 const DIAS_AVISO_PENDIENTE = 3;
 
+// Pedido: "se ve mal, que todas las opciones de perdido falla de fabrica
+// o devuelto a tuvez esten en un boton solo como algo parecido a
+// acciones" — antes eran 2-3 botones sueltos por fila (con formularios
+// mezclados si además tenía "Cancelar envío" u "Asignar a técnicos"),
+// ahora un solo "Acciones ▾" que despliega la lista. Un único listener en
+// document (registrado acá, no por fila) cierra cualquier menú abierto al
+// hacer clic afuera — así no se acumulan listeners cada vez que se
+// recarga la tabla.
+document.addEventListener('click', () => {
+  document.querySelectorAll('.menu-acciones-lista:not([hidden])').forEach((l) => { l.hidden = true; });
+});
+
+/** @param {{texto: string, clase?: string, onClick: () => void}[]} items */
+function crearMenuAcciones(items) {
+  const wrapper = el(`
+    <div class="menu-acciones">
+      <button type="button" class="btn btn--secundario btn--chico" data-menu-toggle>Acciones ▾</button>
+      <ul class="menu-acciones-lista" hidden></ul>
+    </div>
+  `);
+  const $lista = wrapper.querySelector('.menu-acciones-lista');
+  items.forEach((it, i) => {
+    const li = el(`<li><button type="button" class="${it.clase || ''}">${escapeHtml(it.texto)}</button></li>`);
+    li.querySelector('button').addEventListener('click', () => {
+      $lista.hidden = true;
+      it.onClick();
+    });
+    $lista.appendChild(li);
+  });
+  wrapper.querySelector('[data-menu-toggle]').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    document.querySelectorAll('.menu-acciones-lista:not([hidden])').forEach((l) => { if (l !== $lista) l.hidden = true; });
+    $lista.hidden = !$lista.hidden;
+  });
+  return wrapper;
+}
+
 /** Tabla de línea de tiempo compartida por "Buscar por serie" y el botón "Rastreo". */
 function filaHistorialHtml(movimientos) {
   if (!movimientos.length) return '<p class="vacio">Sin movimientos registrados.</p>';
@@ -456,15 +493,12 @@ export async function renderBodega(container, params = {}) {
           btnRastreo.addEventListener('click', () => abrirRastreoEquipo(e.id, e.numero_serie));
           $acciones.appendChild(btnRastreo);
         }
-        // Pedido: "elimina esta fila no entiendo su funcion" — el selector
-        // de bodega suelto en CADA fila (para elegir a dónde llega si se
-        // marca falla de fábrica) confundía porque aparecía siempre, sin
-        // relación visible con nada. Ahora "Falla de fábrica" vuelve a ser
-        // un botón simple; el selector de bodega solo aparece si hace
-        // falta, dentro de un modal de confirmación.
+        // Pedido: "se ve mal, que todas las opciones de perdido falla de
+        // fabrica o devuelto a tuvez esten en un boton solo como algo
+        // parecido a acciones" — un solo "Acciones ▾" (ver
+        // crearMenuAcciones arriba) en vez de 1-3 botones sueltos por fila.
         if (!['falla_fabrica', 'devuelto_tuves', 'perdido'].includes(e.estado)) {
-          const btnFalla = el('<button type="button" class="btn btn--malo btn--chico">Falla de fábrica</button>');
-          btnFalla.addEventListener('click', () => {
+          function abrirModalFallaFabrica() {
             const { root, cerrar } = abrirModal(`
               <h3>Marcar "${escapeHtml(e.numero_serie)}" como falla de fábrica</h3>
               <p class="modal-explicacion">Sale de donde esté ahora sin culpar ni descontar a nadie. Elegí a qué bodega física llega.</p>
@@ -496,56 +530,53 @@ export async function renderBodega(container, params = {}) {
                 }
               } catch (err) { toast(err.message, 'malo'); }
             });
-          });
-          $acciones.appendChild(btnFalla);
+          }
 
-          // Pedido: "que nos falta" — "perdido" y "devuelto a TuVes" ya
-          // existían como estado en la base pero no tenían ninguna acción
-          // real para llegar a ellos. Los dos son terminales y sin bodega
+          // "Perdido" y "Devuelto a TuVes" son terminales y sin bodega
           // destino (el equipo sale del inventario activo), así que el
-          // modal es más simple que el de falla de fábrica: solo confirmar
-          // y, opcionalmente, dejar una nota.
+          // modal es más simple: solo confirmar y, opcionalmente, una nota.
           const accionesTerminales = [
             { tipo: 'marcar_perdido', ruta: 'perdido', boton: 'Perdido', titulo: `Marcar "${e.numero_serie}" como perdido`, explicacion: 'Sale del inventario activo — no queda en ninguna bodega ni maleta. Usalo si a un técnico se le extravió o se lo robaron.', toastOk: 'marcado como perdido.', pendienteMsg: 'perdido pendiente' },
             { tipo: 'marcar_devuelto_tuves', ruta: 'devuelto-tuves', boton: 'Devuelto a TuVes', titulo: `Marcar "${e.numero_serie}" como devuelto a TuVes`, explicacion: 'Sale del inventario activo — se devolvió al proveedor y ya no es stock propio.', toastOk: 'marcado como devuelto a TuVes.', pendienteMsg: 'devolución pendiente' },
           ];
-          for (const acc of accionesTerminales) {
-            const btn = el(`<button type="button" class="btn btn--secundario btn--chico">${acc.boton}</button>`);
-            btn.addEventListener('click', () => {
-              const { root, cerrar } = abrirModal(`
-                <h3>${escapeHtml(acc.titulo)}</h3>
-                <p class="modal-explicacion">${escapeHtml(acc.explicacion)}</p>
-                <form id="form-accion-terminal">
-                  <label class="campo">
-                    <span>Nota (opcional)</span>
-                    <textarea name="observacion" rows="2"></textarea>
-                  </label>
-                  <div class="modal-acciones">
-                    <button type="button" class="btn btn--secundario" id="btn-cancelar">Cancelar</button>
-                    <button type="submit" class="btn btn--malo">${acc.boton}</button>
-                  </div>
-                </form>
-              `);
-              root.querySelector('#btn-cancelar').addEventListener('click', cerrar);
-              root.querySelector('#form-accion-terminal').addEventListener('submit', async (ev) => {
-                ev.preventDefault();
-                const observacion = new FormData(ev.target).get('observacion').trim() || null;
-                const payload = { id: e.id, observacion };
-                try {
-                  const { encolado } = await conColaSiHaceFalta(acc.tipo, payload, () => api(`/admin/equipos/${e.id}/${acc.ruta}`, { method: 'POST', body: { observacion } }));
-                  cerrar();
-                  if (encolado) {
-                    toast(`${e.numero_serie}: guardado sin conexión — se ${acc.toastOk.replace('marcado', 'marcará')} al recuperar señal.`, 'neutro');
-                    marcarFilaPendiente(acc.pendienteMsg);
-                  } else {
-                    toast(`${e.numero_serie} ${acc.toastOk}`, 'alerta');
-                    await cargarTablaEquipos(estado);
-                  }
-                } catch (err) { toast(err.message, 'malo'); }
-              });
+          function abrirModalAccionTerminal(acc) {
+            const { root, cerrar } = abrirModal(`
+              <h3>${escapeHtml(acc.titulo)}</h3>
+              <p class="modal-explicacion">${escapeHtml(acc.explicacion)}</p>
+              <form id="form-accion-terminal">
+                <label class="campo">
+                  <span>Nota (opcional)</span>
+                  <textarea name="observacion" rows="2"></textarea>
+                </label>
+                <div class="modal-acciones">
+                  <button type="button" class="btn btn--secundario" id="btn-cancelar">Cancelar</button>
+                  <button type="submit" class="btn btn--malo">${escapeHtml(acc.boton)}</button>
+                </div>
+              </form>
+            `);
+            root.querySelector('#btn-cancelar').addEventListener('click', cerrar);
+            root.querySelector('#form-accion-terminal').addEventListener('submit', async (ev) => {
+              ev.preventDefault();
+              const observacion = new FormData(ev.target).get('observacion').trim() || null;
+              const payload = { id: e.id, observacion };
+              try {
+                const { encolado } = await conColaSiHaceFalta(acc.tipo, payload, () => api(`/admin/equipos/${e.id}/${acc.ruta}`, { method: 'POST', body: { observacion } }));
+                cerrar();
+                if (encolado) {
+                  toast(`${e.numero_serie}: guardado sin conexión — se ${acc.toastOk.replace('marcado', 'marcará')} al recuperar señal.`, 'neutro');
+                  marcarFilaPendiente(acc.pendienteMsg);
+                } else {
+                  toast(`${e.numero_serie} ${acc.toastOk}`, 'alerta');
+                  await cargarTablaEquipos(estado);
+                }
+              } catch (err) { toast(err.message, 'malo'); }
             });
-            $acciones.appendChild(btn);
           }
+
+          $acciones.appendChild(crearMenuAcciones([
+            { texto: 'Falla de fábrica', clase: 'menu-item--malo', onClick: abrirModalFallaFabrica },
+            ...accionesTerminales.map((acc) => ({ texto: acc.boton, onClick: () => abrirModalAccionTerminal(acc) })),
+          ]));
         }
         $tbody.appendChild(tr);
       }

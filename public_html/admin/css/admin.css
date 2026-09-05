@@ -178,10 +178,30 @@ textarea { resize: vertical; min-height: 60px; }
 .celda-acciones .btn--chico { min-width: 124px; justify-content: center; }
 .celda-acciones select { padding: 4px 8px; font-size: .78rem; min-width: 124px; }
 /* Cada fila tiene distinta cantidad de acciones según el estado del equipo
-   (3 en bodega/maleta, 2 en retirado, 1 en el resto). Alineando a la
-   derecha, el botón que TODAS comparten ("Falla de fábrica") queda en la
-   misma columna en todas las filas, en vez de saltar de posición. */
+   (2-3 en bodega/maleta/retirado, 1 en el resto). Alineando a la derecha,
+   el menú "Acciones ▾" que casi todas comparten queda en la misma columna
+   en todas las filas, en vez de saltar de posición. */
 .tabla th:last-child { text-align: right; }
+
+/* Menú "Acciones ▾" de Equipos (pedido: "que todas las opciones de perdido
+   falla de fabrica o devuelto a tuvez esten en un boton solo") — un solo
+   botón que despliega una lista angosta pegada abajo, en vez de 1-3
+   botones sueltos por fila. Se cierra con el listener en document que
+   agrega crearMenuAcciones() en bodega.js. */
+.menu-acciones { position: relative; }
+.menu-acciones-lista {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 170px;
+  background: var(--superficie); border: 1px solid var(--borde-fuerte); border-radius: 8px;
+  box-shadow: var(--sombra); list-style: none; margin: 0; padding: 4px; text-align: left;
+}
+.menu-acciones-lista li + li { margin-top: 2px; }
+.menu-acciones-lista button {
+  display: block; width: 100%; text-align: left; background: none; border: none; border-radius: 5px;
+  padding: 7px 10px; font: inherit; font-size: .82rem; color: var(--tinta); cursor: pointer;
+}
+.menu-acciones-lista button:hover { background: var(--superficie-2); }
+.menu-acciones-lista button.menu-item--malo { color: var(--malo); }
+.menu-acciones-lista button.menu-item--malo:hover { background: var(--malo-suave); }
 .tabla--editable input { width: 110px; }
 /* Tarifario: "Guardar" + "Eliminar" (cuando existe) en la misma fila, al
    costado, nunca abajo — no reutiliza .celda-acciones porque su
