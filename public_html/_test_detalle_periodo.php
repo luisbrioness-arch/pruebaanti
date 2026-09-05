@@ -37,21 +37,32 @@ try {
         'porcentaje_reparto' => 100,
     ]);
 
-    $ordenId = $ordenes->crear([
-        'uuid_dispositivo' => bin2hex(random_bytes(16)),
-        'folio' => 'zz-test-periodo',
-        'tipo_servicio_id' => $tipo['id'],
-        'tecnico_id' => $tecnicoId,
-        'venta_id' => null,
-        'estado' => 'borrador',
-        'fecha_trabajo_dispositivo' => date('Y-m-d H:i:s'),
-        'creado_por_admin' => 1,
-    ]);
-    // Fuerza directo a 'aprobada' con monto — cerrarPeriodo() exige eso, y
-    // simular todo el wizard (paso1..5) para una orden de prueba es más
-    // riesgo que este UPDATE puntual y aislado.
+    // Idempotente: si una corrida anterior fallida ya dejó una orden de
+    // prueba pendiente (aprobada, sin período todavía) para este técnico,
+    // se reusa/corrige en vez de crear otra más al reintentar.
+    $stmtBuscar = Database::connection()->prepare(
+        "SELECT id FROM ordenes WHERE tecnico_id = ? AND folio = 'zz-test-periodo' AND estado = 'aprobada' AND periodo_liquidacion_id IS NULL LIMIT 1"
+    );
+    $stmtBuscar->execute([$tecnicoId]);
+    $ordenId = $stmtBuscar->fetchColumn();
+
+    if (!$ordenId) {
+        $ordenId = $ordenes->crear([
+            'uuid_dispositivo' => bin2hex(random_bytes(16)),
+            'folio' => 'zz-test-periodo',
+            'tipo_servicio_id' => $tipo['id'],
+            'tecnico_id' => $tecnicoId,
+            'venta_id' => null,
+            'estado' => 'borrador',
+            'fecha_trabajo_dispositivo' => date('Y-m-d H:i:s'),
+            'creado_por_admin' => 1,
+        ]);
+    }
+    // Fuerza directo a 'aprobada' con monto (y fecha_auditoria, que
+    // cerrarPeriodo() necesita) — simular todo el wizard (paso1..5) para
+    // una orden de prueba es más riesgo que este UPDATE puntual y aislado.
     Database::connection()->prepare(
-        "UPDATE ordenes SET estado = 'aprobada', monto_bruto = 1000, porcentaje_aplicado = 100, monto_tecnico = 1000 WHERE id = ?"
+        "UPDATE ordenes SET estado = 'aprobada', monto_bruto = 1000, porcentaje_aplicado = 100, monto_tecnico = 1000, fecha_auditoria = NOW() WHERE id = ?"
     )->execute([$ordenId]);
 
     $periodo = (new LiquidacionService())->cerrarPeriodo($tecnicoId, $tecnicoId, 'Prueba aislada de detalleDePeriodo');
