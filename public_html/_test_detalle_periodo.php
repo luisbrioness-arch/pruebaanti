@@ -65,6 +65,9 @@ try {
         "UPDATE ordenes SET estado = 'aprobada', monto_bruto = 1000, porcentaje_aplicado = 100, monto_tecnico = 1000, fecha_auditoria = NOW() WHERE id = ?"
     )->execute([$ordenId]);
 
+    $debugPendientes = $ordenes->pendientesDeLiquidar($tecnicoId);
+    echo "DEBUG pendientes=" . json_encode($debugPendientes) . "\n";
+
     $periodo = (new LiquidacionService())->cerrarPeriodo($tecnicoId, $tecnicoId, 'Prueba aislada de detalleDePeriodo');
     $detalle = (new LiquidacionService())->detalleDePeriodo((int) $periodo['id']);
 
