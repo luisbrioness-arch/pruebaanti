@@ -156,14 +156,22 @@ function tile(etiqueta, valor, { tono = '', valorDinero = null } = {}) {
   `;
 }
 
+// Pedido: "eliminemos el concepto de aprobadas si se instala ya es sumada"
+// — "Aprobadas" duplicaba lo que ya cuenta "Instalaciones este mes" (una
+// orden de instalación aprobada YA está en ese conteo). En su lugar,
+// "Ventas por instalar" — la cola real de ventas registradas sin instalar
+// todavía, mismo número que la tabla de arriba pero como resumen rápido.
+// "Liquidado" (casi siempre $0 — dependía de un cierre manual de
+// billetera) pasa a ser "Total mes": la plata real generada este mes por
+// órdenes aprobadas (cualquier tipo de servicio) + comisión de las ventas
+// que ya se instalaron.
 function pintarTiles($div, r) {
-  const mapaOrdenes = Object.fromEntries(r.ordenes_por_estado_mes.map((o) => [o.estado, Number(o.n)]));
   $div.innerHTML = `
     <div class="tiles">
       ${tile('Instalaciones este mes', r.instalaciones_mes.n, { tono: 'tile--ok', valorDinero: formatMoney(r.instalaciones_mes.monto) })}
       ${tile('Ventas este mes', r.ventas_mes.n, { tono: 'tile--ok', valorDinero: formatMoney(r.ventas_mes.monto) })}
-      ${tile('Aprobadas', mapaOrdenes.aprobada || 0, { tono: 'tile--ok' })}
-      ${tile('Liquidado', formatMoney(r.liquidado_mes), { tono: 'tile--ok' })}
+      ${tile('Ventas por instalar', r.ventas_por_instalar, { tono: 'tile--ok' })}
+      ${tile('Total mes', formatMoney(r.total_mes), { tono: 'tile--ok' })}
     </div>
   `;
 }

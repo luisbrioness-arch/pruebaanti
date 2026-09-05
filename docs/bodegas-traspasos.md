@@ -228,12 +228,16 @@ pendiente, no una foto congelada del momento en que se imprimió.
 
 `GET /admin/indicadores` (`IndicadoresService`) — agregados de solo lectura
 sobre tablas que ya existían (`COUNT`/`SUM` directos, sin tabla nueva):
-órdenes del mes por estado, liquidado del mes, saldo total a favor de los
-técnicos, equipos por estado, ferretería pendiente de confirmar, traspasos y
-entregas rechazados en los últimos 30 días, más un contador que NO es del
-mes sino de la cola de trabajo real ahora mismo (conflictos sin resolver —
-el de "órdenes esperando auditoría" se sacó de acá, ver más abajo) y los
-mismos avisos de "3+ días sin confirmar" que ya se ven en Bodega.
+instalaciones y ventas del mes (con su monto), total del mes real (monto
+técnico de órdenes aprobadas/liquidadas de cualquier tipo + comisión de
+ventas ya instaladas — reemplaza a un antiguo "Liquidado" que dependía de
+un cierre manual de billetera y casi siempre daba $0), saldo total a favor
+de los técnicos, equipos por estado, ferretería pendiente de confirmar,
+traspasos y entregas rechazados en los últimos 30 días, más contadores que
+NO son del mes sino de la cola de trabajo real ahora mismo (ventas sin
+instalar todavía, conflictos sin resolver — el de "órdenes esperando
+auditoría" se sacó de acá, ver más abajo) y los mismos avisos de "3+ días
+sin confirmar" que ya se ven en Bodega.
 
 Nació como una pestaña separada "Indicadores" y se fusionó en **Inicio**
 (pedido: *"falta una pantalla de inicio con accesos a las otras partes y con

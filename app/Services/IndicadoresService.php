@@ -19,12 +19,6 @@ final class IndicadoresService
     {
         $pdo = Database::connection();
 
-        $ordenesPorEstadoMes = $pdo->query(
-            "SELECT estado, COUNT(*) AS n FROM ordenes
-             WHERE creado_en >= DATE_FORMAT(NOW(), '%Y-%m-01')
-             GROUP BY estado"
-        )->fetchAll();
-
         // Tiles accionables de Inicio (pedido: "que diga instalaciones este
         // mes y otro ventas este mes ... y a la derecha el valor en dinero
         // que lo que llevamos"). Solo cuenta lo confirmado (aprobada/
@@ -49,9 +43,35 @@ final class IndicadoresService
              WHERE creado_en >= DATE_FORMAT(NOW(), '%Y-%m-01')"
         )->fetch();
 
-        $liquidadoMes = (float) $pdo->query(
-            "SELECT COALESCE(SUM(monto), 0) FROM movimientos_billetera
-             WHERE tipo_movimiento = 'liquidacion' AND creado_en >= DATE_FORMAT(NOW(), '%Y-%m-01')"
+        // Pedido: "eliminemos el concepto de aprobadas si se instala ya es
+        // sumada ... en liquidado cambiarlo por total mes con solo lo que
+        // se ha instalado y las ventas que si se hayan instalado" —
+        // "Liquidado" mostraba el momento en que Edwin cierra un período de
+        // billetera, que en la práctica casi siempre daba $0 (los cierres
+        // son manuales y esporádicos). "Total mes" es la plata real que
+        // generaron las órdenes aprobadas/liquidadas de CUALQUIER tipo de
+        // servicio este mes (monto_tecnico, no el bruto) más la comisión de
+        // las ventas ya instaladas este mes (mismo filtro por creado_en que
+        // "Ventas este mes", para que ambos tiles hablen del mismo mes).
+        $totalMesOrdenes = (float) $pdo->query(
+            "SELECT COALESCE(SUM(monto_tecnico), 0) FROM ordenes
+             WHERE estado IN ('aprobada', 'liquidada')
+               AND creado_en >= DATE_FORMAT(NOW(), '%Y-%m-01')"
+        )->fetchColumn();
+        $totalMesVentas = (float) $pdo->query(
+            "SELECT COALESCE(SUM(monto_vendedor), 0) FROM ventas
+             WHERE estado = 'instalada'
+               AND creado_en >= DATE_FORMAT(NOW(), '%Y-%m-01')"
+        )->fetchColumn();
+        $totalMes = $totalMesOrdenes + $totalMesVentas;
+
+        // Reemplaza al tile "Aprobadas" (redundante con "Instalaciones este
+        // mes" — una orden aprobada de instalación ya se cuenta ahí). Esta
+        // es la cola real de ventas sin instalar todavía, igual criterio
+        // que pendientes_auditoria/conflictos_abiertos: no se limita al mes,
+        // es el trabajo pendiente de HOY.
+        $ventasPorInstalar = (int) $pdo->query(
+            "SELECT COUNT(*) FROM ventas WHERE estado = 'registrada'"
         )->fetchColumn();
 
         $saldoPendienteTotal = (float) $pdo->query(
@@ -100,10 +120,10 @@ final class IndicadoresService
         )->fetchColumn();
 
         return [
-            'ordenes_por_estado_mes' => $ordenesPorEstadoMes,
             'instalaciones_mes' => ['n' => (int) $instalacionesMes['n'], 'monto' => (float) $instalacionesMes['monto']],
             'ventas_mes' => ['n' => (int) $ventasMes['n'], 'monto' => (float) $ventasMes['monto']],
-            'liquidado_mes' => $liquidadoMes,
+            'total_mes' => $totalMes,
+            'ventas_por_instalar' => $ventasPorInstalar,
             'saldo_pendiente_total' => $saldoPendienteTotal,
             'equipos_por_estado' => $equiposPorEstado,
             'ferreteria_pendiente_confirmar' => $ferreteriaPendienteConfirmar,
