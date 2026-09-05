@@ -362,8 +362,16 @@ export async function renderTarifario(container) {
   // así que "Editar" también sirve para ponerle la primera tarifa a un
   // plan que nunca tuvo una.
   function renderTablaInstalacion(filas) {
+    // Pedido/reporte #15: "en este campo igual nos falta abajo un agregar
+    // nuevo plan" — mismo botón y modal que ya usa "Comisiones por plan"
+    // (crea el plan entero, con su comisión inicial; después aparece acá
+    // también, listo para cargarle su instalación por plan si hace falta).
     if (!filas.length) {
-      $instalacionPlan.innerHTML = '<p class="vacio">Todavía no hay planes creados — agregá uno en "Comisiones por plan".</p>';
+      $instalacionPlan.innerHTML = `
+        <p class="vacio">Todavía no hay planes creados.</p>
+        <button type="button" class="btn btn--secundario" id="btn-nuevo-plan-instalacion" style="margin-top: 10px;">+ Agregar nuevo plan</button>
+      `;
+      $instalacionPlan.querySelector('#btn-nuevo-plan-instalacion').addEventListener('click', () => abrirModalNuevoPlan(cargar));
       return;
     }
     $instalacionPlan.innerHTML = `
@@ -371,7 +379,9 @@ export async function renderTarifario(container) {
         <thead><tr><th>Nombre</th><th>Monto vigente</th><th>Desde</th><th>Editar</th></tr></thead>
         <tbody></tbody>
       </table>
+      <button type="button" class="btn btn--secundario" id="btn-nuevo-plan-instalacion" style="margin-top: 10px;">+ Agregar nuevo plan</button>
     `;
+    $instalacionPlan.querySelector('#btn-nuevo-plan-instalacion').addEventListener('click', () => abrirModalNuevoPlan(cargar));
     const $tbody = $instalacionPlan.querySelector('tbody');
     for (const fila of filas) {
       const codigo = fila.plan_codigo;

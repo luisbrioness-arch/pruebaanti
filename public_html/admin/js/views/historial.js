@@ -52,9 +52,9 @@ export async function renderHistorial(container) {
       </div>
 
       <nav class="subtabs no-imprimir" id="subtabs-informes">
+        <button type="button" class="subtab subtab--activo" data-tab="general">General</button>
         <button type="button" class="subtab" data-tab="ventas">Informe de ventas</button>
         <button type="button" class="subtab" data-tab="instalaciones">Informe de instalaciones</button>
-        <button type="button" class="subtab subtab--activo" data-tab="general">General</button>
         <button type="button" class="subtab" data-tab="conflictos" id="subtab-conflictos">Conflictos</button>
       </nav>
 

@@ -16,9 +16,9 @@ export async function renderBilletera(container) {
       <div class="panel-cabecera">
         <h2>Billetera</h2>
         <p class="panel-explicacion">
-          "Cerrar período" agarra TODO lo que un técnico tenga aprobado (órdenes) o instalado (ventas)
-          y sin liquidar todavía — no hace falta elegir fechas a mano, así nada se queda afuera por
-          aprobarse después de que "ya se cerró el mes".
+          El detalle de cada técnico suma todo lo que tiene aprobado (órdenes) o instalado (ventas)
+          y sin liquidar todavía. El cierre final del mes se hace aparte, con el total acumulado —
+          por ahora acá solo se ve el detalle, sin un botón de "Cerrar período".
         </p>
       </div>
 
@@ -121,7 +121,6 @@ export async function renderBilletera(container) {
           <div class="resumen-fila"><span>${pendiente.ordenes.length} orden(es) aprobada(s)</span><span>${formatMoney(pendiente.monto_ordenes)}</span></div>
           <div class="resumen-fila"><span>${pendiente.ventas.length} venta(s) instalada(s)</span><span>${formatMoney(pendiente.monto_ventas)}</span></div>
           <div class="resumen-fila"><span><strong>Total a liquidar</strong></span><span><strong>${formatMoney(pendiente.monto_total)}</strong></span></div>
-          <button type="button" class="btn btn--primario" id="btn-cerrar-periodo" style="margin-top: 10px;">Cerrar período</button>
         ` : '<p class="vacio">No hay nada pendiente de liquidar ahora mismo.</p>'}
       </div>
 
@@ -169,7 +168,6 @@ export async function renderBilletera(container) {
       ` : '<p class="vacio vacio--chico">Sin movimientos todavía.</p>'}
     `;
 
-    $detalle.querySelector('#btn-cerrar-periodo')?.addEventListener('click', () => abrirModalCerrar(tecnicoId, nombreTecnico, pendiente));
     $detalle.querySelector('#btn-registrar-pago').addEventListener('click', () => abrirModalPago(tecnicoId, nombreTecnico));
     $detalle.querySelector('#btn-registrar-ajuste').addEventListener('click', () => abrirModalAjuste(tecnicoId, nombreTecnico));
     $detalle.querySelectorAll('[data-ver-periodo]').forEach((btn) => {
@@ -237,55 +235,12 @@ export async function renderBilletera(container) {
     }
   }
 
-  function abrirModalCerrar(tecnicoId, nombreTecnico, pendiente) {
-    const { root, cerrar } = abrirModal(`
-      <h3>Cerrar período de ${escapeHtml(nombreTecnico)}</h3>
-      <p class="modal-explicacion">
-        Se van a marcar como liquidadas ${pendiente.ordenes.length} orden(es) y ${pendiente.ventas.length} venta(s),
-        por un total de ${formatMoney(pendiente.monto_total)}. Esto queda acreditado en la billetera —
-        no es lo mismo que pagarle de verdad (eso se registra aparte, en "Registrar pago").
-      </p>
-      <form id="form-cerrar">
-        <label class="campo">
-          <span>Observaciones (opcional)</span>
-          <textarea name="observaciones" rows="2"></textarea>
-        </label>
-        <div class="modal-acciones">
-          <button type="button" class="btn btn--secundario" id="btn-cancelar">Cancelar</button>
-          <button type="submit" class="btn btn--primario">Cerrar período</button>
-        </div>
-      </form>
-    `);
-    root.querySelector('#btn-cancelar').addEventListener('click', cerrar);
-    root.querySelector('#form-cerrar').addEventListener('submit', async (ev) => {
-      ev.preventDefault();
-      // Doble clic = dos peticiones en paralelo; en "cerrar período" eso
-      // llegaba a acreditar dos veces el mismo trabajo (el bloqueo en el
-      // servidor ya lo corta, esto evita siquiera intentarlo).
-      const $submit = ev.target.querySelector('button[type="submit"]');
-      if ($submit.disabled) return;
-      $submit.disabled = true;
-      const observaciones = new FormData(ev.target).get('observaciones') || null;
-      const payload = { observaciones };
-      try {
-        const { encolado } = await conColaSiHaceFalta(
-          'cerrar_periodo', { tecnicoId, ...payload },
-          () => api(`/admin/billetera/${tecnicoId}/cerrar`, { method: 'POST', body: payload })
-        );
-        cerrar();
-        if (encolado) {
-          toast(`Cierre de ${nombreTecnico} guardado sin conexión — se aplicará al recuperar señal.`, 'neutro');
-        } else {
-          toast(`Período de ${nombreTecnico} cerrado.`, 'ok');
-          await cargarDetalle(tecnicoId);
-          await refrescarSaldos();
-        }
-      } catch (e) {
-        toast(e.message, 'malo');
-        $submit.disabled = false; // permitir reintentar tras un error
-      }
-    });
-  }
+  // Pedido/reporte #16: "que no exista el concepto de 'cerrar periodo' por
+  // ahora ... el cierre final se hara con el total del mes no mas" — se
+  // sacó el botón "Cerrar período" y el modal que lo armaba
+  // (abrirModalCerrar). El backend (POST /admin/billetera/{id}/cerrar,
+  // LiquidacionService::cerrarPeriodo) sigue intacto por si se retoma más
+  // adelante — esto solo saca la puerta de entrada desde el panel.
 
   function abrirModalPago(tecnicoId, nombreTecnico) {
     const { root, cerrar } = abrirModal(`
