@@ -133,12 +133,23 @@ async function abrirRastreoEquipo(equipoId, numeroSerie) {
  *    kit standar de todo el proyecto que no exista" — el wizard ya no lo
  *    usa desde antes, ver docs/wizard-api.md).
  */
+function iconForTipo(codigo = '') {
+  const c = String(codigo).toLowerCase();
+  if (c.includes('deco')) return '📡';
+  if (c.includes('tarjeta') || c.includes('card') || c.includes('smart')) return '💳';
+  if (c.includes('lnb')) return '🛰️';
+  if (c.includes('control')) return '📱';
+  if (c.includes('antena') || c.includes('plato')) return '🌐';
+  if (c.includes('cable')) return '🔌';
+  return '📦';
+}
+
 export async function renderBodega(container, params = {}) {
   container.appendChild(el(`
     <section class="bodega">
       <nav class="subtabs subtabs--nivel1">
-        <button type="button" class="subtab subtab--activo" data-vista="principal">Bodega principal</button>
-        <button type="button" class="subtab" data-vista="tecnicos">Bodega técnicos</button>
+        <button type="button" class="subtab subtab--activo" data-vista="principal">🏢 Bodega principal</button>
+        <button type="button" class="subtab" data-vista="tecnicos">🧰 Bodega técnicos</button>
       </nav>
       <div id="bodega-nivel2"><p class="vacio">Cargando…</p></div>
     </section>
@@ -246,12 +257,12 @@ export async function renderBodega(container, params = {}) {
   async function renderVistaPrincipal() {
     $nivel2.innerHTML = `
       <nav class="subtabs">
-        <button type="button" class="subtab subtab--activo" data-tab="equipos">Equipos</button>
-        <button type="button" class="subtab" data-tab="asignar">Asignar a técnicos</button>
-        <button type="button" class="subtab" data-tab="ferreteria">Ferretería</button>
-        <button type="button" class="subtab" data-tab="catalogo">Catálogo</button>
-        <button type="button" class="subtab" data-tab="buscar">Buscar por serie</button>
-        <button type="button" class="subtab" data-tab="ubicaciones">Ubicaciones</button>
+        <button type="button" class="subtab subtab--activo" data-tab="equipos">📦 Equipos</button>
+        <button type="button" class="subtab" data-tab="asignar">🚚 Asignar a técnicos</button>
+        <button type="button" class="subtab" data-tab="ferreteria">🔩 Ferretería</button>
+        <button type="button" class="subtab" data-tab="catalogo">🏷️ Catálogo</button>
+        <button type="button" class="subtab" data-tab="buscar">🔍 Buscar por serie</button>
+        <button type="button" class="subtab" data-tab="ubicaciones">🏢 Ubicaciones</button>
       </nav>
       <div id="bodega-contenido"><p class="vacio">Cargando…</p></div>
     `;
@@ -275,72 +286,112 @@ export async function renderBodega(container, params = {}) {
   }
 
   // ------------------------------------------------------------- Equipos --
-  // Ahora es solo inventario: ver, filtrar, dar de alta, marcar falla de
-  // fábrica, registrar el reingreso de un retiro. Asignar/traspasar vive en
-  // su propia pestaña (ver renderAsignar).
   async function renderEquipos() {
     $contenido.innerHTML = `
-      <form id="form-alta" class="form-fila">
-        <label class="campo campo--inline">
-          <span>Tipo</span>
-          <select name="tipo_equipo" required>
-            ${tiposEquipo.map((t) => `<option value="${t.codigo}">${escapeHtml(t.nombre)}</option>`).join('')}
-          </select>
-        </label>
-        <label class="campo campo--inline">
-          <span>N° de serie</span>
-          <input type="text" name="numero_serie" id="input-numero-serie" placeholder="Ej: 8934221100561" required>
-        </label>
-        <label class="campo campo--inline">
-          <span>Bodega</span>
-          <select name="bodega_id" required>${opcionesBodegas()}</select>
-        </label>
-        <button type="button" class="btn btn--secundario" id="btn-escanear-serie" title="Escanear código de barras">📷 Escanear</button>
-        <button type="submit" class="btn btn--primario">Dar de alta en bodega</button>
-        <button type="button" class="btn btn--secundario" id="btn-alta-masiva">+ Varios a la vez</button>
-      </form>
+      <div class="card-bloque card-bloque--recepcion" style="margin-bottom: 24px;">
+        <div class="card-bloque-cabecera">
+          <div class="card-bloque-titular">
+            <span class="card-bloque-tag card-bloque-tag--teal">Recepción TuVes</span>
+            <h3>Ingreso de Equipos a Bodega</h3>
+            <p class="card-bloque-bajada">Da de alta rápidamente los equipos que te entrega TuVes por unidad o en lote.</p>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" class="btn btn--primario btn--chico btn-con-icono" id="btn-alta-masiva">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+              <span>+ Cargar Lote TuVes</span>
+            </button>
+            <button type="button" class="btn btn--secundario btn--chico btn-con-icono" id="btn-ir-catalogo-equipos" title="Agregar nuevos tipos de equipo al catálogo">
+              <span>⚙ Catálogo</span>
+            </button>
+          </div>
+        </div>
 
-      <div class="form-fila filtros-equipos">
-        <label class="campo campo--inline">
-          <span>Serie</span>
-          <input type="text" id="filtro-serie-equipo" placeholder="Buscar serie…">
-        </label>
-        <label class="campo campo--inline">
-          <span>Tipo</span>
-          <select id="filtro-tipo-equipo">
-            <option value="">Todos</option>
-            ${tiposEquipo.map((t) => `<option value="${t.codigo}">${escapeHtml(t.nombre)}</option>`).join('')}
-          </select>
-        </label>
-        <label class="campo campo--inline">
-          <span>Estado</span>
-          <select id="filtro-estado-equipo">
-            <option value="">Todos</option>
-            <option value="bodega">En bodega</option>
-            <option value="maleta">En maleta</option>
-            <option value="en_transito">En tránsito (pendiente)</option>
-            <option value="instalado">Instalado</option>
-            <option value="retirado">Retirado</option>
-            <option value="falla_fabrica">Falla de fábrica</option>
-            <option value="perdido">Perdido</option>
-            <option value="devuelto_tuves">Devuelto a TuVes</option>
-          </select>
-        </label>
-        <label class="campo campo--inline">
-          <span>Técnico / Bodega</span>
-          <input type="text" id="filtro-tecbod-equipo" placeholder="Buscar técnico o bodega…">
-        </label>
+        <!-- Botones de acceso rápido por tipo de equipo TuVes -->
+        <div class="tuves-botones-rapidos">
+          <span class="tuves-botones-label">Botones directos por tipo de equipo TuVes:</span>
+          <div class="tuves-botones-grid">
+            ${tiposEquipo.map((t) => `
+              <button type="button" class="btn-equipo-tuves" data-tipo-codigo="${t.codigo}" data-tipo-nombre="${escapeHtml(t.nombre)}" title="Ingresar ${escapeHtml(t.nombre)}">
+                <span class="btn-equipo-icon">${iconForTipo(t.codigo)}</span>
+                <span class="btn-equipo-nombre">+ ${escapeHtml(t.nombre)}</span>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Formulario directo de alta rápida en bodega -->
+        <form id="form-alta" class="tuves-form-directo">
+          <div class="tuves-form-grid">
+            <label class="campo">
+              <span>Tipo de equipo</span>
+              <select name="tipo_equipo" id="select-tipo-equipo" required>
+                ${tiposEquipo.map((t) => `<option value="${t.codigo}">${iconForTipo(t.codigo)} ${escapeHtml(t.nombre)}</option>`).join('')}
+              </select>
+            </label>
+            <label class="campo" style="flex: 2; min-width: 240px;">
+              <span>N° de serie</span>
+              <div class="input-con-accion">
+                <input type="text" name="numero_serie" id="input-numero-serie" placeholder="Ej: 8934221100561" autocomplete="off" required>
+                <button type="button" class="btn btn--secundario btn--chico btn-con-icono" id="btn-escanear-serie" title="Escanear código de barras con la cámara">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                  <span>Escanear</span>
+                </button>
+              </div>
+            </label>
+            <label class="campo">
+              <span>Bodega destino</span>
+              <select name="bodega_id" required>${opcionesBodegas()}</select>
+            </label>
+            <div class="tuves-form-acciones">
+              <button type="submit" class="btn btn--primario btn-con-icono" style="height: 42px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>Dar de alta en bodega</span>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Barra de Filtros y Búsqueda -->
+      <div class="card-bloque filtros-equipos-toolbar" style="margin-bottom: 20px;">
+        <div class="filtros-equipos-grid">
+          <div class="campo campo-busqueda">
+            <span class="campo-busqueda-icono">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </span>
+            <input type="text" id="filtro-serie-equipo" placeholder="Buscar por serie…">
+          </div>
+          <div class="campo">
+            <select id="filtro-tipo-equipo">
+              <option value="">Todos los tipos</option>
+              ${tiposEquipo.map((t) => `<option value="${t.codigo}">${iconForTipo(t.codigo)} ${escapeHtml(t.nombre)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="campo">
+            <select id="filtro-estado-equipo">
+              <option value="">Todos los estados</option>
+              <option value="bodega">En bodega</option>
+              <option value="maleta">En maleta</option>
+              <option value="en_transito">En tránsito (pendiente)</option>
+              <option value="instalado">Instalado</option>
+              <option value="retirado">Retirado</option>
+              <option value="falla_fabrica">Falla de fábrica</option>
+              <option value="perdido">Perdido</option>
+              <option value="devuelto_tuves">Devuelto a TuVes</option>
+            </select>
+          </div>
+          <div class="campo">
+            <input type="text" id="filtro-tecbod-equipo" placeholder="Filtrar por técnico o bodega…">
+          </div>
+        </div>
+        <div class="filtros-equipos-meta">
+          <span id="equipos-conteo" class="conteo-badge">Cargando inventario…</span>
+        </div>
       </div>
 
       <div id="tabla-equipos"><p class="vacio">Cargando…</p></div>
     `;
 
-    // Pedido: "haz que estos menus sean filtrables" (columnas Serie / Tipo /
-    // Estado / Técnico-Bodega de la tabla de Equipos). Estado sigue
-    // filtrando contra el servidor (ya lo hacía, y es el filtro más pesado
-    // en volumen); serie/tipo/técnico-bodega filtran en el cliente sobre lo
-    // que ya se trajo — no vale la pena un roundtrip nuevo por cada tecleo
-    // para un inventario de este tamaño.
     const $filtroSerie = $contenido.querySelector('#filtro-serie-equipo');
     const $filtroTipo = $contenido.querySelector('#filtro-tipo-equipo');
     const $filtroEstado = $contenido.querySelector('#filtro-estado-equipo');
@@ -355,12 +406,17 @@ export async function renderBodega(container, params = {}) {
       if (resultado) $contenido.querySelector('#input-numero-serie').value = resultado.serie;
     });
 
-    // Reporte #23: "que exista un boton para dar altas de equipos" —
-    // aclarado después: quiere cargar varios equipos de una sola vez (el
-    // formulario de arriba es de a uno). Mismo tipo y misma bodega para
-    // todo el lote; las series se escanean en bucle (mismo patrón que
-    // "Escanear y seleccionar" de Asignar a técnicos) o se pegan a mano.
-    $contenido.querySelector('#btn-alta-masiva').addEventListener('click', () => abrirModalAltaMasiva());
+    $contenido.querySelector('#btn-alta-masiva').addEventListener('click', () => abrirModalAltaEquipo());
+    $contenido.querySelector('#btn-ir-catalogo-equipos')?.addEventListener('click', () => activarTab('catalogo'));
+
+    $contenido.querySelectorAll('.btn-equipo-tuves').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const codigo = btn.dataset.tipoCodigo;
+        const select = $contenido.querySelector('#select-tipo-equipo');
+        if (select) select.value = codigo;
+        abrirModalAltaEquipo(codigo);
+      });
+    });
 
     $contenido.querySelector('#form-alta').addEventListener('submit', async (ev) => {
       ev.preventDefault();
@@ -368,11 +424,8 @@ export async function renderBodega(container, params = {}) {
       const payload = { tipo_equipo: fd.get('tipo_equipo'), numero_serie: fd.get('numero_serie').trim(), bodega_id: Number(fd.get('bodega_id')) };
       try {
         const { datos, encolado } = await conColaSiHaceFalta('alta_equipo', payload, () => api('/admin/equipos', { method: 'POST', body: payload }));
-        ev.target.reset();
+        $contenido.querySelector('#input-numero-serie').value = '';
         if (encolado) {
-          // No se refresca la tabla: sin conexión no hay forma de saber el
-          // estado real, y mostrar un error de red justo después del aviso
-          // de "guardado" confundiría más de lo que ayuda.
           toast(`Serie ${payload.numero_serie} guardada sin conexión — se dará de alta al recuperar señal.`, 'neutro');
         } else {
           toast(`Equipo ${datos.numero_serie} dado de alta en bodega.`, 'ok');
@@ -386,43 +439,84 @@ export async function renderBodega(container, params = {}) {
     await cargarTablaEquipos('');
   }
 
-  async function abrirModalAltaMasiva() {
+  async function abrirModalAltaEquipo(tipoCodigoDefault = null) {
+    const tipoSeleccionado = tipoCodigoDefault || tiposEquipo[0]?.codigo;
+    const tipoObj = tiposEquipo.find((t) => t.codigo === tipoSeleccionado) || tiposEquipo[0];
     const { root, cerrar } = abrirModal(`
-      <h3>Dar de alta varios equipos</h3>
-      <p class="modal-explicacion">Mismo tipo y misma bodega para todo el lote. Escanea uno tras otro o pega las series, una por línea.</p>
-      <form id="form-alta-masiva">
-        <label class="campo">
-          <span>Tipo</span>
-          <select name="tipo_equipo" required>${tiposEquipo.map((t) => `<option value="${t.codigo}">${escapeHtml(t.nombre)}</option>`).join('')}</select>
-        </label>
-        <label class="campo">
-          <span>Bodega</span>
-          <select name="bodega_id" required>${opcionesBodegas()}</select>
-        </label>
-        <label class="campo">
-          <span>Números de serie (uno por línea)</span>
-          <textarea name="series" rows="6" placeholder="Ej: 8934221100561"></textarea>
-        </label>
-        <button type="button" class="btn btn--secundario" id="btn-escanear-masivo">📷 Escanear (se agrega a la lista)</button>
-        <div class="modal-acciones">
-          <button type="button" class="btn btn--secundario" id="btn-cancelar-masivo">Cancelar</button>
-          <button type="submit" class="btn btn--primario">Dar de alta</button>
+      <div class="modal-alta-equipo">
+        <div class="modal-encabezado-icono">
+          <div class="modal-icono-circulo modal-icono-circulo--teal">
+            <span style="font-size: 1.4rem;">${iconForTipo(tipoSeleccionado)}</span>
+          </div>
+          <div>
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800;">Ingreso de ${escapeHtml(tipoObj?.nombre || 'Equipos TuVes')}</h3>
+            <p class="modal-explicacion" style="margin: 3px 0 0;">Carga individual o remesa en lote para Bodega Central.</p>
+          </div>
         </div>
-      </form>
+
+        <form id="form-alta-modal" style="margin-top: 16px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <label class="campo">
+              <span>Tipo de equipo</span>
+              <select name="tipo_equipo" id="modal-tipo-equipo" required>
+                ${tiposEquipo.map((t) => `<option value="${t.codigo}" ${t.codigo === tipoSeleccionado ? 'selected' : ''}>${iconForTipo(t.codigo)} ${escapeHtml(t.nombre)}</option>`).join('')}
+              </select>
+            </label>
+            <label class="campo">
+              <span>Bodega destino</span>
+              <select name="bodega_id" required>${opcionesBodegas()}</select>
+            </label>
+          </div>
+
+          <label class="campo" style="margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span>Números de serie</span>
+              <span id="modal-contador-series" style="font-size: 0.78rem; font-weight: 700; color: var(--acento-2);">1 serie por línea</span>
+            </div>
+            <textarea name="series" rows="6" placeholder="Pega una o varias series aquí...&#10;Ej:&#10;8934221100561&#10;8934221100562" style="font-family: var(--fuente-mono); font-size: 0.85rem;" required></textarea>
+            <small class="campo-ayuda">Puedes pegar listas completas de Excel de TuVes o escanear en bucle con la cámara.</small>
+          </label>
+
+          <button type="button" class="btn btn--secundario btn-con-icono" id="btn-escanear-modal" style="width: 100%; justify-content: center; margin-top: 4px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+            <span>📷 Escaneo continuo con cámara</span>
+          </button>
+
+          <div class="modal-acciones" style="margin-top: 18px;">
+            <button type="button" class="btn btn--secundario" id="btn-cancelar-modal">Cancelar</button>
+            <button type="submit" class="btn btn--primario btn-con-icono">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              <span>Dar de alta equipos</span>
+            </button>
+          </div>
+        </form>
+      </div>
     `);
+
     const $textarea = root.querySelector('textarea[name="series"]');
-    root.querySelector('#btn-cancelar-masivo').addEventListener('click', cerrar);
-    root.querySelector('#btn-escanear-masivo').addEventListener('click', async () => {
+    const $contador = root.querySelector('#modal-contador-series');
+
+    function actualizarContador() {
+      const series = $textarea.value.split('\n').map((s) => s.trim()).filter(Boolean);
+      $contador.textContent = series.length === 1 ? '1 serie detectada' : `${series.length} series detectadas`;
+    }
+    $textarea.addEventListener('input', actualizarContador);
+
+    root.querySelector('#btn-cancelar-modal').addEventListener('click', cerrar);
+
+    root.querySelector('#btn-escanear-modal').addEventListener('click', async () => {
       let seguirEscaneando = true;
       while (seguirEscaneando) {
         const resultado = await abrirScanner();
         if (!resultado) { seguirEscaneando = false; break; }
         const actual = $textarea.value.trim();
         $textarea.value = actual ? `${actual}\n${resultado.serie}` : resultado.serie;
+        actualizarContador();
         toast(`"${resultado.serie}" agregado a la lista.`, 'ok');
       }
     });
-    root.querySelector('#form-alta-masiva').addEventListener('submit', async (ev) => {
+
+    root.querySelector('#form-alta-modal').addEventListener('submit', async (ev) => {
       ev.preventDefault();
       const $submit = ev.target.querySelector('button[type="submit"]');
       if ($submit.disabled) return;
@@ -443,7 +537,7 @@ export async function renderBodega(container, params = {}) {
         }
       }
       cerrar();
-      if (dadasDeAlta) toast(`${dadasDeAlta} equipo(s) dado(s) de alta.`, 'ok');
+      if (dadasDeAlta) toast(`${dadasDeAlta} equipo(s) dado(s) de alta en bodega.`, 'ok');
       if (fallidas.length) toast(`${fallidas.length} no se pudieron dar de alta — ${fallidas[0]}`, 'malo');
       await cargarTablaEquipos(estadoActual);
     });
@@ -477,25 +571,52 @@ export async function renderBodega(container, params = {}) {
       if (tecbodQ && !(e.tecnico_nombre || e.bodega_nombre || '').toLowerCase().includes(tecbodQ)) return false;
       return true;
     });
+
+    const $conteo = $contenido.querySelector('#equipos-conteo');
+    if ($conteo) {
+      $conteo.innerHTML = `Mostrando <strong>${equipos.length}</strong> de ${equiposCache.length} equipo(s) en inventario`;
+    }
+
     try {
       if (!equipos.length) {
-        $tabla.innerHTML = '<p class="vacio">No hay equipos que coincidan con el filtro.</p>';
+        $tabla.innerHTML = '<p class="vacio">No hay equipos que coincidan con los filtros seleccionados.</p>';
         return;
       }
       $tabla.innerHTML = `
-        <table class="tabla">
-          <thead><tr><th>Serie</th><th>Tipo</th><th>Estado</th><th>Técnico / Bodega</th><th>Acciones</th></tr></thead>
-          <tbody></tbody>
-        </table>
+        <div class="tabla-envoltorio">
+          <table class="tabla">
+            <thead>
+              <tr>
+                <th style="width: 25%;">Número de serie</th>
+                <th style="width: 20%;">Tipo de equipo</th>
+                <th style="width: 18%;">Estado</th>
+                <th style="width: 22%;">Ubicación / Asignado a</th>
+                <th style="width: 15%; text-align: right;">Acciones</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
       `;
       const $tbody = $tabla.querySelector('tbody');
       for (const e of equipos) {
         const tr = el(`
           <tr>
-            <td class="celda-mono">${escapeHtml(e.numero_serie)}</td>
-            <td>${escapeHtml(e.tipo_equipo_nombre)}</td>
+            <td>
+              <span class="badge-serie celda-mono">${escapeHtml(e.numero_serie)}</span>
+            </td>
+            <td>
+              <span class="tipo-con-icono">
+                <span class="tipo-icon">${iconForTipo(e.tipo_equipo_codigo)}</span>
+                <span>${escapeHtml(e.tipo_equipo_nombre)}</span>
+              </span>
+            </td>
             <td>${badge(e.estado)}</td>
-            <td>${escapeHtml(e.tecnico_nombre || e.bodega_nombre || '—')}</td>
+            <td>
+              <span class="ubicacion-nombre" style="font-weight: 500;">
+                ${escapeHtml(e.tecnico_nombre || e.bodega_nombre || '—')}
+              </span>
+            </td>
             <td class="celda-acciones"></td>
           </tr>
         `);

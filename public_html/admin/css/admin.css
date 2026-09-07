@@ -540,34 +540,113 @@ body.reportar-eligiendo, body.reportar-eligiendo * { cursor: crosshair !importan
 .saldo-grande { font-family: var(--fuente-mono); font-size: 1.8rem; font-weight: 700; color: var(--acento-2); margin: 0; }
 .saldo-grande.celda-negativa { color: var(--malo); }
 
-/* ---------- Bodega ---------- */
-.subtabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--borde); }
+/* ==========================================================================
+   Bodega & Gestión de Inventario TuVes
+   ========================================================================== */
+.subtabs {
+  display: flex; gap: 6px; margin-bottom: 20px; border-bottom: 2px solid var(--borde);
+  padding-bottom: 2px; overflow-x: auto;
+}
 .subtab {
-  background: none; border: none; border-bottom: 2px solid transparent; padding: 10px 4px; margin-right: 20px;
-  font-weight: 600; color: var(--tinta-3); cursor: pointer;
+  background: none; border: none; border-bottom: 3px solid transparent;
+  padding: 10px 14px; margin-bottom: -2px; font-weight: 600; font-size: 0.86rem;
+  color: var(--tinta-3); cursor: pointer; transition: all 0.15s ease;
+  white-space: nowrap; border-radius: 8px 8px 0 0;
 }
-.subtab:hover { color: var(--tinta); }
-.subtab--activo { color: var(--acento-2); border-bottom-color: var(--acento); }
-/* Submenú de nivel 1 dentro de Bodega ("Bodega principal" / "Bodega
-   técnicos") — un poco más grande que las pestañas de nivel 2, para que
-   la jerarquía se note sin necesidad de leer el texto. Mejora visual: el
-   tamaño solo no alcanzaba a simple vista (ambos niveles usan el mismo
-   estilo de subrayado) — una banda de fondo propia lo hace más obvio. */
+.subtab:hover { color: var(--tinta); background: rgba(15, 23, 42, 0.03); }
+.subtab--activo {
+  color: var(--acento-2); border-bottom-color: var(--acento); font-weight: 700;
+  background: rgba(13, 148, 136, 0.05);
+}
 .subtabs--nivel1 {
-  margin: -20px -20px 20px; padding: 0 20px; border-bottom-width: 2px;
-  background: var(--superficie); border-bottom-color: var(--borde-fuerte);
+  background: var(--superficie); border: 1px solid var(--borde);
+  border-radius: 12px; padding: 6px; gap: 6px; margin: 0 0 22px;
+  box-shadow: var(--sombra-card); border-bottom-width: 1px;
 }
-.subtabs--nivel1 .subtab { font-size: 1rem; padding: 14px 4px 12px; }
+.subtabs--nivel1 .subtab {
+  font-size: 0.92rem; padding: 8px 18px; border-radius: 8px;
+  border-bottom: none; margin-bottom: 0;
+}
+.subtabs--nivel1 .subtab--activo {
+  background: #0B132B; color: #FFFFFF;
+  box-shadow: 0 2px 6px rgba(11, 19, 43, 0.25);
+}
 
-/* Toggle de dos opciones dentro de una pestaña (ej. Asignar a técnicos: "En bodega" / "En maletas"). */
-.segmentado { display: inline-flex; border: 1px solid var(--borde-fuerte); border-radius: 8px; overflow: hidden; margin-bottom: 14px; }
+.segmentado {
+  display: inline-flex; border: 1px solid var(--borde-fuerte);
+  border-radius: 8px; overflow: hidden; margin-bottom: 14px;
+}
 .segmentado button {
-  background: var(--superficie); border: none; padding: 7px 14px; font-size: .82rem; font-weight: 600;
-  color: var(--tinta-3); cursor: pointer; border-right: 1px solid var(--borde-fuerte);
+  background: var(--superficie); border: none; padding: 7px 14px;
+  font-size: .82rem; font-weight: 600; color: var(--tinta-3);
+  cursor: pointer; border-right: 1px solid var(--borde-fuerte);
 }
 .segmentado button:last-child { border-right: none; }
 .segmentado button:hover { color: var(--tinta); }
 .segmentado button.activo { background: var(--acento); color: #fff; }
+
+/* Recepción de Equipos TuVes */
+.card-bloque--recepcion {
+  border-top: 3px solid var(--acento);
+}
+.tuves-botones-rapidos {
+  padding: 16px 22px; background: #F8FAFC; border-bottom: 1px solid var(--borde);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.tuves-botones-label {
+  font-size: 0.74rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--tinta-3);
+}
+.tuves-botones-grid {
+  display: flex; gap: 10px; flex-wrap: wrap;
+}
+.btn-equipo-tuves {
+  display: inline-flex; align-items: center; gap: 8px; background: var(--superficie);
+  border: 1.5px solid var(--borde); border-radius: 10px; padding: 8px 14px;
+  font-size: 0.85rem; font-weight: 600; color: var(--tinta); cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+.btn-equipo-tuves:hover {
+  border-color: var(--acento); background: var(--acento-suave);
+  color: var(--acento-2); transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(13, 148, 136, 0.15);
+}
+.btn-equipo-tuves:active { transform: translateY(0); }
+.btn-equipo-icon { font-size: 1.1rem; }
+.btn-equipo-nombre { font-weight: 700; }
+
+.tuves-form-directo { padding: 18px 22px; background: #FFFFFF; }
+.tuves-form-grid { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.input-con-accion { display: flex; position: relative; align-items: center; width: 100%; }
+.input-con-accion input { padding-right: 98px; width: 100%; font-family: var(--fuente-mono); font-weight: 600; }
+.input-con-accion .btn { position: absolute; right: 5px; padding: 5px 10px; font-size: 0.78rem; height: 32px; }
+
+/* Barra de Filtros de Equipos */
+.filtros-equipos-toolbar {
+  padding: 16px 20px; display: flex; flex-direction: column; gap: 12px;
+  background: var(--superficie);
+}
+.filtros-equipos-grid { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.filtros-equipos-grid .campo { flex: 1; min-width: 170px; }
+.campo-busqueda { position: relative; flex: 1.5 !important; min-width: 220px !important; }
+.campo-busqueda-icono {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--tinta-3); pointer-events: none; display: flex; align-items: center;
+}
+.campo-busqueda input { padding-left: 36px; width: 100%; }
+.filtros-equipos-meta {
+  display: flex; justify-content: space-between; align-items: center;
+  border-top: 1px solid var(--borde); padding-top: 10px; font-size: 0.82rem; color: var(--tinta-3);
+}
+.conteo-badge { font-weight: 600; color: var(--tinta-2); }
+.conteo-badge strong { color: var(--acento-2); font-weight: 700; }
+
+.badge-serie {
+  font-family: var(--fuente-mono); font-weight: 700; font-size: 0.84rem;
+  color: var(--tinta); background: #F1F5F9; padding: 3px 8px; border-radius: 6px;
+  border: 1px solid #E2E8F0; letter-spacing: -0.01em; display: inline-block;
+}
+.tipo-con-icono { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--tinta); }
 
 /* ---------- Toasts ---------- */
 .toast-pila { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 200; }
