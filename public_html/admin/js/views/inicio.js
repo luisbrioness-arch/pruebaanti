@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { el, escapeHtml, formatMoney } from '../utils.js';
+import { el, escapeHtml, formatMoney, formatDateTime, badge } from '../utils.js';
 import { abrirModal } from '../modal.js';
 
 const ACCESOS = [
@@ -296,9 +296,9 @@ function pintarVentasPendientes($div, ventas) {
           ${ventas.map((v) => {
             const { texto, tono } = etiquetaFecha(v.fecha_instalacion_solicitada);
             return `
-              <tr>
+              <tr class="fila-cliqueable" data-venta-id="${v.id}" title="Toca para ver quién vendió, cuándo y detalles de la orden">
                 <td>
-                  <strong class="fila-nombre">${escapeHtml(v.cliente_nombre)}</strong>
+                  <strong class="fila-nombre" style="color: var(--acento-2);">${escapeHtml(v.cliente_nombre)}</strong>
                 </td>
                 <td>
                   <div style="font-size: 0.84rem;">
@@ -314,6 +314,7 @@ function pintarVentasPendientes($div, ventas) {
                 </td>
                 <td style="text-align: right;">
                   <span class="chip chip--${tono}">${escapeHtml(texto)}</span>
+                  <span style="color: var(--tinta-3); margin-left: 6px; font-weight: 800; font-size: 0.95rem;">→</span>
                 </td>
               </tr>
             `;
@@ -322,6 +323,240 @@ function pintarVentasPendientes($div, ventas) {
       </table>
     </div>
   `;
+
+  // Abrir detalle al presionar cualquier fila de la lista
+  $div.querySelectorAll('tr[data-venta-id]').forEach(($tr) => {
+    $tr.addEventListener('click', () => {
+      const id = Number($tr.dataset.ventaId);
+      const venta = ventas.find(item => Number(item.id) === id);
+      if (venta) {
+        abrirModalDetalleVenta(venta);
+      }
+    });
+  });
+}
+
+/**
+ * Modal detallado que muestra quién vendió, cuándo se vendió y todos los
+ * detalles de la orden técnica y equipos instalados en terreno.
+ */
+function abrirModalDetalleVenta(v) {
+  const { texto: fechaTexto, tono: fechaTono } = etiquetaFecha(v.fecha_instalacion_solicitada);
+  const inicial = (v.cliente_nombre || 'C').trim().charAt(0).toUpperCase();
+
+  const { root, cerrar } = abrirModal(`
+    <div class="modal-banner-cliente">
+      <div class="modal-banner-cliente-info">
+        <div class="modal-banner-avatar">${escapeHtml(inicial)}</div>
+        <div>
+          <div class="modal-banner-nombre">${escapeHtml(v.cliente_nombre)}</div>
+          <div class="modal-banner-sub">
+            RUT: <strong>${escapeHtml(v.cliente_rut || 'No informado')}</strong> · 📍 ${escapeHtml(v.comuna || 'Sin comuna')}
+          </div>
+        </div>
+      </div>
+      <div>
+        ${v.cliente_telefono ? `
+          <a href="tel:${escapeHtml(v.cliente_telefono)}" class="btn btn--chico btn--secundario" style="color: #0f766e; background: #fff; font-weight: 700; text-decoration: none; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
+            📞 ${escapeHtml(v.cliente_telefono)}
+          </a>
+        ` : '<span style="font-size: 0.8rem; opacity: 0.8;">Sin teléfono</span>'}
+      </div>
+    </div>
+
+    <div class="modal-detalle-grid">
+      <!-- Tarjeta 1: Quién vendió y Cuándo se vendió (Comercial) -->
+      <div class="detalle-bloque">
+        <div class="detalle-bloque-titulo">
+          <span>💼 Registro de Venta</span>
+          <span class="card-bloque-tag card-bloque-tag--indigo">${escapeHtml(v.plan_nombre)}</span>
+        </div>
+
+        <div class="detalle-campo-fila">
+          <span class="detalle-campo-label">Quién vendió:</span>
+          <span class="detalle-campo-valor">
+            <span class="usuario-pill" style="font-weight: 700;">${escapeHtml(v.vendedor_nombre || 'TuVes (Venta directa)')}</span>
+          </span>
+        </div>
+
+        <div class="detalle-campo-fila">
+          <span class="detalle-campo-label">Cuándo se vendió:</span>
+          <span class="detalle-campo-valor" style="color: var(--tinta);">
+            ${formatDateTime(v.creado_en)}
+          </span>
+        </div>
+
+        <div class="detalle-campo-fila">
+          <span class="detalle-campo-label">Fecha pedida por cliente:</span>
+          <span class="detalle-campo-valor">
+            <span class="chip chip--${fechaTono}">${escapeHtml(fechaTexto)}</span>
+          </span>
+        </div>
+
+        <div class="detalle-campo-fila">
+          <span class="detalle-campo-label">N° Venta TuVes:</span>
+          <span class="detalle-campo-valor" style="font-family: var(--fuente-mono, monospace);">
+            ${escapeHtml(v.numero_venta_tuves || 'Sin N° registrado')}
+          </span>
+        </div>
+
+        <div class="detalle-campo-fila">
+          <span class="detalle-campo-label">Dirección instalación:</span>
+          <span class="detalle-campo-valor" style="max-width: 60%; line-height: 1.3;">
+            ${escapeHtml(v.cliente_direccion || '—')}
+          </span>
+        </div>
+
+        <div class="detalle-campo-fila">
+          <span class="detalle-campo-label">Comuna:</span>
+          <span class="detalle-campo-valor">
+            📍 ${escapeHtml(v.comuna || 'Sin comuna')}
+          </span>
+        </div>
+
+        <div class="detalle-campo-fila">
+          <span class="detalle-campo-label">Comisión vendedor:</span>
+          <span class="detalle-campo-valor">
+            <span class="badge-monto badge-monto--positivo">${formatMoney(v.monto_vendedor || 0)}</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Tarjeta 2: Detalles de la Orden y Terreno -->
+      <div class="detalle-bloque detalle-bloque--destacado">
+        <div class="detalle-bloque-titulo">
+          <span>🛠️ Trabajo en Terreno / Orden</span>
+          <span id="modal-orden-estado-tag"><span class="chip chip--alerta">Consultando…</span></span>
+        </div>
+
+        <div id="modal-orden-contenido">
+          <div class="cargando-bloque" style="padding: 24px 10px;">
+            <div class="spinner"></div>
+            <p style="font-size: 0.85rem;">Consultando detalles de orden…</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-acciones" style="margin-top: 18px;">
+      <button type="button" class="btn btn--primario" id="btn-cerrar-modal">Cerrar</button>
+    </div>
+  `, { amplio: true });
+
+  root.querySelector('#btn-cerrar-modal').addEventListener('click', cerrar);
+
+  // Consulta asíncrona de los detalles técnicos completos
+  api(`/admin/ventas/${v.id}`).then((detalle) => {
+    const $estadoTag = root.querySelector('#modal-orden-estado-tag');
+    const $ordenContenido = root.querySelector('#modal-orden-contenido');
+    if (!$ordenContenido) return; // Modal cerrado
+
+    const orden = detalle.orden;
+    if (!orden) {
+      if ($estadoTag) $estadoTag.innerHTML = '<span class="chip chip--neutro">Sin orden aún</span>';
+      $ordenContenido.innerHTML = `
+        <div class="aviso-orden-pendiente">
+          <div class="aviso-orden-pendiente-icono">⏳</div>
+          <div class="aviso-orden-pendiente-titulo">Pendiente de visita técnica en terreno</div>
+          <div class="aviso-orden-pendiente-desc">
+            Esta suscripción comercial fue registrada y está a la espera de que el técnico la tome desde su celular
+            (<strong>Paso 1 del Wizard</strong>) para ejecutar la instalación domiciliaria y registrar números de serie.
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    // Si ya existe orden creada/en curso/aprobada:
+    if ($estadoTag) $estadoTag.innerHTML = badge(orden.estado);
+
+    const tieneMateriales = orden.materiales && orden.materiales.length > 0;
+    const tieneFotos = orden.fotos && orden.fotos.length > 0;
+    const tieneFerreteria = orden.ferreteria && orden.ferreteria.length > 0;
+
+    $ordenContenido.innerHTML = `
+      <div class="detalle-campo-fila">
+        <span class="detalle-campo-label">Folio de orden:</span>
+        <span class="detalle-campo-valor" style="font-weight: 800; font-family: var(--fuente-mono, monospace);">
+          ${escapeHtml(orden.folio || 'Borrador sin folio')}
+        </span>
+      </div>
+
+      <div class="detalle-campo-fila">
+        <span class="detalle-campo-label">Técnico instalador:</span>
+        <span class="detalle-campo-valor">
+          <strong style="color: var(--acento-2);">${escapeHtml(orden.tecnico_nombre || 'No asignado')}</strong>
+        </span>
+      </div>
+
+      <div class="detalle-campo-fila">
+        <span class="detalle-campo-label">Fecha de trabajo:</span>
+        <span class="detalle-campo-valor">
+          ${formatDateTime(orden.fecha_trabajo_dispositivo || orden.creado_en)}
+        </span>
+      </div>
+
+      <div class="detalle-campo-fila">
+        <span class="detalle-campo-label">Monto técnico servicio:</span>
+        <span class="detalle-campo-valor">
+          <span class="badge-monto badge-monto--positivo">${formatMoney(orden.monto_tecnico || 0)}</span>
+        </span>
+      </div>
+
+      ${tieneMateriales ? `
+        <div style="margin-top: 12px;">
+          <span class="detalle-campo-label" style="display: block; margin-bottom: 4px;">Equipos y Decodificadores:</span>
+          <div class="lista-equipos-instalados">
+            ${orden.materiales.map(m => `
+              <div class="item-equipo-instalado">
+                <div>
+                  <strong>${escapeHtml(m.tipo_equipo_nombre || 'Decodificador')}</strong>
+                  <div style="font-family: var(--fuente-mono, monospace); font-size: 0.76rem; color: var(--tinta-2);">
+                    Serie: ${escapeHtml(m.numero_serie)}
+                  </div>
+                </div>
+                <span class="chip chip--${m.accion === 'instalado' ? 'ok' : 'alerta'}" style="font-size: 0.72rem;">
+                  ${escapeHtml(m.accion)}
+                </span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      ${tieneFerreteria ? `
+        <div style="margin-top: 10px;">
+          <span class="detalle-campo-label" style="display: block; margin-bottom: 4px;">Ferretería / Insumos:</span>
+          <div style="font-size: 0.8rem; color: var(--tinta-2); background: #fff; border: 1px solid var(--borde); border-radius: 8px; padding: 6px 10px;">
+            ${orden.ferreteria.map(f => `${escapeHtml(f.item_nombre)}: <strong>${f.cantidad_final} ${escapeHtml(f.unidad_medida || 'un')}</strong>`).join(' · ')}
+          </div>
+        </div>
+      ` : ''}
+
+      ${tieneFotos ? `
+        <div style="margin-top: 12px;">
+          <span class="detalle-campo-label" style="display: block; margin-bottom: 4px;">Fotos de Terreno (${orden.fotos.length}):</span>
+          <div class="galeria-fotos-orden">
+            ${orden.fotos.map(f => `
+              <a href="/api/fotos/${f.id}" target="_blank" rel="noopener" class="galeria-foto-card" title="Toca para ver en grande">
+                <img src="/api/fotos/${f.id}" alt="${escapeHtml(f.tipo)}" loading="lazy">
+                <span class="galeria-foto-etiqueta">${escapeHtml(f.tipo.replace(/_/g, ' '))}</span>
+              </a>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+    `;
+  }).catch((err) => {
+    const $ordenContenido = root.querySelector('#modal-orden-contenido');
+    if ($ordenContenido) {
+      $ordenContenido.innerHTML = `
+        <div class="callout-aviso callout-aviso--error" style="margin-top: 8px;">
+          <div class="callout-texto">${escapeHtml(err.message || 'Error consultando orden')}</div>
+        </div>
+      `;
+    }
+  });
 }
 
 function pintarAlertas($div, r) {

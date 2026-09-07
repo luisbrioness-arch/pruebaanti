@@ -68,18 +68,64 @@ final class VentaRepository
     }
 
     /**
+     * Detalle completo de una venta con vendedor, plan, y si existe, la orden
+     * técnica asociada con sus materiales (equipos/decos), fotos y ferretería.
+     */
+    public function findConDetalle(int $id): ?array
+    {
+        $stmt = Database::connection()->prepare(
+            "SELECT v.*, p.nombre AS plan_nombre, u.nombre AS vendedor_nombre, u.email AS vendedor_email
+             FROM ventas v
+             JOIN planes p ON p.id = v.plan_id
+             LEFT JOIN usuarios u ON u.id = v.vendedor_id
+             WHERE v.id = ?"
+        );
+        $stmt->execute([$id]);
+        $venta = $stmt->fetch();
+        if (!$venta) {
+            return null;
+        }
+
+        // Buscar si existe una orden asociada a esta venta
+        $stmtOrden = Database::connection()->prepare(
+            "SELECT o.*, u.nombre AS tecnico_nombre, u.email AS tecnico_email, ts.nombre AS tipo_servicio_nombre
+             FROM ordenes o
+             JOIN usuarios u ON u.id = o.tecnico_id
+             JOIN tipos_servicio ts ON ts.id = o.tipo_servicio_id
+             WHERE o.venta_id = ?
+             ORDER BY o.id DESC LIMIT 1"
+        );
+        $stmtOrden->execute([$id]);
+        $orden = $stmtOrden->fetch() ?: null;
+
+        if ($orden) {
+            $orden['materiales'] = (new OrdenMaterialRepository())->paraOrden((int) $orden['id']);
+            $orden['fotos'] = (new OrdenFotoRepository())->paraOrden((int) $orden['id']);
+            $orden['ferreteria'] = (new OrdenFerreteriaRepository())->paraOrden((int) $orden['id']);
+        }
+
+        $venta['orden'] = $orden;
+        return $venta;
+    }
+
+    /**
      * Todas las ventas sin instalar (de cualquier técnico), ordenadas por la
      * fecha que pidió el cliente — las más próximas (o ya vencidas) primero,
      * las que no tienen fecha cargada van al final. Para "Pendientes de
-     * instalar" en Inicio del panel admin.
+     * instalar" en Inicio del panel admin. Incluye estado y folio de la orden
+     * si ya fue vinculada en terreno.
      */
     public function pendientesInstalarTodas(int $limite = 20): array
     {
         $stmt = Database::connection()->prepare(
-            "SELECT v.*, p.nombre AS plan_nombre, u.nombre AS vendedor_nombre
+            "SELECT v.*, p.nombre AS plan_nombre, u.nombre AS vendedor_nombre,
+                    o.id AS orden_id, o.folio AS orden_folio, o.estado AS orden_estado,
+                    ut.nombre AS tecnico_nombre
              FROM ventas v
              JOIN planes p ON p.id = v.plan_id
              LEFT JOIN usuarios u ON u.id = v.vendedor_id
+             LEFT JOIN ordenes o ON o.venta_id = v.id
+             LEFT JOIN usuarios ut ON ut.id = o.tecnico_id
              WHERE v.estado = 'registrada'
              ORDER BY (v.fecha_instalacion_solicitada IS NULL) ASC, v.fecha_instalacion_solicitada ASC
              LIMIT ?"

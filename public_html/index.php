@@ -92,6 +92,7 @@ $router->post('/api/admin/ordenes/{id}/reabrir', fn(Request $r) => (new AdminAud
 $router->post('/api/admin/ordenes/retroactiva', fn(Request $r) => (new AdminOrdenController())->crearRetroactiva($r));
 $router->get('/api/admin/ventas/pendientes', fn(Request $r) => (new AdminOrdenController())->ventasPendientes($r));
 $router->get('/api/admin/ventas/pendientes-instalar', fn(Request $r) => (new AdminOrdenController())->ventasPendientesInstalar($r));
+$router->get('/api/admin/ventas/{id}', fn(Request $r) => (new AdminOrdenController())->detalleVenta($r));
 
 // Historial (reemplaza a Auditoría en el nav — pedido: "elimina auditoria y
 // crea un link de historial ordenes vendidas y ordenes instaladas con fecha")

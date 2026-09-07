@@ -8,9 +8,10 @@ const contenedor = () => document.getElementById('modal-contenido');
 
 let manejadorTecla = null;
 
-export function abrirModal(html, { cerrarConEscape = true } = {}) {
+export function abrirModal(html, { cerrarConEscape = true, amplio = false } = {}) {
   const ov = overlay();
   const box = contenedor();
+  box.className = 'modal-caja' + (amplio ? ' modal-caja--amplio' : '');
   box.innerHTML = html;
   ov.hidden = false;
   document.body.classList.add('modal-abierto');
@@ -18,6 +19,7 @@ export function abrirModal(html, { cerrarConEscape = true } = {}) {
   const cerrar = () => {
     ov.hidden = true;
     box.innerHTML = '';
+    box.className = 'modal-caja';
     document.body.classList.remove('modal-abierto');
     if (manejadorTecla) {
       document.removeEventListener('keydown', manejadorTecla);

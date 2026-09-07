@@ -11,9 +11,10 @@ final class OrdenMaterialRepository
     public function paraOrden(int $ordenId): array
     {
         $stmt = Database::connection()->prepare(
-            "SELECT om.*, e.numero_serie, e.tipo_equipo_id
+            "SELECT om.*, e.numero_serie, e.tipo_equipo_id, te.nombre AS tipo_equipo_nombre
              FROM orden_materiales om
              JOIN equipos e ON e.id = om.equipo_id
+             LEFT JOIN tipos_equipo te ON te.id = e.tipo_equipo_id
              WHERE om.orden_id = ?"
         );
         $stmt->execute([$ordenId]);

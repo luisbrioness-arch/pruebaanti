@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Request;
 use App\Core\Response;
+use App\Exceptions\NotFoundException;
 use App\Exceptions\ValidationException;
 use App\Repositories\OrdenRepository;
 use App\Repositories\VentaRepository;
@@ -53,6 +54,20 @@ final class AdminOrdenController
     {
         Auth::requireAdmin();
         Response::json(['ventas' => (new VentaRepository())->pendientesInstalarTodas()]);
+    }
+
+    /**
+     * Detalle completo de una venta y de su orden técnica asociada (si existe).
+     */
+    public function detalleVenta(Request $req): void
+    {
+        Auth::requireAdmin();
+        $id = (int) $req->param('id');
+        $venta = (new VentaRepository())->findConDetalle($id);
+        if (!$venta) {
+            throw new NotFoundException('Venta comercial no encontrada.');
+        }
+        Response::json($venta);
     }
 
     /**

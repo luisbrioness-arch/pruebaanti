@@ -464,6 +464,11 @@ textarea { resize: vertical; min-height: 70px; }
   padding: 28px 30px; width: 460px; max-width: 100%; max-height: 88vh; overflow-y: auto;
   animation: modalSlideUp 0.24s cubic-bezier(0.16, 1, 0.3, 1);
 }
+.modal-caja.modal-caja--amplio {
+  width: 760px;
+  max-width: 95vw;
+  padding: 26px 28px;
+}
 @keyframes modalFadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -477,6 +482,192 @@ textarea { resize: vertical; min-height: 70px; }
 .modal-caja form { display: flex; flex-direction: column; gap: 14px; }
 .modal-acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
 body.modal-abierto { overflow: hidden; }
+
+/* Fila interactiva para ver detalles */
+.fila-cliqueable {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.fila-cliqueable:hover td {
+  background-color: #f0fdfa !important;
+}
+.fila-cliqueable:active td {
+  background-color: #ccfbf1 !important;
+}
+
+/* Modal Detalle Venta y Orden */
+.modal-banner-cliente {
+  background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+  color: #fff;
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.25);
+}
+.modal-banner-cliente-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.modal-banner-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #fff;
+  flex-shrink: 0;
+}
+.modal-banner-nombre {
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.modal-banner-sub {
+  font-size: 0.82rem;
+  opacity: 0.9;
+  margin-top: 2px;
+}
+.modal-detalle-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+@media (max-width: 640px) {
+  .modal-detalle-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.detalle-bloque {
+  background: var(--superficie-2);
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.detalle-bloque--destacado {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+.detalle-bloque-titulo {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: var(--tinta-2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.detalle-campo-fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  font-size: 0.86rem;
+}
+.detalle-campo-fila:last-child {
+  border-bottom: none;
+}
+.detalle-campo-label {
+  color: var(--tinta-3);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.detalle-campo-valor {
+  font-weight: 600;
+  color: var(--tinta);
+  text-align: right;
+}
+.detalle-campo-valor strong {
+  font-weight: 700;
+}
+.aviso-orden-pendiente {
+  background: #fffbeb;
+  border: 1.5px dashed #f59e0b;
+  border-radius: 12px;
+  padding: 18px 16px;
+  text-align: center;
+  margin-top: 6px;
+}
+.aviso-orden-pendiente-icono {
+  font-size: 2rem;
+  margin-bottom: 6px;
+}
+.aviso-orden-pendiente-titulo {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #92400e;
+}
+.aviso-orden-pendiente-desc {
+  font-size: 0.82rem;
+  color: #78350f;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+.galeria-fotos-orden {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.galeria-foto-card {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--borde);
+  background: #000;
+  display: block;
+}
+.galeria-foto-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s ease;
+}
+.galeria-foto-card:hover img {
+  transform: scale(1.08);
+}
+.galeria-foto-etiqueta {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(0deg, rgba(0,0,0,0.7), transparent);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 10px 4px 4px;
+  text-align: center;
+  text-transform: capitalize;
+}
+.lista-equipos-instalados {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.item-equipo-instalado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+}
 
 /* ---------- Escáner de código de barras (scanner.js) ---------- */
 .scanner-modal { position: fixed; inset: 0; background: #000; z-index: 9998; display: flex; flex-direction: column; }
