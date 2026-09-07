@@ -118,6 +118,9 @@ $router->delete('/api/admin/tarifas-instalacion/{plan}', fn(Request $r) => (new 
 // Usuarios
 $router->get('/api/admin/usuarios', fn(Request $r) => (new AdminUsuarioController())->listar($r));
 $router->post('/api/admin/usuarios', fn(Request $r) => (new AdminUsuarioController())->crear($r));
+$router->put('/api/admin/usuarios/{id}', fn(Request $r) => (new AdminUsuarioController())->actualizar($r));
+$router->put('/api/admin/usuarios/{id}/activo', fn(Request $r) => (new AdminUsuarioController())->cambiarActivo($r));
+$router->post('/api/admin/usuarios/{id}/password', fn(Request $r) => (new AdminUsuarioController())->cambiarPassword($r));
 
 // Liquidación y billetera
 $router->get('/api/admin/billetera/saldos', fn(Request $r) => (new AdminBilleteraController())->saldos($r));

@@ -26,9 +26,17 @@ final class UsuarioRepository
     public function activos(): array
     {
         $filas = Database::connection()
-            ->query('SELECT id, nombre, usuario, rol, porcentaje_reparto FROM usuarios WHERE activo = 1 ORDER BY nombre')
+            ->query('SELECT id, nombre, usuario, email, rol, porcentaje_reparto FROM usuarios WHERE activo = 1 ORDER BY nombre')
             ->fetchAll();
         return $filas;
+    }
+
+    /** Lista completa de usuarios (activos e inactivos) para la administración */
+    public function todos(): array
+    {
+        return Database::connection()
+            ->query('SELECT id, nombre, usuario, email, rol, porcentaje_reparto, activo, creado_en FROM usuarios ORDER BY activo DESC, nombre ASC')
+            ->fetchAll();
     }
 
     public function existeUsuario(string $usuario): bool

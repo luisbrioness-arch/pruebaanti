@@ -12,32 +12,77 @@ import { onColaCambio, colaContar } from '../offline.js';
 export async function renderHome(container) {
   setTopbar({ titulo: 'Terreno DTH' });
   const usuario = getUsuarioActual();
+  const iniciales = (usuario?.nombre || 'T')
+    .split(' ')
+    .filter(Boolean)
+    .map(p => p[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 
   const seccion = el(`
     <section class="home">
-      <p class="home-saludo">Hola, <strong>${escapeHtml(usuario?.nombre || '')}</strong></p>
+      <div class="home-perfil-card">
+        <div class="home-perfil-info">
+          <div class="home-avatar">${escapeHtml(iniciales)}</div>
+          <div>
+            <div class="home-saludo">Hola, <strong>${escapeHtml(usuario?.nombre || 'Técnico')}</strong></div>
+            <div class="home-rol">Técnico en Terreno · DTH</div>
+          </div>
+        </div>
+      </div>
 
       <p class="campo-ayuda" id="home-pendientes" hidden></p>
 
-      <div class="acciones-principales">
-        <button type="button" class="accion-grande acento-fuerte" id="btn-nueva-orden">
-          <span class="icono">📡</span>
-          <span>Nueva instalación / servicio</span>
-        </button>
-        <button type="button" class="accion-grande" id="btn-registrar-venta">
-          <span class="icono">🧾</span>
-          <span>Registrar venta</span>
-        </button>
+      <div class="hub-grid">
+        <div class="hub-card hub-card--destacado" id="btn-nueva-orden" role="button" tabindex="0">
+          <span class="hub-card-icono">📡</span>
+          <div>
+            <span class="hub-card-titulo">Nueva Instalación / OT</span>
+            <span class="hub-card-desc">Iniciar orden de trabajo en 5 pasos</span>
+          </div>
+        </div>
+
+        <div class="hub-card" id="btn-registrar-venta" role="button" tabindex="0">
+          <span class="hub-card-icono">🧾</span>
+          <div>
+            <span class="hub-card-titulo">Venta Directa</span>
+            <span class="hub-card-desc">Registrar suscripción</span>
+          </div>
+        </div>
+
+        <div class="hub-card" id="btn-traspasos" role="button" tabindex="0">
+          <span class="hub-badge" id="badge-traspasos" hidden></span>
+          <span class="hub-card-icono">📦</span>
+          <div>
+            <span class="hub-card-titulo">Mi Maleta</span>
+            <span class="hub-card-desc">Bodega y traspasos</span>
+          </div>
+        </div>
+
+        <div class="hub-card" id="btn-billetera" role="button" tabindex="0">
+          <span class="hub-card-icono">💳</span>
+          <div>
+            <span class="hub-card-titulo">Mi Billetera</span>
+            <span class="hub-valor" id="home-saldo-valor">Consultando…</span>
+          </div>
+        </div>
+
+        <div class="hub-card" id="btn-historial" role="button" tabindex="0">
+          <span class="hub-card-icono">📋</span>
+          <div>
+            <span class="hub-card-titulo">Mis Envíos</span>
+            <span class="hub-card-desc">Historial y estados</span>
+          </div>
+        </div>
       </div>
 
       <div>
-        <div class="seccion-titulo"><h3>En curso en este celular</h3></div>
+        <div class="seccion-titulo" style="margin-top: 6px; margin-bottom: 8px;">
+          <h3>Borradores en este celular</h3>
+        </div>
         <div class="lista-borradores" id="lista-borradores"></div>
       </div>
-
-      <button type="button" class="btn btn--secundario btn--ancho" id="btn-traspasos">📦 Bodega <span id="badge-traspasos"></span></button>
-      <button type="button" class="btn btn--secundario btn--ancho" id="btn-historial">Ver mis órdenes enviadas</button>
-      <button type="button" class="btn btn--secundario btn--ancho" id="btn-billetera">Ver mi billetera</button>
     </section>
   `);
   container.appendChild(seccion);
@@ -52,12 +97,26 @@ export async function renderHome(container) {
   seccion.querySelector('#btn-historial').addEventListener('click', () => irA('historial'));
   seccion.querySelector('#btn-billetera').addEventListener('click', () => irA('billetera'));
 
-  // Best-effort: si no hay señal, el botón queda sin número — no es crítico,
-  // el técnico igual puede entrar a mirar cuando quiera.
+  // Consulta asíncrona de saldo para la tarjeta de billetera
+  api('/mi-billetera').then(({ saldo }) => {
+    const $saldo = seccion.querySelector('#home-saldo-valor');
+    if ($saldo) {
+      $saldo.textContent = '$' + Math.round(Number(saldo)).toLocaleString('es-CL');
+      if (Number(saldo) < 0) $saldo.classList.add('valor-negativo');
+    }
+  }).catch(() => {
+    const $saldo = seccion.querySelector('#home-saldo-valor');
+    if ($saldo) $saldo.textContent = 'Ver saldo';
+  });
+
+  // Best-effort traspasos pendientes
   api('/mis-traspasos').then(({ equipos, ferreteria }) => {
-    const n = equipos.length + ferreteria.length;
+    const n = (equipos?.length || 0) + (ferreteria?.length || 0);
     const $badge = seccion.querySelector('#badge-traspasos');
-    if ($badge && n > 0) $badge.textContent = `(${n})`;
+    if ($badge && n > 0) {
+      $badge.textContent = `${n} por recibir`;
+      $badge.hidden = false;
+    }
   }).catch(() => {});
 
   pintarBorradores(seccion.querySelector('#lista-borradores'));
