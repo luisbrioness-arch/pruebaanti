@@ -770,10 +770,46 @@ JOIN (
 ) v ON v.codigo = ts.codigo
 JOIN usuarios u ON u.usuario = 'edwin';
 
--- Plan y comisión de ejemplo — AJUSTAR a los planes y montos reales de TuVes.
-INSERT INTO planes (codigo, nombre) VALUES ('plan_full', 'Plan Full');
+-- Planes oficiales TuVes
+INSERT INTO planes (codigo, nombre, activo) VALUES
+('plan_basico_1deco', 'Plan Básico 1 Deco', 1),
+('plan_basico_2decos', 'Plan Básico 2 Decos', 1),
+('plan_basico_3decos', 'Plan Básico 3 Decos', 1),
+('plan_basico_4decos', 'Plan Básico 4 Decos', 1),
+('plan_premium_1deco', 'Plan Premium (TNT Sports) 1 Deco', 1),
+('plan_premium_2decos', 'Plan Premium (TNT Sports) 2 Decos', 1),
+('plan_premium_3decos', 'Plan Premium (TNT Sports) 3 Decos', 1),
+('plan_premium_4decos', 'Plan Premium (TNT Sports) 4 Decos', 1)
+ON DUPLICATE KEY UPDATE nombre = VALUES(nombre), activo = 1;
 
+-- Comisiones vigentes por plan
 INSERT INTO comisiones_plan (plan_id, monto, vigente_desde, vigente_hasta, creado_por)
-SELECT p.id, 12000, '2026-01-01 00:00:00', NULL, u.id
-FROM planes p JOIN usuarios u ON u.usuario = 'edwin'
-WHERE p.codigo = 'plan_full';
+SELECT p.id, v.comision, '2026-01-01 00:00:00', NULL, u.id
+FROM planes p
+JOIN (
+    SELECT 'plan_basico_1deco' codigo, 15000 comision UNION ALL
+    SELECT 'plan_basico_2decos', 20000 UNION ALL
+    SELECT 'plan_basico_3decos', 25000 UNION ALL
+    SELECT 'plan_basico_4decos', 30000 UNION ALL
+    SELECT 'plan_premium_1deco', 20000 UNION ALL
+    SELECT 'plan_premium_2decos', 25000 UNION ALL
+    SELECT 'plan_premium_3decos', 25000 UNION ALL
+    SELECT 'plan_premium_4decos', 30000
+) v ON v.codigo = p.codigo
+JOIN usuarios u ON u.usuario = 'edwin';
+
+-- Tarifas de instalación por plan (según cantidad de decos para ventas propias)
+INSERT INTO tarifas_instalacion_plan (plan_id, monto, vigente_desde, vigente_hasta, creado_por)
+SELECT p.id, v.tarifa, '2026-01-01 00:00:00', NULL, u.id
+FROM planes p
+JOIN (
+    SELECT 'plan_basico_1deco' codigo, 12000 tarifa UNION ALL
+    SELECT 'plan_basico_2decos', 14000 UNION ALL
+    SELECT 'plan_basico_3decos', 16000 UNION ALL
+    SELECT 'plan_basico_4decos', 18000 UNION ALL
+    SELECT 'plan_premium_1deco', 12000 UNION ALL
+    SELECT 'plan_premium_2decos', 14000 UNION ALL
+    SELECT 'plan_premium_3decos', 16000 UNION ALL
+    SELECT 'plan_premium_4decos', 18000
+) v ON v.codigo = p.codigo
+JOIN usuarios u ON u.usuario = 'edwin';
