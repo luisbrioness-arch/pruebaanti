@@ -1,28 +1,65 @@
-// Inicio — accesos rápidos a las otras pantallas + lo importante de un
-// vistazo (pedido: "falta una pantalla de inicio con accesos a las otras
-// partes y con información importante"). Reemplaza a la vieja pestaña
-// "Indicadores" (mismo endpoint, GET /admin/indicadores) — se fusionó acá
-// para no tener dos tableros parecidos compitiendo por atención.
 import { api } from '../api.js';
 import { el, escapeHtml, formatMoney } from '../utils.js';
 import { abrirModal } from '../modal.js';
 
 const ACCESOS = [
-  { ruta: 'bodega', icono: '📦', etiqueta: 'Bodega' },
-  { ruta: 'bodega?vista=tecnicos', icono: '🧑‍🔧', etiqueta: 'Bodega técnicos' },
-  { ruta: 'billetera', icono: '👛', etiqueta: 'Billetera' },
-  { ruta: 'tarifario', icono: '💲', etiqueta: 'Tarifario' },
-  { ruta: 'usuarios', icono: '👥', etiqueta: 'Usuarios' },
-  { ruta: 'historial', icono: '📋', etiqueta: 'Informes' },
+  {
+    ruta: 'bodega',
+    icono: '📦',
+    colorFondo: '#FEF3C7',
+    tag: 'Inventario Central',
+    etiqueta: 'Bodega Central',
+    desc: 'Stock de decodificadores, tarjetas TuVes, LNB y carga de lotes.',
+  },
+  {
+    ruta: 'bodega?vista=tecnicos',
+    icono: '🧰',
+    colorFondo: '#E0F2FE',
+    tag: 'Maletas Técnicas',
+    etiqueta: 'Bodega Técnicos',
+    desc: 'Equipos asignados y material en custodia por instalador.',
+  },
+  {
+    ruta: 'billetera',
+    icono: '💳',
+    colorFondo: '#DCFCE7',
+    tag: 'Finanzas y Pagos',
+    etiqueta: 'Billetera',
+    desc: 'Saldos disponibles, registro de pagos y liquidación de períodos.',
+  },
+  {
+    ruta: 'tarifario',
+    icono: '🏷️',
+    colorFondo: '#F3E8FF',
+    tag: 'Precios Oficiales',
+    etiqueta: 'Tarifario y Planes',
+    desc: 'Comisiones de venta comercial y tarifas por número de decos.',
+  },
+  {
+    ruta: 'usuarios',
+    icono: '👥',
+    colorFondo: '#EEF2FF',
+    tag: 'Equipo Humano',
+    etiqueta: 'Usuarios y Roles',
+    desc: 'Gestión de técnicos, credenciales de acceso y permisos.',
+  },
+  {
+    ruta: 'historial',
+    icono: '📊',
+    colorFondo: '#FFE4E6',
+    tag: 'Analítica y CSV',
+    etiqueta: 'Informes',
+    desc: 'Rendimiento comparativo, reporte de ventas y exportación a PDF/Excel.',
+  },
 ];
 
-/** 'YYYY-MM' de hoy, según el reloj del navegador. */
+/** 'YYYY-MM' de hoy según el reloj local */
 function mesActualStr() {
   const hoy = new Date();
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
 }
 
-/** "Período: 1 al 30 de septiembre de 2026" — a partir de lo que devolvió el servidor (fuente de verdad del rango real usado). */
+/** "Período: 1 al 30 de septiembre de 2026" */
 function formatPeriodoLabel(desde, hasta) {
   const d1 = new Date(desde + 'T00:00:00');
   const d2 = new Date(hasta + 'T00:00:00');
@@ -30,11 +67,6 @@ function formatPeriodoLabel(desde, hasta) {
   return `Período: ${d1.getDate()} al ${d2.getDate()} de ${mesTexto}`;
 }
 
-/**
- * Pedido: "que el otro periodo salga en modo lista" — reemplaza el
- * `<input type="month">` (calendario nativo) por un `<select>` con los
- * últimos N meses, el más reciente primero.
- */
 function listaUltimosMeses(n) {
   const hoy = new Date();
   const meses = [];
@@ -49,53 +81,114 @@ function listaUltimosMeses(n) {
 
 export async function renderInicio(container) {
   const seccion = el(`
-    <section class="inicio">
-      <div class="inicio-seccion inicio-seccion--primera">
-        <h3>Accesos</h3>
-        <div class="accesos-grid">
+    <div class="vista-contenedor">
+      <!-- Cabecera de Bienvenida -->
+      <div class="vista-cabecera inicio-cabecera-bienvenida">
+        <div>
+          <span class="badge-bienvenida">Panel de Control General</span>
+          <h2 class="vista-titulo">Resumen Operativo</h2>
+          <p class="vista-subtitulo">
+            Métricas del mes, accesos rápidos a módulos principales y control de órdenes en terreno.
+          </p>
+        </div>
+        <div class="inicio-periodo-control">
+          <div class="inicio-periodo-badge">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="periodo-titulo">Cargando período…</span>
+          </div>
+          <button type="button" class="btn btn--secundario btn--chico btn-con-icono" id="periodo-consultar">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span>Cambiar mes</span>
+          </button>
+          <button type="button" class="btn btn--texto btn--chico" id="periodo-hoy" hidden>Volver a este mes</button>
+        </div>
+      </div>
+
+      <!-- Sección 1: Métricas Clave del Período -->
+      <div id="inicio-tiles" style="margin-bottom: 30px;">
+        <div class="cargando-bloque"><div class="spinner"></div><p>Cargando métricas del período…</p></div>
+      </div>
+
+      <!-- Sección 2: Accesos Directos a Módulos -->
+      <div style="margin-bottom: 32px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+          <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--tinta); margin: 0;">Módulos del Sistema</h3>
+          <span style="font-size: 0.8rem; color: var(--tinta-3); font-weight: 600;">Acceso rápido a gestión</span>
+        </div>
+        <div class="accesos-hub-grid">
           ${ACCESOS.map((a) => `
-            <a href="#${a.ruta}" class="acceso-tarjeta">
-              <span class="acceso-icono">${a.icono}</span>
-              <span>${escapeHtml(a.etiqueta)}</span>
+            <a href="#${a.ruta}" class="acceso-hub-tarjeta">
+              <div class="acceso-hub-icono" style="background: ${a.colorFondo};">
+                ${a.icono}
+              </div>
+              <div class="acceso-hub-cuerpo">
+                <div class="acceso-hub-titular">
+                  <span class="acceso-hub-tag">${escapeHtml(a.tag)}</span>
+                  <span class="acceso-hub-flecha">→</span>
+                </div>
+                <h4 class="acceso-hub-titulo">${escapeHtml(a.etiqueta)}</h4>
+                <p class="acceso-hub-desc">${escapeHtml(a.desc)}</p>
+              </div>
             </a>
           `).join('')}
         </div>
       </div>
 
-      <div class="inicio-seccion">
-        <h3>Importante</h3>
-        <div id="inicio-alertas"><p class="vacio">Cargando…</p></div>
-      </div>
-
-      <div class="inicio-seccion">
-        <h3>Ventas pendientes de instalar</h3>
-        <div id="inicio-ventas-pendientes"><p class="vacio">Cargando…</p></div>
-      </div>
-
-      <div class="inicio-seccion">
-        <div class="form-fila" style="align-items: center;">
-          <h3 id="periodo-titulo" style="margin: 0;">Este mes</h3>
-          <button type="button" class="btn btn--secundario btn--chico" id="periodo-consultar">Consultar otro período</button>
-          <button type="button" class="btn btn--texto btn--chico" id="periodo-hoy" hidden>Volver a este mes</button>
+      <!-- Sección 3: Alertas Operativas -->
+      <div class="card-bloque" style="margin-bottom: 28px;">
+        <div class="card-bloque-cabecera">
+          <div class="card-bloque-titular">
+            <span class="card-bloque-tag card-bloque-tag--amber">Atención operativa</span>
+            <h3>Alertas y pendientes urgentes</h3>
+            <p class="card-bloque-bajada">Seguimiento de traspasos sin confirmar y órdenes retenidas.</p>
+          </div>
         </div>
-        <div id="inicio-tiles"><p class="vacio">Cargando…</p></div>
+        <div class="card-bloque-body" style="padding: 20px 24px;">
+          <div id="inicio-alertas">
+            <div class="cargando-bloque" style="padding: 20px;"><div class="spinner"></div><p>Verificando alertas…</p></div>
+          </div>
+        </div>
       </div>
-    </section>
+
+      <!-- Sección 4: Ventas Pendientes de Instalar -->
+      <section class="card-bloque" style="margin-bottom: 24px;">
+        <div class="card-bloque-cabecera">
+          <div class="card-bloque-titular">
+            <span class="card-bloque-tag card-bloque-tag--indigo">Por instalar</span>
+            <h3>Ventas pendientes de instalación</h3>
+            <p class="card-bloque-bajada">Suscripciones contratadas esperando visita técnica en terreno.</p>
+          </div>
+          <span class="badge-monto badge-monto--mudo" id="badge-pendientes-conteo">0 pendientes</span>
+        </div>
+        <div class="card-bloque-body">
+          <div id="inicio-ventas-pendientes">
+            <div class="cargando-bloque"><div class="spinner"></div><p>Cargando órdenes…</p></div>
+          </div>
+        </div>
+      </section>
+    </div>
   `);
   container.appendChild(seccion);
 
   try {
     const { ventas } = await api('/admin/ventas/pendientes-instalar');
+    const $badgeConteo = seccion.querySelector('#badge-pendientes-conteo');
+    if ($badgeConteo) $badgeConteo.textContent = `${ventas.length} por instalar`;
     pintarVentasPendientes(seccion.querySelector('#inicio-ventas-pendientes'), ventas);
   } catch (e) {
-    seccion.querySelector('#inicio-ventas-pendientes').innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
+    seccion.querySelector('#inicio-ventas-pendientes').innerHTML = `
+      <div class="callout-aviso callout-aviso--error"><div class="callout-texto">${escapeHtml(e.message)}</div></div>
+    `;
   }
 
-  // Pedido/reporte #7: "Que diga periodo septiembre del 1 al 30 y que
-  // cambie cuando sea otro mes y que tambien deje cambiar para mirar de
-  // forma rapida otros periodos" — ajustado después a "prefiero que tenga
-  // un boton que diga consultar otro periodo" (en vez de flechas ◀/▶): un
-  // botón abre un modal con un selector de mes.
   const $titulo = seccion.querySelector('#periodo-titulo');
   const $tiles = seccion.querySelector('#inicio-tiles');
   const $btnConsultar = seccion.querySelector('#periodo-consultar');
@@ -106,33 +199,47 @@ export async function renderInicio(container) {
   async function cargarPeriodo(mes) {
     mesMostrado = mes;
     $btnHoy.hidden = mes === mesDeHoy;
-    $tiles.innerHTML = '<p class="vacio">Cargando…</p>';
+    $tiles.innerHTML = '<div class="cargando-bloque"><div class="spinner"></div><p>Actualizando período…</p></div>';
     try {
       const r = await api(`/admin/indicadores?mes=${mes}`);
       $titulo.textContent = formatPeriodoLabel(r.periodo.desde, r.periodo.hasta);
       pintarTiles($tiles, r);
-      // Las alertas ("Importante") no dependen del período — son la cola
-      // de trabajo real de AHORA (conflictos, traspasos viejos, etc.), el
-      // backend las calcula igual sin importar qué mes se haya pedido.
       pintarAlertas(seccion.querySelector('#inicio-alertas'), r);
     } catch (e) {
-      $tiles.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
+      $tiles.innerHTML = `
+        <div class="callout-aviso callout-aviso--error"><div class="callout-texto">${escapeHtml(e.message)}</div></div>
+      `;
     }
   }
 
   $btnConsultar.addEventListener('click', () => {
     const { root, cerrar } = abrirModal(`
-      <h3>Consultar otro período</h3>
-      <form id="form-periodo">
+      <div class="modal-encabezado-icono">
+        <div class="modal-icono-circulo modal-icono-circulo--indigo">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+        </div>
+        <div>
+          <h3 style="margin: 0; font-size: 1.15rem;">Consultar otro período</h3>
+          <p style="margin: 3px 0 0; font-size: 0.82rem; color: var(--tinta-2);">
+            Visualiza métricas históricas de instalaciones y ventas por mes.
+          </p>
+        </div>
+      </div>
+      <form id="form-periodo" style="margin-top: 18px;">
         <label class="campo">
-          <span>Mes</span>
-          <select name="mes" required>
+          <span>Seleccionar mes</span>
+          <select name="mes" required class="input-select-moderno" style="width: 100%;">
             ${listaUltimosMeses(24).map((m) => `<option value="${m.valor}" ${m.valor === mesMostrado ? 'selected' : ''}>${escapeHtml(m.etiqueta)}</option>`).join('')}
           </select>
         </label>
-        <div class="modal-acciones">
+        <div class="modal-acciones" style="margin-top: 20px;">
           <button type="button" class="btn btn--secundario" id="btn-cancelar">Cancelar</button>
-          <button type="submit" class="btn btn--primario">Ver</button>
+          <button type="submit" class="btn btn--primario">Ver estadísticas</button>
         </div>
       </form>
     `);
@@ -149,124 +256,190 @@ export async function renderInicio(container) {
   await cargarPeriodo(mesDeHoy);
 }
 
-/** "hoy", "en 3 días", "vencida hace 2 días" — sin depender de ninguna librería de fechas. */
 function etiquetaFecha(fechaStr) {
-  if (!fechaStr) return { texto: 'Sin fecha', tono: '' };
+  if (!fechaStr) return { texto: 'Sin fecha agendada', tono: 'neutro' };
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
   const fecha = new Date(fechaStr + 'T00:00:00');
   const dias = Math.round((fecha - hoy) / 86400000);
   const fechaFmt = fecha.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
   if (dias < 0) return { texto: `${fechaFmt} — vencida hace ${-dias} día${-dias === 1 ? '' : 's'}`, tono: 'malo' };
-  if (dias === 0) return { texto: `${fechaFmt} — hoy`, tono: 'malo' };
-  if (dias <= 3) return { texto: `${fechaFmt} — en ${dias} día${dias === 1 ? '' : 's'}`, tono: 'alerta' };
-  return { texto: fechaFmt, tono: '' };
+  if (dias === 0) return { texto: `${fechaFmt} — ¡Hoy!`, tono: 'alerta' };
+  if (dias <= 3) return { texto: `${fechaFmt} — en ${dias} día${dias === 1 ? '' : 's'}`, tono: 'ok' };
+  return { texto: fechaFmt, tono: 'neutro' };
 }
 
 function pintarVentasPendientes($div, ventas) {
   if (!ventas.length) {
-    $div.innerHTML = '<p class="campo-ayuda">No hay ventas esperando instalación.</p>';
+    $div.innerHTML = `
+      <div class="vacio-tarjeta" style="padding: 36px 20px;">
+        <div class="vacio-icono">✨</div>
+        <p class="vacio-titulo">No hay ventas esperando instalación</p>
+        <p class="vacio-desc">Todas las suscripciones vendidas han sido instaladas con éxito en terreno.</p>
+      </div>
+    `;
     return;
   }
   $div.innerHTML = `
-    <table class="tabla">
-      <thead>
-        <tr>
-          <th>Cliente</th><th>Dirección</th><th>Plan</th><th>Comuna</th><th>Vendedor</th>
-          <th style="text-align: left;">Fecha pedida</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${ventas.map((v) => {
-          const { texto, tono } = etiquetaFecha(v.fecha_instalacion_solicitada);
-          return `
-            <tr>
-              <td>${escapeHtml(v.cliente_nombre)}</td>
-              <td>${escapeHtml(v.cliente_direccion || '—')}</td>
-              <td>${escapeHtml(v.plan_nombre)}</td>
-              <td>${escapeHtml(v.comuna)}</td>
-              <td>${escapeHtml(v.vendedor_nombre || 'TuVes (directo)')}</td>
-              <td>${tono ? `<span class="chip chip--${tono}">${escapeHtml(texto)}</span>` : escapeHtml(texto)}</td>
-            </tr>
-          `;
-        }).join('')}
-      </tbody>
-    </table>
+    <div class="tabla-envoltorio">
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Dirección y Comuna</th>
+            <th>Plan contratado</th>
+            <th>Vendedor</th>
+            <th style="text-align: right;">Fecha solicitada</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${ventas.map((v) => {
+            const { texto, tono } = etiquetaFecha(v.fecha_instalacion_solicitada);
+            return `
+              <tr>
+                <td>
+                  <strong class="fila-nombre">${escapeHtml(v.cliente_nombre)}</strong>
+                </td>
+                <td>
+                  <div style="font-size: 0.84rem;">
+                    <div>${escapeHtml(v.cliente_direccion || '—')}</div>
+                    <span style="color: var(--tinta-3); font-size: 0.78rem;">📍 ${escapeHtml(v.comuna || 'Sin comuna')}</span>
+                  </div>
+                </td>
+                <td>
+                  <span class="card-bloque-tag card-bloque-tag--indigo">${escapeHtml(v.plan_nombre)}</span>
+                </td>
+                <td>
+                  <span class="usuario-pill">${escapeHtml(v.vendedor_nombre || 'TuVes (directo)')}</span>
+                </td>
+                <td style="text-align: right;">
+                  <span class="chip chip--${tono}">${escapeHtml(texto)}</span>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
   `;
 }
 
 function pintarAlertas($div, r) {
   const items = [
-    // Ya no hay cola de auditoría manual (las órdenes se auto-aprueban al
-    // enviarse) — solo queda avisar si alguna quedó en conflicto de folio,
-    // que ahora se ve (con su estado) en Historial.
     r.conflictos_abiertos > 0 && {
-      texto: `${r.conflictos_abiertos} orden(es) en conflicto sin resolver`, ruta: 'historial', tono: 'malo',
+      texto: `${r.conflictos_abiertos} orden(es) en conflicto de folio sin resolver`,
+      ruta: 'historial',
+      tono: 'malo',
+      tipo: 'Crítico',
     },
     r.traspasos_equipo_viejos > 0 && {
-      texto: `${r.traspasos_equipo_viejos} traspaso(s) de equipo llevan 3+ días sin confirmar`, ruta: 'bodega', tono: 'malo',
+      texto: `${r.traspasos_equipo_viejos} traspaso(s) de equipo llevan 3+ días sin confirmar`,
+      ruta: 'bodega',
+      tono: 'malo',
+      tipo: 'Urgente',
     },
-    // Reporte #19: "que aqui tambien aparezca si un tecnico no ha aceptado
-    // algun traspaso" — los recién enviados (todavía no llegan a 3 días)
-    // no son urgentes como el de arriba, pero igual conviene que se vean.
     (r.traspasos_equipo_pendientes - r.traspasos_equipo_viejos) > 0 && {
-      texto: `${r.traspasos_equipo_pendientes - r.traspasos_equipo_viejos} traspaso(s) de equipo esperando que el técnico confirme`, ruta: 'bodega', tono: 'neutro',
+      texto: `${r.traspasos_equipo_pendientes - r.traspasos_equipo_viejos} traspaso(s) de equipo esperando confirmación del técnico`,
+      ruta: 'bodega',
+      tono: 'neutro',
+      tipo: 'Pendiente',
     },
     r.entregas_ferreteria_viejas > 0 && {
-      texto: `${r.entregas_ferreteria_viejas} entrega(s) de ferretería llevan 3+ días sin confirmar`, ruta: 'bodega', tono: 'malo',
+      texto: `${r.entregas_ferreteria_viejas} entrega(s) de ferretería llevan 3+ días sin confirmar`,
+      ruta: 'bodega',
+      tono: 'malo',
+      tipo: 'Urgente',
     },
     r.ferreteria_pendiente_confirmar > 0 && {
-      texto: `${r.ferreteria_pendiente_confirmar} entrega(s) de ferretería esperando confirmación`, ruta: 'bodega', tono: 'alerta',
+      texto: `${r.ferreteria_pendiente_confirmar} entrega(s) de ferretería esperando confirmación`,
+      ruta: 'bodega',
+      tono: 'alerta',
+      tipo: 'Atención',
     },
   ].filter(Boolean);
 
   if (!items.length) {
-    $div.innerHTML = '<p class="campo-ayuda">✔ Todo al día — no hay nada urgente pendiente.</p>';
+    $div.innerHTML = `
+      <div class="alerta-estado-vacio">
+        <div class="alerta-estado-icono-ok">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+        <div class="alerta-estado-info">
+          <strong>Todo al día y operativo</strong>
+          <p>No hay traspasos vencidos, entregas demoradas ni órdenes en conflicto de folio.</p>
+        </div>
+      </div>
+    `;
     return;
   }
+
   $div.innerHTML = `
     <div class="alertas-lista">
       ${items.map((i) => `
-        <a href="#${i.ruta}" class="alerta-fila alerta-fila--${i.tono}">${escapeHtml(i.texto)} →</a>
+        <a href="#${i.ruta}" class="alerta-fila alerta-fila--${i.tono}">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="chip chip--${i.tono}">${i.tipo}</span>
+            <span>${escapeHtml(i.texto)}</span>
+          </div>
+          <span style="font-weight: 700; font-size: 0.95rem;">Ir a gestionar →</span>
+        </a>
       `).join('')}
     </div>
   `;
 }
 
-/**
- * Tile accionable (pedido: "que aqui sean botones accionables") — todo el
- * tile es un link a Historial, no solo decoración. `valorDinero` es
- * opcional: cuando viene, se pinta aparte a la derecha del conteo
- * (pedido: "a la derecha el valor en dinero que lo que llevamos").
- */
-function tile(etiqueta, valor, { tono = '', valorDinero = null, ruta = 'historial' } = {}) {
-  return `
-    <a href="#${ruta}" class="tile ${tono}">
-      <span class="tile-fila">
-        <span class="tile-valor">${valor}</span>
-        ${valorDinero !== null ? `<span class="tile-dinero">${escapeHtml(valorDinero)}</span>` : ''}
-      </span>
-      <span class="tile-etiqueta">${escapeHtml(etiqueta)}</span>
-    </a>
-  `;
-}
-
-// Pedido: "eliminemos el concepto de aprobadas si se instala ya es sumada"
-// — "Aprobadas" duplicaba lo que ya cuenta "Instalaciones este mes" (una
-// orden de instalación aprobada YA está en ese conteo). En su lugar,
-// "Ventas por instalar" — la cola real de ventas registradas sin instalar
-// todavía, mismo número que la tabla de arriba pero como resumen rápido.
-// "Liquidado" (casi siempre $0 — dependía de un cierre manual de
-// billetera) pasa a ser "Total mes": la plata real generada este mes por
-// órdenes aprobadas (cualquier tipo de servicio) + comisión de las ventas
-// que ya se instalaron.
 function pintarTiles($div, r) {
   $div.innerHTML = `
-    <div class="tiles">
-      ${tile('Instalaciones este mes', r.instalaciones_mes.n, { tono: 'tile--ok', valorDinero: formatMoney(r.instalaciones_mes.monto) })}
-      ${tile('Ventas este mes', r.ventas_mes.n, { tono: 'tile--ok', valorDinero: formatMoney(r.ventas_mes.monto) })}
-      ${tile('Ventas por instalar', r.ventas_por_instalar, { tono: 'tile--ok' })}
-      ${tile('Total mes', formatMoney(r.total_mes), { tono: 'tile--ok', ruta: 'billetera' })}
+    <div class="informes-kpi-grid" style="margin-bottom: 0;">
+      <div class="informes-kpi-card informes-kpi-card--ordenes">
+        <div class="informes-kpi-cabecera">
+          <span class="informes-kpi-etiqueta">Instalaciones Este Mes</span>
+          <div class="informes-kpi-icono informes-kpi-icono--verde">🛠️</div>
+        </div>
+        <div class="informes-kpi-numero">${r.instalaciones_mes.n}</div>
+        <div class="informes-kpi-bajada">
+          <span>Órdenes completadas</span>
+          <span class="informes-kpi-monto-resaltado">${formatMoney(r.instalaciones_mes.monto)}</span>
+        </div>
+      </div>
+
+      <div class="informes-kpi-card informes-kpi-card--ventas">
+        <div class="informes-kpi-cabecera">
+          <span class="informes-kpi-etiqueta">Ventas Este Mes</span>
+          <div class="informes-kpi-icono informes-kpi-icono--azul">💼</div>
+        </div>
+        <div class="informes-kpi-numero">${r.ventas_mes.n}</div>
+        <div class="informes-kpi-bajada">
+          <span>Suscripciones nuevas</span>
+          <span class="informes-kpi-monto-resaltado">${formatMoney(r.ventas_mes.monto)}</span>
+        </div>
+      </div>
+
+      <div class="informes-kpi-card informes-kpi-card--actividad">
+        <div class="informes-kpi-cabecera">
+          <span class="informes-kpi-etiqueta">Ventas Por Instalar</span>
+          <div class="informes-kpi-icono informes-kpi-icono--morado">⏳</div>
+        </div>
+        <div class="informes-kpi-numero">${r.ventas_por_instalar}</div>
+        <div class="informes-kpi-bajada">
+          <span>Cola pendiente en terreno</span>
+          <span class="card-bloque-tag card-bloque-tag--amber">Por agendar</span>
+        </div>
+      </div>
+
+      <a href="#billetera" class="informes-kpi-card informes-kpi-card--destacado" style="text-decoration: none;">
+        <div class="informes-kpi-cabecera">
+          <span class="informes-kpi-etiqueta">Total del Mes</span>
+          <div class="informes-kpi-icono informes-kpi-icono--destacado">💰</div>
+        </div>
+        <div class="informes-kpi-numero">${formatMoney(r.total_mes)}</div>
+        <div class="informes-kpi-bajada">
+          <span>Facturación consolidada</span>
+          <span style="color: #34D399; font-weight: 700;">Ver billetera →</span>
+        </div>
+      </a>
     </div>
   `;
 }
