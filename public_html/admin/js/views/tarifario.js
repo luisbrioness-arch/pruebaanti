@@ -11,7 +11,7 @@ export async function renderTarifario(container) {
         <div>
           <h2 class="vista-titulo">Tarifario y comisiones</h2>
           <p class="vista-subtitulo">
-            Control de valores monetarios para órdenes de servicio, comisiones comerciales y tarifas de instalación.
+            Control centralizado de comisiones comerciales por venta y tarifas diferenciales de instalación por plan.
           </p>
         </div>
       </div>
@@ -30,21 +30,7 @@ export async function renderTarifario(container) {
       </div>
 
       <div class="tarifario-secciones">
-        <!-- Bloque 1: Tarifas por tipo de servicio -->
-        <section class="card-bloque">
-          <div class="card-bloque-cabecera">
-            <div class="card-bloque-titular">
-              <span class="card-bloque-tag card-bloque-tag--teal">Servicios base</span>
-              <h3>Tarifas por tipo de servicio</h3>
-              <p class="card-bloque-bajada">Monto vigente abonado al técnico al completar una orden según su categoría.</p>
-            </div>
-          </div>
-          <div class="card-bloque-body">
-            <div id="tabla-tarifas" class="tabla-envoltorio"><p class="vacio">Cargando tarifas…</p></div>
-          </div>
-        </section>
-
-        <!-- Bloque 2: Comisiones por plan -->
+        <!-- Bloque 1: Comisiones por plan -->
         <section class="card-bloque">
           <div class="card-bloque-cabecera">
             <div class="card-bloque-titular">
@@ -62,13 +48,13 @@ export async function renderTarifario(container) {
           </div>
         </section>
 
-        <!-- Bloque 3: Instalación por plan -->
+        <!-- Bloque 2: Instalación por plan -->
         <section class="card-bloque">
           <div class="card-bloque-cabecera">
             <div class="card-bloque-titular">
               <span class="card-bloque-tag card-bloque-tag--amber">Escalonamiento decos</span>
               <h3>Instalación por plan</h3>
-              <p class="card-bloque-bajada">Tarifas específicas de instalación cuando la orden deriva de una venta propia.</p>
+              <p class="card-bloque-bajada">Tarifas específicas de instalación según la cantidad de decodificadores.</p>
             </div>
             <button type="button" class="btn btn--secundario btn--chico btn-con-icono" id="btn-nuevo-plan-instalacion">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -77,7 +63,7 @@ export async function renderTarifario(container) {
           </div>
           <div class="nota-explicativa">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; margin-top:1px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-            <span>Los planes escalan por cantidad de decodificadores. Si una orden de "Instalación nueva" viene de venta propia, cobra según esta tabla diferencial. Si un plan no tiene tarifa acá, aplica el monto plano estándar de "Instalación nueva".</span>
+            <span>Los planes escalan por cantidad de decodificadores para ventas propias. Si un plan no tiene tarifa diferencial acá, aplicará la tarifa plana estándar.</span>
           </div>
           <div class="card-bloque-body">
             <div id="tabla-instalacion-plan" class="tabla-envoltorio"><p class="vacio">Cargando instalaciones…</p></div>
@@ -87,7 +73,6 @@ export async function renderTarifario(container) {
     </div>
   `));
 
-  const $tarifas = container.querySelector('#tabla-tarifas');
   const $comisiones = container.querySelector('#tabla-comisiones');
   const $instalacionPlan = container.querySelector('#tabla-instalacion-plan');
 
@@ -228,155 +213,14 @@ export async function renderTarifario(container) {
 
   async function cargar() {
     try {
-      const [{ tarifas }, { comisiones }, { tarifas_instalacion: tarifasInstalacion }] = await Promise.all([
-        api('/admin/tarifas'),
+      const [{ comisiones }, { tarifas_instalacion: tarifasInstalacion }] = await Promise.all([
         api('/admin/comisiones'),
         api('/admin/tarifas-instalacion'),
       ]);
-      renderTablaTarifas(tarifas);
       renderTablaComisiones(comisiones);
       renderTablaInstalacion(tarifasInstalacion);
     } catch (e) {
-      $tarifas.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
-    }
-  }
-
-  // -------------------------------------------- Tarifas por tipo de servicio --
-  function renderTablaTarifas(filas) {
-    if (!filas.length) {
-      $tarifas.innerHTML = '<p class="vacio">No hay tarifas de servicio configuradas todavía.</p>';
-      return;
-    }
-    $tarifas.innerHTML = `
-      <table class="tabla tabla--editable">
-        <thead>
-          <tr>
-            <th style="width: 32%;">Tipo de servicio</th>
-            <th style="width: 24%;">Monto vigente</th>
-            <th style="width: 26%;">Vigente desde</th>
-            <th style="width: 18%; text-align: right;">Acciones</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    `;
-    const $tbody = $tarifas.querySelector('tbody');
-    for (const fila of filas) {
-      const codigo = fila.tipo_servicio_codigo;
-      const nombre = fila.tipo_servicio_nombre;
-      const tr = el(`
-        <tr>
-          <td>
-            <div class="celda-destacada">
-              <span class="fila-nombre">${escapeHtml(nombre)}</span>
-            </div>
-          </td>
-          <td>
-            <span class="badge-monto">${formatMoney(fila.monto)}</span>
-          </td>
-          <td>
-            <div class="celda-fecha-contenedor">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-              </svg>
-              <span>${formatDateTime(fila.vigente_desde)}</span>
-            </div>
-          </td>
-          <td>
-            <div class="fila-tarifa-acciones">
-              <button type="button" class="btn-accion btn-accion--editar" data-editar title="Editar nombre y monto vigente">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                </svg>
-                <span>Editar</span>
-              </button>
-              <button type="button" class="btn-accion btn-accion--eliminar" data-eliminar title="Eliminar tarifa">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="3 6 5 6 21 6"></polyline>
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                </svg>
-                <span>Eliminar</span>
-              </button>
-            </div>
-          </td>
-        </tr>
-      `);
-      tr.querySelector('[data-editar]').addEventListener('click', () => {
-        abrirModalEditar({
-          nombreActual: nombre,
-          montoActual: fila.monto,
-          onGuardar: async ({ nombreCambio, montoCambio }) => {
-            if (nombreCambio) {
-              await conColaSiHaceFalta(
-                'editar_nombre_tarifa', { codigo, nombre: nombreCambio },
-                () => api(`/admin/tarifas/${encodeURIComponent(codigo)}/nombre`, { method: 'PUT', body: { nombre: nombreCambio } }),
-                `nombre_${codigo}`
-              );
-            }
-            if (montoCambio) {
-              await conColaSiHaceFalta(
-                'editar_tarifa', { codigo, monto: montoCambio },
-                () => api(`/admin/tarifas/${encodeURIComponent(codigo)}`, { method: 'PUT', body: { monto: montoCambio } }),
-                codigo
-              );
-            }
-            toast(`"${nombreCambio || nombre}" actualizado.`, 'ok');
-            await cargar();
-          },
-        });
-      });
-      tr.querySelector('[data-eliminar]').addEventListener('click', () => {
-        const { root, cerrar } = abrirModal(`
-          <div class="modal-advertencia">
-            <div class="modal-encabezado-icono">
-              <div class="modal-icono-circulo modal-icono-circulo--malo">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                  <line x1="12" y1="9" x2="12" y2="13"></line>
-                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                </svg>
-              </div>
-              <div>
-                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--malo);">Eliminar tarifa de "${escapeHtml(nombre)}"</h3>
-                <p class="modal-explicacion" style="margin: 4px 0 0;">
-                  Sin un monto vigente, ningún técnico podrá cerrar órdenes de "${escapeHtml(nombre)}" hasta que asignes uno nuevo.
-                </p>
-              </div>
-            </div>
-            <p style="font-size: 0.85rem; color: var(--tinta-2); margin: 14px 0 18px; line-height: 1.5;">
-              El historial previo no se elimina: los registros históricos se mantienen intactos en auditoría.
-            </p>
-            <div class="modal-acciones">
-              <button type="button" class="btn btn--secundario" id="btn-cancelar">Cancelar</button>
-              <button type="button" class="btn btn--malo" id="btn-confirmar">Eliminar tarifa</button>
-            </div>
-          </div>
-        `);
-        root.querySelector('#btn-cancelar').addEventListener('click', cerrar);
-        root.querySelector('#btn-confirmar').addEventListener('click', async () => {
-          cerrar();
-          try {
-            const { encolado } = await conColaSiHaceFalta(
-              'eliminar_tarifa', { codigo },
-              () => api(`/admin/tarifas/${encodeURIComponent(codigo)}`, { method: 'DELETE' }),
-              codigo
-            );
-            if (encolado) {
-              toast(`${nombre}: guardado sin conexión — se aplicará al recuperar señal.`, 'neutro');
-            } else {
-              toast(`Tarifa de "${nombre}" eliminada.`, 'alerta', 8000);
-              await cargar();
-            }
-          } catch (e) {
-            toast(e.message, 'malo');
-          }
-        });
-      });
-      $tbody.appendChild(tr);
+      toast(e.message, 'malo');
     }
   }
 
@@ -391,9 +235,9 @@ export async function renderTarifario(container) {
       <table class="tabla tabla--editable">
         <thead>
           <tr>
-            <th style="width: 32%;">Plan comercial</th>
+            <th style="width: 34%;">Plan comercial</th>
             <th style="width: 24%;">Comisión vigente</th>
-            <th style="width: 26%;">Vigente desde</th>
+            <th style="width: 24%;">Vigente desde</th>
             <th style="width: 18%; text-align: right;">Acciones</th>
           </tr>
         </thead>
@@ -537,9 +381,9 @@ export async function renderTarifario(container) {
       <table class="tabla tabla--editable">
         <thead>
           <tr>
-            <th style="width: 32%;">Plan comercial</th>
+            <th style="width: 34%;">Plan comercial</th>
             <th style="width: 24%;">Tarifa instalación propia</th>
-            <th style="width: 26%;">Vigente desde</th>
+            <th style="width: 24%;">Vigente desde</th>
             <th style="width: 18%; text-align: right;">Acciones</th>
           </tr>
         </thead>

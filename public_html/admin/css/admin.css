@@ -386,7 +386,7 @@ textarea { resize: vertical; min-height: 70px; }
 .modal-icono-circulo--indigo { background: #EEF2FF; color: #4338CA; }
 .modal-icono-circulo--malo { background: #FEE2E2; color: #DC2626; }
 
-#tabla-tarifas, #tabla-comisiones, #tabla-instalacion-plan { overflow-x: auto; }
+#tabla-comisiones, #tabla-instalacion-plan { overflow-x: auto; }
 
 /* ==========================================================================
    Auditoría — layout de 3 columnas
