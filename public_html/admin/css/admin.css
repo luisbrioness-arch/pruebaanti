@@ -205,15 +205,16 @@ textarea { resize: vertical; min-height: 70px; }
 .chip--malo { background: #FEF2F2; color: #991B1B; border: 1px solid #FECACA; }
 
 /* ---------- Tablas ---------- */
-.tabla { width: 100%; border-collapse: collapse; font-size: .86rem; }
+.tabla { width: 100%; border-collapse: collapse; font-size: .88rem; }
 .tabla th {
   text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em;
-  color: var(--tinta-3); padding: 12px 14px; border-bottom: 2px solid var(--borde);
-  background: var(--superficie); font-weight: 700;
+  color: var(--tinta-3); padding: 13px 20px; border-bottom: 1px solid var(--borde);
+  background: #F8FAFC; font-weight: 700; white-space: nowrap;
 }
-.tabla td { padding: 12px 14px; border-bottom: 1px solid var(--borde); vertical-align: middle; color: var(--tinta); }
+.tabla td { padding: 14px 20px; border-bottom: 1px solid var(--borde); vertical-align: middle; color: var(--tinta); }
 .tabla tbody tr { transition: background-color 0.15s ease; }
 .tabla tbody tr:hover { background: #F8FAFC; }
+.tabla tbody tr:last-child td { border-bottom: none; }
 .celda-mono { font-family: var(--fuente-mono); font-size: .82rem; }
 .celda-monto { font-family: var(--fuente-mono); font-weight: 700; color: var(--acento-2); }
 .celda-negativa { color: var(--malo); font-weight: 700; }
@@ -222,11 +223,7 @@ textarea { resize: vertical; min-height: 70px; }
 .celda-acciones select { padding: 5px 8px; font-size: .78rem; min-width: 124px; border-radius: 6px; }
 .tabla th:last-child { text-align: right; }
 
-/* Menú "Acciones ▾" de Equipos (pedido: "que todas las opciones de perdido
-   falla de fabrica o devuelto a tuvez esten en un boton solo") — un solo
-   botón que despliega una lista angosta pegada abajo, en vez de 1-3
-   botones sueltos por fila. Se cierra con el listener en document que
-   agrega crearMenuAcciones() en bodega.js. */
+/* Menú "Acciones ▾" de Equipos */
 .menu-acciones { position: relative; }
 .menu-acciones-lista {
   position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 170px;
@@ -242,15 +239,153 @@ textarea { resize: vertical; min-height: 70px; }
 .menu-acciones-lista button.menu-item--malo { color: var(--malo); }
 .menu-acciones-lista button.menu-item--malo:hover { background: var(--malo-suave); }
 .tabla--editable input { width: 110px; }
-/* Tarifario: "Guardar" + "Eliminar" (cuando existe) en la misma fila, al
-   costado, nunca abajo — no reutiliza .celda-acciones porque su
-   min-width:124px por botón (pensado para textos largos como "Falla de
-   fábrica" en Bodega) sería más ancho que la columna entera acá y forzaría
-   el wrap que justamente se pidió evitar. */
-.fila-tarifa-acciones { display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex-wrap: nowrap; }
-.fila-tarifa-acciones input { width: 90px; }
-/* Red de seguridad: si un nombre de plan larguísimo igual no entra, que la
-   tabla scrollee horizontal en vez de romper el layout de la página. */
+
+/* ==========================================================================
+   Tarifario y Card Blocks Modernos
+   ========================================================================== */
+.vista-contenedor { max-width: 1060px; margin: 0 auto; }
+.vista-cabecera {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 24px; gap: 16px;
+}
+.vista-titulo {
+  font-size: 1.45rem; font-weight: 800; color: var(--tinta);
+  letter-spacing: -0.03em; margin: 0;
+}
+.vista-subtitulo {
+  color: var(--tinta-2); font-size: 0.88rem; margin-top: 5px; line-height: 1.5;
+}
+
+/* Callout informativo moderno */
+.callout-aviso {
+  display: flex; align-items: flex-start; gap: 14px;
+  background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 12px;
+  padding: 14px 18px; margin-bottom: 24px; color: #166534; font-size: 0.86rem;
+  line-height: 1.55; box-shadow: 0 1px 2px rgba(22, 101, 52, 0.04);
+}
+.callout-icono {
+  color: #15803D; flex-shrink: 0; margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+}
+.callout-texto strong { color: #14532D; font-weight: 700; }
+
+/* Tarjetas de sección (Card Bloque) */
+.tarifario-secciones { display: flex; flex-direction: column; gap: 24px; }
+.card-bloque {
+  background: var(--superficie); border: 1px solid var(--borde);
+  border-radius: var(--radio-lg); box-shadow: var(--sombra-card);
+  overflow: hidden; transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.card-bloque:hover {
+  border-color: #CBD5E1;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+.card-bloque-cabecera {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 24px; border-bottom: 1px solid var(--borde);
+  background: #FFFFFF; flex-wrap: wrap; gap: 12px;
+}
+.card-bloque-titular h3 {
+  font-size: 1.05rem; font-weight: 700; color: var(--tinta);
+  margin: 5px 0 2px; letter-spacing: -0.02em;
+}
+.card-bloque-bajada { font-size: 0.82rem; color: var(--tinta-2); line-height: 1.4; margin: 0; }
+.card-bloque-tag {
+  display: inline-block; font-size: 0.68rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 8px;
+  border-radius: 6px;
+}
+.card-bloque-tag--teal { background: #CCFBF1; color: #0F766E; }
+.card-bloque-tag--indigo { background: #EEF2FF; color: #4338CA; }
+.card-bloque-tag--amber { background: #FEF3C7; color: #B45309; }
+
+.nota-explicativa {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 24px; background: #F8FAFC; border-bottom: 1px solid var(--borde);
+  color: var(--tinta-2); font-size: 0.82rem; line-height: 1.5;
+}
+.nota-explicativa svg { color: var(--tinta-3); }
+
+/* Tablas envoltorio */
+.tabla-envoltorio { overflow-x: auto; width: 100%; }
+
+.celda-destacada { display: flex; align-items: center; gap: 8px; }
+.fila-nombre { font-weight: 600; color: var(--tinta); font-size: 0.88rem; }
+
+/* Badge de monto monetario */
+.badge-monto {
+  display: inline-flex; align-items: center;
+  background: #ECFDF5; color: #065F46;
+  font-family: var(--fuente-mono); font-weight: 700; font-size: 0.86rem;
+  padding: 4px 10px; border-radius: 7px; border: 1px solid #A7F3D0;
+  letter-spacing: -0.02em;
+}
+.badge-monto--mudo {
+  background: #F1F5F9; color: #64748B;
+  border-color: #E2E8F0; font-weight: 600; font-size: 0.8rem;
+}
+
+/* Celda fecha */
+.celda-fecha-contenedor {
+  display: inline-flex; align-items: center; gap: 7px;
+  color: var(--tinta-2); font-size: 0.82rem; white-space: nowrap;
+}
+.celda-fecha-contenedor svg { color: var(--tinta-3); flex-shrink: 0; }
+
+/* Botones de acción en tabla */
+.fila-tarifa-acciones {
+  display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex-wrap: nowrap;
+}
+.btn-accion {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 7px; font-size: 0.78rem; font-weight: 600;
+  cursor: pointer; transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid transparent; line-height: 1; text-decoration: none;
+}
+.btn-accion svg { flex-shrink: 0; }
+.btn-accion--editar {
+  background: #F1F5F9; color: #334155; border-color: #CBD5E1;
+}
+.btn-accion--editar:hover {
+  background: #E2E8F0; color: #0F172A; border-color: #94A3B8;
+  transform: translateY(-1px);
+}
+.btn-accion--eliminar {
+  background: #FEF2F2; color: #DC2626; border-color: #FECACA;
+}
+.btn-accion--eliminar:hover {
+  background: #FEE2E2; color: #B91C1C; border-color: #FCA5A5;
+  transform: translateY(-1px);
+}
+
+.btn-con-icono {
+  display: inline-flex; align-items: center; gap: 6px;
+}
+
+/* Inputs con prefijo (ej: $ CLP) */
+.input-con-prefijo {
+  position: relative; display: flex; align-items: center;
+}
+.input-prefijo {
+  position: absolute; left: 14px; font-family: var(--fuente-mono);
+  font-weight: 700; color: var(--tinta-3); pointer-events: none; font-size: 0.95rem;
+}
+.input-con-prefijo input {
+  padding-left: 30px; width: 100%; font-family: var(--fuente-mono); font-weight: 600;
+}
+
+/* Header modal con icono */
+.modal-encabezado-icono {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 8px;
+}
+.modal-icono-circulo {
+  width: 44px; height: 44px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.modal-icono-circulo--teal { background: #CCFBF1; color: #0F766E; }
+.modal-icono-circulo--indigo { background: #EEF2FF; color: #4338CA; }
+.modal-icono-circulo--malo { background: #FEE2E2; color: #DC2626; }
+
 #tabla-tarifas, #tabla-comisiones, #tabla-instalacion-plan { overflow-x: auto; }
 
 /* ==========================================================================
@@ -317,17 +452,30 @@ textarea { resize: vertical; min-height: 70px; }
    Modal
    ========================================================================== */
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(22,35,42,.45);
+  position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
   display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px;
+  animation: modalFadeIn 0.2s ease-out;
 }
 .modal-caja {
-  background: var(--superficie); border-radius: 10px; box-shadow: var(--sombra);
-  padding: 24px; width: 420px; max-width: 100%; max-height: 85vh; overflow-y: auto;
+  background: var(--superficie); border-radius: 16px; box-shadow: var(--sombra-lg);
+  border: 1px solid var(--borde);
+  padding: 28px 30px; width: 460px; max-width: 100%; max-height: 88vh; overflow-y: auto;
+  animation: modalSlideUp 0.24s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.modal-caja h3 { margin-bottom: 14px; }
-.modal-explicacion { color: var(--tinta-2); font-size: .85rem; margin-bottom: 14px; }
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modalSlideUp {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.modal-caja h3 { margin-bottom: 14px; font-weight: 800; color: var(--tinta); }
+.modal-explicacion { color: var(--tinta-2); font-size: .86rem; margin-bottom: 14px; line-height: 1.5; }
 .modal-caja form { display: flex; flex-direction: column; gap: 14px; }
-.modal-acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.modal-acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
 body.modal-abierto { overflow: hidden; }
 
 /* ---------- Escáner de código de barras (scanner.js) ---------- */
