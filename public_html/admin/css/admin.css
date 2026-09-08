@@ -135,6 +135,12 @@ textarea { resize: vertical; min-height: 70px; }
   background: #0B132B; border-bottom: 1px solid rgba(255, 255, 255, 0.08); flex-shrink: 0;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
 }
+.topbar-izq {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
 .topbar-marca {
   font-weight: 800; font-size: 1.15rem; color: #FFFFFF;
   text-decoration: none; letter-spacing: -0.03em; display: inline-flex; align-items: center; gap: 9px;

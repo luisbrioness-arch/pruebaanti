@@ -43,7 +43,8 @@ function iniciarRelojTecnico() {
   function tick() {
     const ahora = new Date();
     const hora = ahora.toLocaleTimeString('es-CL', { hour12: false, hour: '2-digit', minute: '2-digit' });
-    elReloj.textContent = `🕒 ${hora}`;
+    const fecha = ahora.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' });
+    elReloj.innerHTML = `<span class="reloj-hora">🕒 ${hora}</span> <span class="reloj-fecha">📅 ${fecha}</span>`;
   }
   tick();
   setInterval(tick, 1000);

@@ -24,7 +24,10 @@
   <!-- Cáscara de la app (oculta hasta confirmar sesión) -->
   <div id="shell" hidden>
     <header class="topbar">
-      <a href="#inicio" class="topbar-marca" title="Volver al inicio">Terreno DTH <span>· admin</span></a>
+      <div class="topbar-izq">
+        <a href="#inicio" class="topbar-marca" title="Volver al inicio">Terreno DTH <span>· admin</span></a>
+        <div id="admin-reloj-fecha-hora" class="topbar-reloj"></div>
+      </div>
       <nav class="topbar-nav">
         <a href="#inicio" class="nav-link" data-route="inicio">Inicio</a>
         <a href="#bodega" class="nav-link" data-route="bodega">Bodega</a>
@@ -34,7 +37,6 @@
         <a href="#historial" class="nav-link" data-route="historial">Informes</a>
       </nav>
       <div class="topbar-usuario">
-        <div id="admin-reloj-fecha-hora" class="topbar-reloj"></div>
         <span id="pendientes-badge" class="chip chip--alerta" title="Acciones guardadas sin conexión, esperando señal" hidden></span>
         <span id="usuario-nombre"></span>
         <button type="button" id="ajustes-btn" class="btn btn--texto" title="Ajustes de mi cuenta">⚙ Ajustes</button>
@@ -57,6 +59,6 @@
        global (window.Html5Qrcode), no un módulo ES. `defer` evita que
        bloquee el parseo del HTML mientras se descarga. -->
   <script src="js/vendor/html5-qrcode.min.js" defer></script>
-  <script type="module" src="js/app.js?v=20"></script>
+  <script type="module" src="js/app.js?v=21"></script>
 </body>
 </html>
