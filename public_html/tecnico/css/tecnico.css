@@ -49,7 +49,7 @@
    especificidad que un display:flex propio — sin !important, el atributo
    pierde la cascada y el elemento se queda visible. */
 [hidden] { display: none !important; }
-html, body { height: 100%; overscroll-behavior-y: none; }
+html, body { min-height: 100%; overscroll-behavior-y: auto; }
 body {
   margin: 0;
   background: var(--bg);
@@ -251,6 +251,69 @@ button { font: inherit; }
   color: #fff;
   letter-spacing: 0.02em;
   white-space: nowrap;
+}
+
+/* Indicador de Pull to Refresh (arrastrar para actualizar) */
+.ptr-indicador {
+  position: fixed;
+  top: calc(var(--safe-top) + 12px);
+  left: 50%;
+  transform: translate(-50%, -70px);
+  z-index: 99;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #0F172A;
+  color: #FFFFFF;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  pointer-events: none;
+  opacity: 0;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+.ptr-indicador.ptr--visible {
+  opacity: 1;
+}
+.ptr-indicador.ptr--listo {
+  background: #0D9488;
+  box-shadow: 0 8px 24px rgba(13, 148, 136, 0.4);
+}
+.ptr-indicador.ptr--cargando {
+  background: #0F766E;
+  opacity: 1;
+  transform: translate(-50%, 14px) !important;
+}
+.ptr-icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: transform 0.2s ease;
+}
+.ptr--listo .ptr-icono {
+  transform: rotate(180deg);
+}
+.ptr-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #FFFFFF;
+  border-radius: 50%;
+  animation: ptr-girar 0.6s linear infinite;
+  display: none;
+}
+.ptr--cargando .ptr-spinner {
+  display: inline-block;
+}
+.ptr--cargando .ptr-icono {
+  display: none;
+}
+@keyframes ptr-girar {
+  to { transform: rotate(360deg); }
 }
 
 /* Tarjeta de estado de actualización en Home */

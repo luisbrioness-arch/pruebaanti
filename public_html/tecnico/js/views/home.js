@@ -38,7 +38,7 @@ export async function renderHome(container) {
           <div class="home-estado-texto">
             <span class="home-estado-titulo">
               Sistema Actualizado
-              <span class="home-estado-version-tag">v21</span>
+              <span class="home-estado-version-tag">v22</span>
             </span>
             <span class="home-estado-subtexto">Datos y conexión al día</span>
           </div>
