@@ -61,19 +61,24 @@ function mesActualStr() {
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
 }
 
-/** "Período: 1 al 30 de septiembre de 2026" */
-function formatPeriodoLabel(desde, hasta) {
-  const d1 = new Date(desde + 'T00:00:00');
-  const d2 = new Date(hasta + 'T00:00:00');
-  const mesTexto = d1.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
-  return `Período: ${d1.getDate()} al ${d2.getDate()} de ${mesTexto}`;
+function formatMesNombre(mesStr) {
+  const [y, m] = mesStr.split('-').map(Number);
+  const d = new Date(y, m - 1, 1);
+  const mesTexto = d.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
+  return mesTexto.charAt(0).toUpperCase() + mesTexto.slice(1);
 }
 
-function listaUltimosMeses(n) {
-  const hoy = new Date();
+function desplazarMes(mesStr, delta) {
+  const [y, m] = mesStr.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function listaOpcionesMeses(centroMesStr, pastCount = 24, futureCount = 3) {
+  const [cy, cm] = (centroMesStr || mesActualStr()).split('-').map(Number);
   const meses = [];
-  for (let i = 0; i < n; i++) {
-    const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+  for (let i = futureCount; i >= -pastCount; i--) {
+    const d = new Date(cy, cm - 1 + i, 1);
     const valor = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     const etiqueta = d.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
     meses.push({ valor, etiqueta: etiqueta.charAt(0).toUpperCase() + etiqueta.slice(1) });
@@ -94,23 +99,36 @@ export async function renderInicio(container) {
           </p>
         </div>
         <div class="inicio-periodo-control">
-          <div class="inicio-periodo-badge">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-            <span id="periodo-titulo">Cargando período…</span>
+          <div class="periodo-nav-card">
+            <button type="button" class="btn-periodo-nav" id="periodo-ant" title="Ir al mes anterior">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            
+            <div class="periodo-select-wrapper" title="Clic para seleccionar otro mes">
+              <div class="periodo-info-principal">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="periodo-icono-cal">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <span id="periodo-label-mes" class="periodo-label-mes">Cargando…</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="periodo-icono-flecha"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </div>
+              <select id="select-periodo-mes" class="periodo-select-invisible" title="Seleccionar otro mes"></select>
+            </div>
+
+            <button type="button" class="btn-periodo-nav" id="periodo-sig" title="Ir al mes siguiente">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
           </div>
-          <button type="button" class="btn btn--secundario btn--chico btn-con-icono" id="periodo-consultar">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-            <span>Cambiar mes</span>
+
+          <span id="periodo-rango-subtexto" class="periodo-rango-badge">1 al 30 de mes</span>
+
+          <button type="button" class="btn btn--chico btn--secundario btn-con-icono" id="periodo-hoy" title="Volver al mes en curso" hidden>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+            <span>Este mes</span>
           </button>
-          <button type="button" class="btn btn--texto btn--chico" id="periodo-hoy" hidden>Volver a este mes</button>
         </div>
       </div>
 
@@ -194,20 +212,37 @@ export async function renderInicio(container) {
   }
   await recargarVentas();
 
-  const $titulo = seccion.querySelector('#periodo-titulo');
-  const $tiles = seccion.querySelector('#inicio-tiles');
-  const $btnConsultar = seccion.querySelector('#periodo-consultar');
+  const $labelMes = seccion.querySelector('#periodo-label-mes');
+  const $selectMes = seccion.querySelector('#select-periodo-mes');
+  const $rangoSubtexto = seccion.querySelector('#periodo-rango-subtexto');
+  const $btnAnt = seccion.querySelector('#periodo-ant');
+  const $btnSig = seccion.querySelector('#periodo-sig');
   const $btnHoy = seccion.querySelector('#periodo-hoy');
+  const $tiles = seccion.querySelector('#inicio-tiles');
   const mesDeHoy = mesActualStr();
   let mesMostrado = mesDeHoy;
+
+  function actualizarOpcionesSelect(seleccionado) {
+    const opciones = listaOpcionesMeses(mesDeHoy, 24, 3);
+    $selectMes.innerHTML = opciones.map((m) => `
+      <option value="${m.valor}" ${m.valor === seleccionado ? 'selected' : ''}>
+        ${escapeHtml(m.etiqueta)}${m.valor === mesDeHoy ? ' (Mes actual)' : ''}
+      </option>
+    `).join('');
+  }
 
   async function cargarPeriodo(mes) {
     mesMostrado = mes;
     $btnHoy.hidden = mes === mesDeHoy;
+    $labelMes.textContent = formatMesNombre(mes);
+    actualizarOpcionesSelect(mes);
     $tiles.innerHTML = '<div class="cargando-bloque"><div class="spinner"></div><p>Actualizando período…</p></div>';
     try {
       const r = await api(`/admin/indicadores?mes=${mes}`);
-      $titulo.textContent = formatPeriodoLabel(r.periodo.desde, r.periodo.hasta);
+      const d1 = new Date(r.periodo.desde + 'T00:00:00');
+      const d2 = new Date(r.periodo.hasta + 'T00:00:00');
+      const mesTexto = d1.toLocaleDateString('es-CL', { month: 'long' });
+      $rangoSubtexto.textContent = `${d1.getDate()} al ${d2.getDate()} de ${mesTexto}`;
       pintarTiles($tiles, r);
       pintarAlertas(seccion.querySelector('#inicio-alertas'), r);
     } catch (e) {
@@ -217,46 +252,21 @@ export async function renderInicio(container) {
     }
   }
 
-  $btnConsultar.addEventListener('click', () => {
-    const { root, cerrar } = abrirModal(`
-      <div class="modal-encabezado-icono">
-        <div class="modal-icono-circulo modal-icono-circulo--indigo">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
-          </svg>
-        </div>
-        <div>
-          <h3 style="margin: 0; font-size: 1.15rem;">Consultar otro período</h3>
-          <p style="margin: 3px 0 0; font-size: 0.82rem; color: var(--tinta-2);">
-            Visualiza métricas históricas de instalaciones y ventas por mes.
-          </p>
-        </div>
-      </div>
-      <form id="form-periodo" style="margin-top: 18px;">
-        <label class="campo">
-          <span>Seleccionar mes</span>
-          <select name="mes" required class="input-select-moderno" style="width: 100%;">
-            ${listaUltimosMeses(24).map((m) => `<option value="${m.valor}" ${m.valor === mesMostrado ? 'selected' : ''}>${escapeHtml(m.etiqueta)}</option>`).join('')}
-          </select>
-        </label>
-        <div class="modal-acciones" style="margin-top: 20px;">
-          <button type="button" class="btn btn--secundario" id="btn-cancelar">Cancelar</button>
-          <button type="submit" class="btn btn--primario">Ver estadísticas</button>
-        </div>
-      </form>
-    `);
-    root.querySelector('#btn-cancelar').addEventListener('click', cerrar);
-    root.querySelector('#form-periodo').addEventListener('submit', (ev) => {
-      ev.preventDefault();
-      const mes = new FormData(ev.target).get('mes');
-      cerrar();
-      cargarPeriodo(mes);
-    });
+  $selectMes.addEventListener('change', (ev) => {
+    cargarPeriodo(ev.target.value);
   });
-  $btnHoy.addEventListener('click', () => cargarPeriodo(mesDeHoy));
+
+  $btnAnt.addEventListener('click', () => {
+    cargarPeriodo(desplazarMes(mesMostrado, -1));
+  });
+
+  $btnSig.addEventListener('click', () => {
+    cargarPeriodo(desplazarMes(mesMostrado, 1));
+  });
+
+  $btnHoy.addEventListener('click', () => {
+    cargarPeriodo(mesDeHoy);
+  });
 
   await cargarPeriodo(mesDeHoy);
 }
