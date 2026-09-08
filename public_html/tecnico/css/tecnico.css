@@ -129,6 +129,71 @@ button { font: inherit; }
 }
 .segmentado button.activo { background: var(--superficie); color: var(--acento-2); box-shadow: var(--sombra); }
 
+/* Selector de tipo de servicio con botones táctiles */
+.grupo-botones-servicio {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 6px;
+}
+.btn-servicio-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 14px 10px;
+  min-height: 84px;
+  background: var(--superficie);
+  border: 2px solid var(--borde);
+  border-radius: var(--radio-chico);
+  color: var(--tinta);
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  position: relative;
+  user-select: none;
+}
+.btn-servicio-card:active {
+  transform: scale(0.97);
+}
+.btn-servicio-card .btn-servicio-icono {
+  font-size: 1.8rem;
+  line-height: 1;
+  margin-bottom: 6px;
+  display: block;
+}
+.btn-servicio-card .btn-servicio-nombre {
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--tinta);
+}
+.btn-servicio-card.activo {
+  border-color: var(--acento);
+  background: var(--acento-suave);
+  color: var(--acento-2);
+  box-shadow: 0 0 0 1px var(--acento), var(--sombra);
+}
+.btn-servicio-card.activo .btn-servicio-nombre {
+  color: var(--acento-2);
+}
+.btn-servicio-card.activo::after {
+  content: '✓';
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #fff;
+  background: var(--acento);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* ---------- Botones ---------- */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;

@@ -1,7 +1,7 @@
 // Paso 1 — crear la orden. Es la única vez que se decide folio y tipo de
 // servicio: no hay endpoint para cambiarlos después (ver wizard.js).
 import { api, ApiError } from '../../api.js';
-import { el, escapeHtml } from '../../utils.js';
+import { el, escapeHtml, iconoTipoServicio } from '../../utils.js';
 import { toast } from '../../toast.js';
 import { setCatalogo } from '../../storage.js';
 import { encolar } from '../../offline.js';
@@ -28,16 +28,24 @@ export async function renderPaso1(container, ctx) {
     <section class="wizard-paso">
       <h2>¿Qué trabajo es?</h2>
       <form class="paso1-form" id="form-paso1" novalidate>
-        <label class="campo">
-          <span>Tipo de servicio</span>
-          <select name="tipo_servicio" required>
-            <option value="" disabled selected>Elige uno</option>
-            ${catalogo.map((t) => `<option value="${escapeHtml(t.codigo)}">${escapeHtml(t.nombre)}</option>`).join('')}
-          </select>
-        </label>
-        <label class="campo">
+        <div class="campo">
+          <span style="font-weight: 700; font-size: 0.95rem; margin-bottom: 6px; display: block;">Tipo de servicio</span>
+          <input type="hidden" name="tipo_servicio" id="input-tipo-servicio" value="">
+          <div class="grupo-botones-servicio" id="grupo-botones-servicio">
+            ${catalogo.map((t) => {
+              const icono = iconoTipoServicio(t.codigo);
+              return `
+                <button type="button" class="btn-servicio-card" data-codigo="${escapeHtml(t.codigo)}">
+                  <span class="btn-servicio-icono">${icono}</span>
+                  <span class="btn-servicio-nombre">${escapeHtml(t.nombre)}</span>
+                </button>
+              `;
+            }).join('')}
+          </div>
+        </div>
+        <label class="campo" style="margin-top: 14px;">
           <span>Folio</span>
-          <input type="text" name="folio" inputmode="numeric" autocomplete="off" required>
+          <input type="text" name="folio" inputmode="numeric" autocomplete="off" placeholder="Ej: 58207" required>
         </label>
         <label class="campo" id="campo-venta" hidden>
           <span>¿Viene de una venta pendiente?</span>
@@ -60,7 +68,9 @@ export async function renderPaso1(container, ctx) {
   const $btn = seccion.querySelector('#paso1-siguiente');
   const $campoVenta = seccion.querySelector('#campo-venta');
   const $selectVenta = $campoVenta.querySelector('select');
-  const $selectTipoServicio = seccion.querySelector('select[name="tipo_servicio"]');
+  const $inputTipoServicio = seccion.querySelector('#input-tipo-servicio');
+  const $grupoBotones = seccion.querySelector('#grupo-botones-servicio');
+  const $botonesServicio = $grupoBotones.querySelectorAll('.btn-servicio-card');
 
   // Enlazar una venta solo tiene sentido en "Instalación nueva" — es lo
   // único que usa venta_id (decide si la instalación cobra según el plan
@@ -68,11 +78,20 @@ export async function renderPaso1(container, ctx) {
   // tipos de servicio el campo no aplica y se oculta.
   let hayVentasPendientes = false;
   function actualizarVisibilidadVenta() {
-    const mostrar = hayVentasPendientes && $selectTipoServicio.value === 'instalacion_nueva';
+    const mostrar = hayVentasPendientes && $inputTipoServicio.value === 'instalacion_nueva';
     $campoVenta.hidden = !mostrar;
     if (!mostrar) $selectVenta.value = ''; // no arrastrar una venta elegida si el técnico cambia de tipo de servicio
   }
-  $selectTipoServicio.addEventListener('change', actualizarVisibilidadVenta);
+
+  $botonesServicio.forEach((boton) => {
+    boton.addEventListener('click', () => {
+      const codigo = boton.dataset.codigo;
+      $inputTipoServicio.value = codigo;
+      $botonesServicio.forEach((b) => b.classList.toggle('activo', b === boton));
+      $error.hidden = true;
+      actualizarVisibilidadVenta();
+    });
+  });
 
   // Pedido: "si la venta viene de otro lugar ya sea directa de tuvez o
   // otro tecnico esa no se paga al que instala si no al que vendio" — acá
@@ -94,9 +113,15 @@ export async function renderPaso1(container, ctx) {
   $btn.addEventListener('click', async () => {
     $error.hidden = true;
     const datos = Object.fromEntries(new FormData(form));
-    if (!datos.tipo_servicio || !datos.folio) {
-      $error.textContent = 'Elige el tipo de servicio y escribe el folio.';
+    if (!datos.tipo_servicio) {
+      $error.textContent = 'Selecciona el tipo de servicio presionando uno de los botones.';
       $error.hidden = false;
+      return;
+    }
+    if (!datos.folio) {
+      $error.textContent = 'Escribe el número de folio.';
+      $error.hidden = false;
+      form.elements.folio.focus();
       return;
     }
 
