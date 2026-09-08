@@ -9,6 +9,7 @@ import { api } from '../api.js';
 import { el, escapeHtml, formatDateTime } from '../utils.js';
 import { irA } from '../router.js';
 import { setTopbar } from '../topbar.js';
+import { getUsuarioActual } from '../session.js';
 
 const ETIQUETA_MOVIMIENTO = {
   liquidacion: 'Liquidación',
