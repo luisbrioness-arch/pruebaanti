@@ -10,6 +10,7 @@ import { renderBilletera } from './views/billetera.js';
 import { renderTraspasos } from './views/traspasos.js';
 import { renderWizard } from './views/wizard/wizard.js';
 import { initModoReportar } from './reportar.js';
+import { confirmar } from './modal.js';
 
 route('home', renderHome);
 route('venta', renderVenta);
@@ -179,6 +180,13 @@ async function boot() {
 }
 
 document.getElementById('logout-btn')?.addEventListener('click', async () => {
+  const siCerrar = await confirmar('¿Estás seguro de que deseas cerrar sesión?', {
+    textoOk: 'Cerrar sesión',
+    textoCancelar: 'Cancelar',
+    peligro: true,
+  });
+  if (!siCerrar) return;
+
   await api('/auth/logout', { method: 'POST' }).catch(() => {});
   setUsuarioActual(null);
   location.hash = '';
