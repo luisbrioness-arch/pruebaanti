@@ -39,6 +39,15 @@ final class VentaRepository
         return (int) Database::connection()->lastInsertId();
     }
 
+    public function asegurarColumnaObservacion(): void
+    {
+        try {
+            Database::connection()->exec('ALTER TABLE ventas ADD COLUMN observacion TEXT NULL AFTER fecha_instalacion_solicitada');
+        } catch (\Throwable $e) {
+            // Ya existe la columna
+        }
+    }
+
     /** Mismo cuidado que OrdenRepository::actualizar() — $campos solo con claves fijas del código, nunca del request. */
     public function actualizar(int $id, array $campos): void
     {

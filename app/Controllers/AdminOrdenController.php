@@ -71,6 +71,74 @@ final class AdminOrdenController
     }
 
     /**
+     * Reagendar la fecha de instalación solicitada por el cliente y registrar nota.
+     */
+    public function reagendarVenta(Request $req): void
+    {
+        Auth::requireAdmin();
+        $id = (int) $req->param('id');
+        $repo = new VentaRepository();
+        $venta = $repo->find($id);
+        if (!$venta) {
+            throw new NotFoundException('Venta comercial no encontrada.');
+        }
+
+        $fecha = trim((string) $req->input('fecha_instalacion_solicitada', ''));
+        if ($fecha === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
+            throw new ValidationException('Debe ingresar una fecha válida (formato AAAA-MM-DD).');
+        }
+
+        $observacion = $req->input('observacion');
+        $repo->asegurarColumnaObservacion();
+
+        $campos = ['fecha_instalacion_solicitada' => $fecha];
+        if ($observacion !== null) {
+            $campos['observacion'] = trim((string) $observacion);
+        }
+
+        $repo->actualizar($id, $campos);
+
+        $actualizada = $repo->findConDetalle($id);
+        Response::json([
+            'ok' => true,
+            'mensaje' => 'Visita reagendada correctamente.',
+            'venta' => $actualizada,
+        ]);
+    }
+
+    /**
+     * Anular una venta si el cliente desiste o no continuará el servicio.
+     */
+    public function anularVenta(Request $req): void
+    {
+        Auth::requireAdmin();
+        $id = (int) $req->param('id');
+        $repo = new VentaRepository();
+        $venta = $repo->find($id);
+        if (!$venta) {
+            throw new NotFoundException('Venta comercial no encontrada.');
+        }
+        if ($venta['estado'] === 'instalada') {
+            throw new ValidationException('No se puede anular una venta que ya figura como instalada.');
+        }
+
+        $motivo = trim((string) $req->input('motivo', ''));
+        $repo->asegurarColumnaObservacion();
+
+        $campos = ['estado' => 'anulada'];
+        if ($motivo !== '') {
+            $campos['observacion'] = $motivo;
+        }
+
+        $repo->actualizar($id, $campos);
+
+        Response::json([
+            'ok' => true,
+            'mensaje' => 'Venta anulada correctamente.',
+        ]);
+    }
+
+    /**
      * Historial (pedido: "elimina auditoria y crea un link de historial
      * ordenes vendidas y ordenes instaladas con fecha") — reemplaza a la
      * cola de auditoría en el nav del panel. tecnico_id filtra a la vez

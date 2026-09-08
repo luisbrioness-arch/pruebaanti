@@ -1,6 +1,7 @@
 import { api } from '../api.js';
 import { el, escapeHtml, formatMoney, formatDateTime, badge } from '../utils.js';
 import { abrirModal } from '../modal.js';
+import { toast } from '../toast.js';
 
 const ACCESOS = [
   {
@@ -178,16 +179,19 @@ export async function renderInicio(container) {
   `);
   container.appendChild(seccion);
 
-  try {
-    const { ventas } = await api('/admin/ventas/pendientes-instalar');
-    const $badgeConteo = seccion.querySelector('#badge-pendientes-conteo');
-    if ($badgeConteo) $badgeConteo.textContent = `${ventas.length} por instalar`;
-    pintarVentasPendientes(seccion.querySelector('#inicio-ventas-pendientes'), ventas);
-  } catch (e) {
-    seccion.querySelector('#inicio-ventas-pendientes').innerHTML = `
-      <div class="callout-aviso callout-aviso--error"><div class="callout-texto">${escapeHtml(e.message)}</div></div>
-    `;
+  async function recargarVentas() {
+    try {
+      const { ventas } = await api('/admin/ventas/pendientes-instalar');
+      const $badgeConteo = seccion.querySelector('#badge-pendientes-conteo');
+      if ($badgeConteo) $badgeConteo.textContent = `${ventas.length} por instalar`;
+      pintarVentasPendientes(seccion.querySelector('#inicio-ventas-pendientes'), ventas, recargarVentas);
+    } catch (e) {
+      seccion.querySelector('#inicio-ventas-pendientes').innerHTML = `
+        <div class="callout-aviso callout-aviso--error"><div class="callout-texto">${escapeHtml(e.message)}</div></div>
+      `;
+    }
   }
+  await recargarVentas();
 
   const $titulo = seccion.querySelector('#periodo-titulo');
   const $tiles = seccion.querySelector('#inicio-tiles');
@@ -330,7 +334,7 @@ function pintarVentasPendientes($div, ventas) {
       const id = Number($tr.dataset.ventaId);
       const venta = ventas.find(item => Number(item.id) === id);
       if (venta) {
-        abrirModalDetalleVenta(venta);
+        abrirModalDetalleVenta(venta, onActualizar);
       }
     });
   });
@@ -339,8 +343,9 @@ function pintarVentasPendientes($div, ventas) {
 /**
  * Modal detallado que muestra quién vendió, cuándo se vendió y todos los
  * detalles de la orden técnica y equipos instalados en terreno.
+ * Además permite reagendar la visita si el cliente no pudo o reprogramar para otro día.
  */
-function abrirModalDetalleVenta(v) {
+function abrirModalDetalleVenta(v, onActualizar) {
   const { texto: fechaTexto, tono: fechaTono } = etiquetaFecha(v.fecha_instalacion_solicitada);
   const inicial = (v.cliente_nombre || 'C').trim().charAt(0).toUpperCase();
 
@@ -386,10 +391,41 @@ function abrirModalDetalleVenta(v) {
           </span>
         </div>
 
-        <div class="detalle-campo-fila">
-          <span class="detalle-campo-label">Fecha pedida por cliente:</span>
-          <span class="detalle-campo-valor">
-            <span class="chip chip--${fechaTono}">${escapeHtml(fechaTexto)}</span>
+        <div class="detalle-campo-fila" style="align-items: flex-start; padding-top: 8px;">
+          <span class="detalle-campo-label" style="padding-top: 2px;">Fecha solicitada:</span>
+          <span class="detalle-campo-valor" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span id="modal-fecha-chip" class="chip chip--${fechaTono}">${escapeHtml(fechaTexto)}</span>
+              <button type="button" class="btn btn--chico btn--secundario" id="btn-toggle-reagendar" style="font-size: 0.74rem; padding: 3px 8px; border-radius: 6px; border-color: var(--acento); color: var(--acento-2); font-weight: 700;" title="Reprogramar visita para otro día">
+                📅 Reagendar
+              </button>
+            </div>
+          </span>
+        </div>
+
+        <!-- Panel Desplegable para Reagendar la Visita -->
+        <div id="caja-reagendar" style="display: none; background: #f0fdfa; border: 1.5px solid #0d9488; border-radius: 10px; padding: 12px; margin-top: 8px; margin-bottom: 8px; box-shadow: 0 4px 12px rgba(13, 148, 136, 0.1);">
+          <div style="font-weight: 800; font-size: 0.84rem; color: #0f766e; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <span>📅 Reprogramar Visita en Terreno</span>
+          </div>
+          <label class="campo" style="margin-bottom: 8px;">
+            <span style="font-size: 0.78rem; font-weight: 700; color: #0f766e;">Nueva fecha acordada con cliente:</span>
+            <input type="date" id="input-nueva-fecha" value="${v.fecha_instalacion_solicitada || ''}" class="input-fecha-moderno" required style="width: 100%; font-size: 0.9rem; padding: 6px 10px;">
+          </label>
+          <label class="campo" style="margin-bottom: 10px;">
+            <span style="font-size: 0.78rem; font-weight: 700; color: #0f766e;">Motivo de reagendamiento:</span>
+            <input type="text" id="input-motivo-reagendar" value="${escapeHtml(v.observacion || '')}" placeholder="Ej: Cliente no estaba en casa, pide para el sábado..." style="width: 100%; font-size: 0.85rem; padding: 6px 10px; border: 1.5px solid var(--borde-fuerte); border-radius: 8px;">
+          </label>
+          <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button type="button" class="btn btn--chico btn--secundario" id="btn-cancelar-reagendar">Cancelar</button>
+            <button type="button" class="btn btn--chico btn--primario" id="btn-confirmar-reagendar">Guardar nueva fecha</button>
+          </div>
+        </div>
+
+        <div class="detalle-campo-fila" id="fila-observacion" ${v.observacion ? '' : 'style="display: none;"'}>
+          <span class="detalle-campo-label">Nota de visita:</span>
+          <span class="detalle-campo-valor" id="valor-observacion" style="color: #b45309; font-size: 0.82rem; max-width: 65%; line-height: 1.25; font-style: italic;">
+            ${escapeHtml(v.observacion || '')}
           </span>
         </div>
 
@@ -438,12 +474,97 @@ function abrirModalDetalleVenta(v) {
       </div>
     </div>
 
-    <div class="modal-acciones" style="margin-top: 18px;">
+    <div class="modal-acciones" style="margin-top: 18px; display: flex; justify-content: space-between; align-items: center;">
+      <button type="button" class="btn btn--texto btn--chico" id="btn-anular-venta" style="color: var(--malo); font-size: 0.82rem;" title="Anular si el cliente desiste definitivamente">
+        ✕ Anular esta venta
+      </button>
       <button type="button" class="btn btn--primario" id="btn-cerrar-modal">Cerrar</button>
     </div>
   `, { amplio: true });
 
   root.querySelector('#btn-cerrar-modal').addEventListener('click', cerrar);
+
+  // Toggle para caja de reagendamiento
+  const $cajaReagendar = root.querySelector('#caja-reagendar');
+  root.querySelector('#btn-toggle-reagendar').addEventListener('click', () => {
+    const visible = $cajaReagendar.style.display !== 'none';
+    $cajaReagendar.style.display = visible ? 'none' : 'block';
+    if (!visible) {
+      const $input = root.querySelector('#input-nueva-fecha');
+      if ($input) $input.focus();
+    }
+  });
+  root.querySelector('#btn-cancelar-reagendar').addEventListener('click', () => {
+    $cajaReagendar.style.display = 'none';
+  });
+
+  // Guardar nueva fecha reagendada
+  root.querySelector('#btn-confirmar-reagendar').addEventListener('click', async () => {
+    const $btnConfirmar = root.querySelector('#btn-confirmar-reagendar');
+    const nuevaFecha = root.querySelector('#input-nueva-fecha').value.trim();
+    const motivo = root.querySelector('#input-motivo-reagendar').value.trim();
+
+    if (!nuevaFecha) {
+      toast('Debes seleccionar una nueva fecha para la visita.', 'alerta');
+      return;
+    }
+
+    $btnConfirmar.disabled = true;
+    $btnConfirmar.textContent = 'Guardando…';
+
+    try {
+      await api(`/admin/ventas/${v.id}/reagendar`, {
+        method: 'PUT',
+        body: {
+          fecha_instalacion_solicitada: nuevaFecha,
+          observacion: motivo,
+        },
+      });
+
+      toast(`Visita reprogramada exitosamente para el ${nuevaFecha}.`, 'ok');
+      v.fecha_instalacion_solicitada = nuevaFecha;
+      v.observacion = motivo;
+
+      const { texto: nTexto, tono: nTono } = etiquetaFecha(nuevaFecha);
+      const $chip = root.querySelector('#modal-fecha-chip');
+      if ($chip) {
+        $chip.className = `chip chip--${nTono}`;
+        $chip.textContent = nTexto;
+      }
+
+      const $filaObs = root.querySelector('#fila-observacion');
+      const $valObs = root.querySelector('#valor-observacion');
+      if ($filaObs && $valObs) {
+        $valObs.textContent = motivo || '';
+        $filaObs.style.display = motivo ? 'flex' : 'none';
+      }
+
+      $cajaReagendar.style.display = 'none';
+      if (typeof onActualizar === 'function') onActualizar();
+    } catch (err) {
+      toast(err.message || 'Error al reprogramar visita.', 'malo');
+    } finally {
+      $btnConfirmar.disabled = false;
+      $btnConfirmar.textContent = 'Guardar nueva fecha';
+    }
+  });
+
+  // Anular venta si el cliente desiste
+  root.querySelector('#btn-anular-venta').addEventListener('click', async () => {
+    const motivo = prompt('¿Motivo por el cual se anula la venta? (ej: cliente desistió, fuera de cobertura, etc.):');
+    if (motivo === null) return;
+    try {
+      await api(`/admin/ventas/${v.id}/anular`, {
+        method: 'PUT',
+        body: { motivo: motivo || 'Anulada por cliente' },
+      });
+      toast('Venta anulada correctamente.', 'ok');
+      cerrar();
+      if (typeof onActualizar === 'function') onActualizar();
+    } catch (err) {
+      toast(err.message || 'Error al anular venta.', 'malo');
+    }
+  });
 
   // Consulta asíncrona de los detalles técnicos completos
   api(`/admin/ventas/${v.id}`).then((detalle) => {

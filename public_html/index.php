@@ -93,6 +93,8 @@ $router->post('/api/admin/ordenes/retroactiva', fn(Request $r) => (new AdminOrde
 $router->get('/api/admin/ventas/pendientes', fn(Request $r) => (new AdminOrdenController())->ventasPendientes($r));
 $router->get('/api/admin/ventas/pendientes-instalar', fn(Request $r) => (new AdminOrdenController())->ventasPendientesInstalar($r));
 $router->get('/api/admin/ventas/{id}', fn(Request $r) => (new AdminOrdenController())->detalleVenta($r));
+$router->put('/api/admin/ventas/{id}/reagendar', fn(Request $r) => (new AdminOrdenController())->reagendarVenta($r));
+$router->put('/api/admin/ventas/{id}/anular', fn(Request $r) => (new AdminOrdenController())->anularVenta($r));
 
 // Historial (reemplaza a Auditoría en el nav — pedido: "elimina auditoria y
 // crea un link de historial ordenes vendidas y ordenes instaladas con fecha")
