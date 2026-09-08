@@ -296,12 +296,12 @@ final class OrdenWizardService
                 return $this->estadoCompleto($this->ordenes->find($orden['id']));
             }
 
+            $tipoServicio = $this->tiposServicio->find((int) $orden['tipo_servicio_id']);
             $materiales = $this->materiales->paraOrden($orden['id']);
-            if (empty($materiales)) {
+            if ($this->servicioRequiereEquipos($tipoServicio) && empty($materiales)) {
                 throw new ValidationException('La orden no tiene materiales escaneados.');
             }
 
-            $tipoServicio = $this->tiposServicio->find((int) $orden['tipo_servicio_id']);
             $this->validarFotosCompletas($orden, $tipoServicio, $materiales);
 
             return $this->confirmarEnviada((int) $orden['id'], $tecnicoId);
@@ -394,8 +394,9 @@ final class OrdenWizardService
             throw new NotFoundException('Orden no encontrada.');
         }
 
+        $tipoServicio = $this->tiposServicio->find((int) $orden['tipo_servicio_id']);
         $materiales = $this->materiales->paraOrden($ordenId);
-        if (empty($materiales)) {
+        if ($this->servicioRequiereEquipos($tipoServicio) && empty($materiales)) {
             throw new ValidationException('La orden no tiene materiales escaneados.');
         }
 
@@ -496,7 +497,7 @@ final class OrdenWizardService
         }
 
         $materialesEntrada = $datos['materiales'] ?? [];
-        if (empty($materialesEntrada)) {
+        if ($this->servicioRequiereEquipos($tipoServicio) && empty($materialesEntrada)) {
             throw new ValidationException('Debes indicar al menos un equipo instalado o retirado.');
         }
         $seriesVistas = [];
@@ -804,4 +805,31 @@ final class OrdenWizardService
         }
         return $datos[$campo];
     }
+
+    /**
+     * Determina si un servicio exige escanear equipos obligatoriamente.
+     * En reparaciones y soporte técnico no siempre es necesario cambiar un dispositivo,
+     * por lo que el escaneo de decos es opcional.
+     */
+    private function servicioRequiereEquipos(?array $tipoServicio): bool
+    {
+        if (!$tipoServicio) {
+            return true;
+        }
+        $codigo = (string) ($tipoServicio['codigo'] ?? '');
+        $nombre = strtolower((string) ($tipoServicio['nombre'] ?? ''));
+
+        // Reparaciones, fallas y soportes técnicos: equipos siempre opcionales
+        if (
+            $codigo === 'soporte_falla' ||
+            str_contains($nombre, 'soporte') ||
+            str_contains($nombre, 'reparaci') ||
+            str_contains($nombre, 'falla')
+        ) {
+            return false;
+        }
+
+        return (int) ($tipoServicio['requiere_series'] ?? 1) === 1;
+    }
 }
+

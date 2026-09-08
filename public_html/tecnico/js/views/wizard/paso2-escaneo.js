@@ -13,10 +13,31 @@ import { getMaleta } from '../../storage.js';
 import { encolar, desencolarMaterial } from '../../offline.js';
 
 export async function renderPaso2(container, ctx) {
+  const tipoServicio = ctx.getTipoServicio();
+  const esSoporte = tipoServicio && (
+    tipoServicio.codigo === 'soporte_falla' ||
+    Number(tipoServicio.requiere_series) === 0 ||
+    (tipoServicio.nombre && tipoServicio.nombre.toLowerCase().includes('soporte')) ||
+    (tipoServicio.nombre && tipoServicio.nombre.toLowerCase().includes('reparaci')) ||
+    (tipoServicio.nombre && tipoServicio.nombre.toLowerCase().includes('falla'))
+  );
+  const requiereEquipos = !esSoporte && Number(tipoServicio?.requiere_series ?? 1) === 1;
+
   const seccion = el(`
     <div style="display: contents;">
     <section class="wizard-paso">
       <h2>Equipos</h2>
+      ${esSoporte ? `
+        <div class="callout-aviso" style="margin-bottom: 14px; background: #eff6ff; border: 1.5px solid #93c5fd; border-radius: 8px; padding: 10px 12px; color: #1e3a8a; font-size: 0.84rem; line-height: 1.45;">
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <span style="font-size: 1.25rem; line-height: 1;">💡</span>
+            <div>
+              <strong>En reparaciones / soporte técnico, cambiar un equipo es OPCIONAL.</strong><br>
+              Si la solución fue orientar antena, cambiar conectores o reparar señal sin sustituir decodificadores, puedes presionar <strong>"Continuar sin cambiar equipos"</strong>.
+            </div>
+          </div>
+        </div>
+      ` : ''}
       <p class="campo-ayuda" id="aviso-decos-plan" hidden></p>
       <div class="segmentado" id="segmentado-accion">
         <button type="button" data-accion="instalado" class="activo">Instalar</button>
@@ -39,7 +60,9 @@ export async function renderPaso2(container, ctx) {
       </div>
     </section>
     <div class="wizard-acciones">
-      <button type="button" class="btn btn--primario btn--ancho" id="paso2-siguiente" disabled>Siguiente</button>
+      <button type="button" class="btn btn--primario btn--ancho" id="paso2-siguiente" ${requiereEquipos ? 'disabled' : ''}>
+        ${requiereEquipos ? 'Siguiente' : 'Continuar sin cambiar equipos'}
+      </button>
     </div>
     </div>
   `);
@@ -89,10 +112,18 @@ export async function renderPaso2(container, ctx) {
 
   function pintarLista() {
     const materiales = ctx.getOrden().materiales;
-    $siguiente.disabled = materiales.length === 0;
+    if (requiereEquipos) {
+      $siguiente.disabled = materiales.length === 0;
+      $siguiente.textContent = 'Siguiente';
+    } else {
+      $siguiente.disabled = false;
+      $siguiente.textContent = materiales.length > 0 ? 'Siguiente' : 'Continuar sin cambiar equipos';
+    }
     pintarAvisoDecos();
     if (!materiales.length) {
-      $lista.innerHTML = '<p class="vacio">Todavía no escaneas ningún equipo.</p>';
+      $lista.innerHTML = esSoporte
+        ? '<p class="vacio" style="font-size: 0.84rem;">Sin equipos escaneados. Si sustituiste o retiraste un decodificador, agrégalo arriba; si no hubo cambio de equipos, presiona continuar.</p>'
+        : '<p class="vacio">Todavía no escaneas ningún equipo.</p>';
       return;
     }
     $lista.innerHTML = '';

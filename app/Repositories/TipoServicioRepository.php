@@ -48,4 +48,17 @@ final class TipoServicioRepository
     {
         Database::connection()->prepare('UPDATE tipos_servicio SET nombre = ? WHERE id = ?')->execute([$nombre, $id]);
     }
+
+    /**
+     * Asegura que en soporte/falla los equipos sean opcionales (requiere_series = 0).
+     */
+    public function asegurarReglaSeriesSoporte(): void
+    {
+        try {
+            Database::connection()->exec("UPDATE tipos_servicio SET requiere_series = 0 WHERE codigo = 'soporte_falla'");
+        } catch (\Throwable) {
+            // Silencioso en caso de error o permisos
+        }
+    }
 }
+

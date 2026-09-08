@@ -25,8 +25,12 @@ export async function renderPaso5(container, ctx) {
 
       <div class="resumen-bloque">
         <h3>Equipos</h3>
-        <div class="resumen-fila"><span>Instalados</span><span>${instalados.length}</span></div>
-        <div class="resumen-fila"><span>Retirados</span><span>${retirados.length}</span></div>
+        ${(instalados.length === 0 && retirados.length === 0)
+          ? '<p class="vacio" style="margin: 0; font-size: 0.84rem;">Sin sustitución de decodificadores (reparación / soporte técnico).</p>'
+          : `
+            <div class="resumen-fila"><span>Instalados</span><span>${instalados.length}</span></div>
+            <div class="resumen-fila"><span>Retirados</span><span>${retirados.length}</span></div>
+          `}
       </div>
 
       <div class="resumen-bloque">

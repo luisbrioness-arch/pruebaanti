@@ -23,6 +23,7 @@ final class CatalogoController
     {
         Auth::id();
         $repo = new TipoServicioRepository();
+        $repo->asegurarReglaSeriesSoporte();
         $tipos = $repo->all();
         foreach ($tipos as &$tipo) {
             $tipo['requisitos_foto'] = $repo->requisitosFoto((int) $tipo['id']);
