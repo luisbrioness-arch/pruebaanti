@@ -1562,6 +1562,178 @@ a.tile[href*="billetera"]:hover { box-shadow: 0 14px 30px -4px rgba(15, 118, 110
   color: var(--tinta-2);
 }
 
+/* Interacción y Detalle de Técnico en Informes */
+.fila-tecnico-interactiva {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.fila-tecnico-interactiva:hover {
+  background-color: #F1F5F9 !important;
+}
+.fila-tecnico-interactiva--activa {
+  background-color: #F0FDFA !important;
+  box-shadow: inset 4px 0 0 var(--acento);
+}
+
+.detalle-tecnico-contenedor {
+  background: var(--superficie);
+  border: 1px solid var(--acento);
+  border-radius: var(--radio-lg);
+  box-shadow: 0 4px 20px -2px rgba(13, 148, 136, 0.12), var(--sombra-card);
+  overflow: hidden;
+  animation: fadeIn 0.2s ease-out;
+}
+.detalle-tecnico-cabecera {
+  background: linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 100%);
+  border-bottom: 1px solid var(--borde);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 20px 24px;
+}
+.detalle-avatar-grande {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--acento), #0F766E);
+  color: #FFFFFF;
+  font-size: 1.35rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(13, 148, 136, 0.3);
+  flex-shrink: 0;
+}
+.selector-tecnico-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+}
+.detalle-tecnico-resumen-monto {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  background: #ECFDF5;
+  border: 1px solid #A7F3D0;
+  padding: 10px 18px;
+  border-radius: 10px;
+}
+.detalle-tecnico-kpis-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.detalle-mini-kpi {
+  background: #F8FAFC;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.detalle-mini-label {
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: var(--tinta-2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.detalle-mini-valor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--tinta);
+  font-family: var(--fuente-mono);
+}
+.detalle-mini-sub {
+  font-size: 0.78rem;
+  color: var(--tinta-3);
+  font-weight: 500;
+}
+.detalle-seccion-itemizada {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  padding: 18px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.detalle-seccion-titulo-fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--borde);
+}
+.tabla--detalle-itemizado th {
+  background: #F8FAFC;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--tinta-2);
+  padding: 10px 14px;
+}
+.tabla--detalle-itemizado td {
+  padding: 10px 14px;
+  vertical-align: middle;
+}
+.folio-tag {
+  font-family: var(--fuente-mono);
+  font-size: 0.84rem;
+  background: #F1F5F9;
+  color: #334155;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid #CBD5E1;
+  display: inline-block;
+  white-space: nowrap;
+}
+.servicio-nombre {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--tinta);
+}
+.celda-cliente-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cliente-nombre {
+  font-size: 0.88rem;
+  color: var(--tinta);
+}
+.cliente-contacto {
+  font-size: 0.76rem;
+  color: var(--tinta-3);
+  font-family: var(--fuente-mono);
+}
+.plan-tag-inline {
+  display: inline-block;
+  background: #EEF2FF;
+  color: #4338CA;
+  border: 1px solid #C7D2FE;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.vacio-tarjeta--compacta {
+  padding: 24px;
+  background: #F8FAFC;
+  border-radius: 8px;
+  border: 1px dashed var(--borde-fuerte);
+  text-align: center;
+}
+
 /* Gráficos Dashboard */
 .graficos-dashboard-grid {
   display: grid;

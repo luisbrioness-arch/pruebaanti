@@ -95,7 +95,10 @@ final class OrdenRepository
     public function historial(?int $tecnicoId, ?string $desde, ?string $hasta): array
     {
         $sql = "SELECT o.*, u.nombre AS tecnico_nombre, ts.nombre AS tipo_servicio_nombre,
-                       v.cliente_nombre AS venta_cliente_nombre
+                       v.cliente_nombre AS venta_cliente_nombre,
+                       v.comuna AS venta_comuna,
+                       v.cliente_direccion AS venta_cliente_direccion,
+                       v.cliente_telefono AS venta_cliente_telefono
                 FROM ordenes o
                 JOIN usuarios u ON u.id = o.tecnico_id
                 JOIN tipos_servicio ts ON ts.id = o.tipo_servicio_id

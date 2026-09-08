@@ -205,6 +205,305 @@ export async function renderHistorial(container) {
   // =========================================================================
   // VISTA 1: GENERAL
   // =========================================================================
+  let tecnicoSeleccionadoId = null;
+
+  function renderDetalleTecnico(f, todasLasFilas, totalFacturadoGlobal) {
+    if (!f) return '';
+    const totalTecnico = f.montoVendido + f.montoInstalado;
+    const inicial = (f.nombre || 'T').trim().charAt(0).toUpperCase();
+
+    // Ordenar órdenes de trabajo por fecha DESC
+    const ordenesOrdenadas = [...f.ordenes].sort((a, b) => {
+      const fa = new Date(a.fecha_trabajo_dispositivo || a.creado_en || 0);
+      const fb = new Date(b.fecha_trabajo_dispositivo || b.creado_en || 0);
+      return fb - fa;
+    });
+
+    // Ordenar ventas por fecha DESC
+    const ventasOrdenadas = [...f.ventas].sort((a, b) => {
+      const fa = new Date(a.creado_en || 0);
+      const fb = new Date(b.creado_en || 0);
+      return fb - fa;
+    });
+
+    return `
+      <section class="card-bloque detalle-tecnico-contenedor" id="seccion-detalle-tecnico" style="margin-bottom: 24px;">
+        <!-- Encabezado del Técnico -->
+        <div class="card-bloque-cabecera detalle-tecnico-cabecera">
+          <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+            <div class="detalle-avatar-grande">${escapeHtml(inicial)}</div>
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span class="card-bloque-tag card-bloque-tag--teal">Detalle Individual Completo</span>
+                ${todasLasFilas.length > 1 ? `
+                  <div class="selector-tecnico-inline">
+                    <label for="select-tecnico-activo" style="font-size: 0.78rem; font-weight: 700; color: var(--tinta-2);">Ver otro técnico:</label>
+                    <select id="select-tecnico-activo" class="input-select-moderno" style="padding: 4px 10px; font-size: 0.82rem;">
+                      ${todasLasFilas.map((op) => `
+                        <option value="${op.id}" ${String(op.id) === String(f.id) ? 'selected' : ''}>${escapeHtml(op.nombre)}</option>
+                      `).join('')}
+                    </select>
+                  </div>
+                ` : ''}
+              </div>
+              <h3 style="margin: 4px 0 2px; font-size: 1.25rem;">${escapeHtml(f.nombre)}</h3>
+              <p class="card-bloque-bajada" style="margin: 0;">
+                Auditoría detallada de todos los trabajos en terreno y ventas comerciales efectuadas por el técnico.
+              </p>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <button type="button" class="btn btn--secundario btn--chico btn-con-icono no-imprimir" id="btn-exportar-detalle-csv">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>Exportar Detalle (CSV)</span>
+            </button>
+            <div class="detalle-tecnico-resumen-monto">
+              <span style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--tinta-2);">Total Ganado en Período</span>
+              <strong style="font-size: 1.35rem; font-family: var(--fuente-mono); color: #047857;">${formatMoney(totalTecnico)}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-bloque-body" style="padding-top: 14px;">
+          <!-- Mini KPIs del Técnico -->
+          <div class="detalle-tecnico-kpis-grid">
+            <div class="detalle-mini-kpi">
+              <span class="detalle-mini-label">Órdenes de Trabajo</span>
+              <div class="detalle-mini-valor">
+                <span>${f.ordenesTotal} <small style="font-size: 0.75rem; font-weight: 600; color: var(--tinta-2);">totales</small></span>
+                <span class="badge-monto badge-monto--positivo">${formatMoney(f.montoInstalado)}</span>
+              </div>
+              <span class="detalle-mini-sub">${f.ordenesAprobadas} aprobadas / liquidadas</span>
+            </div>
+
+            <div class="detalle-mini-kpi">
+              <span class="detalle-mini-label">Ventas Comerciales</span>
+              <div class="detalle-mini-valor">
+                <span>${f.ventasTotal} <small style="font-size: 0.75rem; font-weight: 600; color: var(--tinta-2);">captadas</small></span>
+                <span class="badge-monto badge-monto--positivo">${formatMoney(f.montoVendido)}</span>
+              </div>
+              <span class="detalle-mini-sub">${f.ventasInstaladas} instaladas con éxito</span>
+            </div>
+
+            <div class="detalle-mini-kpi">
+              <span class="detalle-mini-label">Rendimiento Operativo</span>
+              <div class="detalle-mini-valor">
+                <span>${f.ventasInstaladas + f.ordenesAprobadas} <small style="font-size: 0.75rem; font-weight: 600; color: var(--tinta-2);">exitosas</small></span>
+                <span class="card-bloque-tag card-bloque-tag--indigo">${totalFacturadoGlobal > 0 ? Math.round((totalTecnico / totalFacturadoGlobal) * 100) : 0}% del global</span>
+              </div>
+              <span class="detalle-mini-sub">Total computable para liquidación</span>
+            </div>
+          </div>
+
+          <!-- TABLA 1: ÓRDENES DE TRABAJO -->
+          <div class="detalle-seccion-itemizada" style="margin-top: 20px;">
+            <div class="detalle-seccion-titulo-fila">
+              <h4 style="margin: 0; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                <span>🛠️</span>
+                <span>Órdenes de Trabajo y Servicios en Terreno</span>
+                <span class="badge-contador badge-contador--ok">${ordenesOrdenadas.length} órdenes</span>
+              </h4>
+              <span style="font-size: 0.82rem; color: var(--tinta-2); font-weight: 600;">
+                Subtotal órdenes: <strong style="color: var(--tinta);">${formatMoney(f.montoInstalado)}</strong>
+              </span>
+            </div>
+
+            ${ordenesOrdenadas.length === 0 ? `
+              <div class="vacio-tarjeta vacio-tarjeta--compacta" style="margin-top: 12px;">
+                <p class="vacio-desc">El técnico no registra órdenes de trabajo en el rango de fechas seleccionado.</p>
+              </div>
+            ` : `
+              <div class="tabla-envoltorio" style="margin-top: 12px;">
+                <table class="tabla tabla--detalle-itemizado">
+                  <thead>
+                    <tr>
+                      <th style="width: 100px;">Folio OT</th>
+                      <th>Tipo de Servicio</th>
+                      <th>Cliente</th>
+                      <th>Dirección y Comuna</th>
+                      <th>Fecha Trabajo</th>
+                      <th style="text-align: right;">Monto Técnico</th>
+                      <th style="text-align: center;">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${ordenesOrdenadas.map((o) => {
+                      const clienteNom = o.venta_cliente_nombre || o.cliente_nombre || 'Cliente OT';
+                      const tel = o.venta_cliente_telefono || o.cliente_telefono || '';
+                      const dir = [o.venta_comuna || o.comuna, o.venta_cliente_direccion || o.cliente_direccion].filter(Boolean).join(' • ') || '—';
+                      const fecha = formatDateTime(o.fecha_trabajo_dispositivo || o.creado_en);
+                      const esValida = ['aprobada', 'liquidada'].includes(o.estado);
+
+                      return `
+                        <tr>
+                          <td>
+                            <strong class="folio-tag">${escapeHtml(o.folio || ('#' + o.id))}</strong>
+                          </td>
+                          <td>
+                            <span class="servicio-nombre">${escapeHtml(o.tipo_servicio_nombre || 'Servicio')}</span>
+                          </td>
+                          <td>
+                            <div class="celda-cliente-info">
+                              <strong class="cliente-nombre">${escapeHtml(clienteNom)}</strong>
+                              ${tel ? `<span class="cliente-contacto">📞 ${escapeHtml(tel)}</span>` : ''}
+                            </div>
+                          </td>
+                          <td style="font-size: 0.82rem; color: var(--tinta-2);">
+                            ${escapeHtml(dir)}
+                          </td>
+                          <td style="font-size: 0.82rem; white-space: nowrap; color: var(--tinta-2);">
+                            ${fecha}
+                          </td>
+                          <td style="text-align: right;">
+                            <span class="badge-monto ${esValida ? 'badge-monto--positivo' : 'badge-monto--mudo'}">
+                              ${formatMoney(o.monto_tecnico)}
+                            </span>
+                          </td>
+                          <td style="text-align: center;">
+                            ${badge(o.estado)}
+                          </td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>
+            `}
+          </div>
+
+          <!-- TABLA 2: VENTAS Y SUSCRIPCIONES -->
+          <div class="detalle-seccion-itemizada" style="margin-top: 24px;">
+            <div class="detalle-seccion-titulo-fila">
+              <h4 style="margin: 0; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                <span>💼</span>
+                <span>Ventas y Suscripciones Comerciales Captadas</span>
+                <span class="badge-contador badge-contador--ok">${ventasOrdenadas.length} ventas</span>
+              </h4>
+              <span style="font-size: 0.82rem; color: var(--tinta-2); font-weight: 600;">
+                Subtotal comisiones: <strong style="color: var(--tinta);">${formatMoney(f.montoVendido)}</strong>
+              </span>
+            </div>
+
+            ${ventasOrdenadas.length === 0 ? `
+              <div class="vacio-tarjeta vacio-tarjeta--compacta" style="margin-top: 12px;">
+                <p class="vacio-desc">El técnico no registra ventas o suscripciones captadas en el rango seleccionado.</p>
+              </div>
+            ` : `
+              <div class="tabla-envoltorio" style="margin-top: 12px;">
+                <table class="tabla tabla--detalle-itemizado">
+                  <thead>
+                    <tr>
+                      <th style="width: 110px;">N° TuVes / ID</th>
+                      <th>Cliente</th>
+                      <th>Plan Contratado</th>
+                      <th>Comuna y Dirección</th>
+                      <th>Fecha Venta</th>
+                      <th style="text-align: right;">Comisión</th>
+                      <th style="text-align: center;">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${ventasOrdenadas.map((v) => {
+                      const dir = [v.comuna, v.cliente_direccion].filter(Boolean).join(' • ') || '—';
+                      const fechaVenta = formatDateTime(v.creado_en);
+                      const esInstalada = v.estado === 'instalada';
+
+                      return `
+                        <tr>
+                          <td>
+                            <strong class="folio-tag" style="color: #2563EB; background: #EFF6FF; border-color: #BFDBFE;">
+                              ${escapeHtml(v.numero_orden_tuves || ('#' + v.id))}
+                            </strong>
+                          </td>
+                          <td>
+                            <div class="celda-cliente-info">
+                              <strong class="cliente-nombre">${escapeHtml(v.cliente_nombre)}</strong>
+                              ${v.cliente_rut ? `<span class="cliente-contacto">${escapeHtml(v.cliente_rut)}</span>` : ''}
+                            </div>
+                          </td>
+                          <td>
+                            <span class="plan-tag-inline">${escapeHtml(v.plan_nombre || 'Plan Estándar')}</span>
+                          </td>
+                          <td style="font-size: 0.82rem; color: var(--tinta-2);">
+                            ${escapeHtml(dir)}
+                          </td>
+                          <td style="font-size: 0.82rem; white-space: nowrap; color: var(--tinta-2);">
+                            ${fechaVenta}
+                          </td>
+                          <td style="text-align: right;">
+                            <span class="badge-monto ${esInstalada ? 'badge-monto--positivo' : 'badge-monto--mudo'}">
+                              ${formatMoney(v.monto_vendedor)}
+                            </span>
+                          </td>
+                          <td style="text-align: center;">
+                            ${badge(v.estado)}
+                          </td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>
+            `}
+          </div>
+
+        </div>
+      </section>
+    `;
+  }
+
+  function exportarDetalleTecnicoCsv(tecnico) {
+    if (!tecnico) return;
+    const filasCsv = [];
+    filasCsv.push(['TIPO', 'FOLIO_ID', 'SERVICIO_PLAN', 'CLIENTE', 'CONTACTO', 'DIRECCION_COMUNA', 'FECHA', 'MONTO_PAGO', 'ESTADO']);
+
+    for (const o of (tecnico.ordenes || [])) {
+      const clienteNom = o.venta_cliente_nombre || o.cliente_nombre || 'Cliente OT';
+      const tel = o.venta_cliente_telefono || o.cliente_telefono || '';
+      const dir = [o.venta_comuna || o.comuna, o.venta_cliente_direccion || o.cliente_direccion].filter(Boolean).join(' - ');
+      const fecha = o.fecha_trabajo_dispositivo || o.creado_en || '';
+      filasCsv.push([
+        'ORDEN_TRABAJO',
+        o.folio || ('#' + o.id),
+        o.tipo_servicio_nombre || 'Servicio',
+        clienteNom,
+        tel,
+        dir,
+        fecha,
+        o.monto_tecnico || 0,
+        o.estado || '',
+      ]);
+    }
+
+    for (const v of (tecnico.ventas || [])) {
+      const dir = [v.comuna, v.cliente_direccion].filter(Boolean).join(' - ');
+      filasCsv.push([
+        'VENTA_COMERCIAL',
+        v.numero_orden_tuves || ('#' + v.id),
+        v.plan_nombre || 'Plan Comercial',
+        v.cliente_nombre || '',
+        v.cliente_telefono || v.cliente_rut || '',
+        dir,
+        v.creado_en || '',
+        v.monto_vendedor || 0,
+        v.estado || '',
+      ]);
+    }
+
+    const csv = filasCsv
+      .map((fila) => fila.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';'))
+      .join('\r\n');
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const nombreLimpio = (tecnico.nombre || 'tecnico').toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const a = el(`<a href="${url}" download="detalle_${nombreLimpio}.csv"></a>`);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   function pintarGeneral(ventas, ordenes) {
     const porTecnico = new Map();
     const de = (id, nombre) => {
@@ -214,6 +513,8 @@ export async function renderHistorial(container) {
           nombre,
           ventasTotal: 0, ventasInstaladas: 0, montoVendido: 0,
           ordenesTotal: 0, ordenesAprobadas: 0, montoInstalado: 0,
+          ventas: [],
+          ordenes: [],
         });
       }
       return porTecnico.get(id);
@@ -224,6 +525,7 @@ export async function renderHistorial(container) {
         ? de('sin_vendedor', 'TuVes (directo)')
         : de(v.vendedor_id, v.vendedor_nombre);
       fila.ventasTotal++;
+      fila.ventas.push(v);
       if (v.estado === 'instalada') {
         fila.ventasInstaladas++;
         fila.montoVendido += Number(v.monto_vendedor) || 0;
@@ -233,6 +535,7 @@ export async function renderHistorial(container) {
     for (const o of ordenes) {
       const fila = de(o.tecnico_id, o.tecnico_nombre);
       fila.ordenesTotal++;
+      fila.ordenes.push(o);
       if (['aprobada', 'liquidada'].includes(o.estado)) {
         fila.ordenesAprobadas++;
         fila.montoInstalado += Number(o.monto_tecnico) || 0;
@@ -266,6 +569,14 @@ export async function renderHistorial(container) {
 
     const totalFacturado = totales.montoVendido + totales.montoInstalado;
     const totalTrabajos = totales.ventasInstaladas + totales.ordenesAprobadas;
+
+    // Determinar técnico activo por defecto
+    const filtroTecnico = $selectTecnico.value;
+    if (filtroTecnico && filas.some((f) => String(f.id) === String(filtroTecnico))) {
+      tecnicoSeleccionadoId = filtroTecnico;
+    } else if (!tecnicoSeleccionadoId || !filas.some((f) => String(f.id) === String(tecnicoSeleccionadoId))) {
+      tecnicoSeleccionadoId = filas[0].id;
+    }
 
     $general.innerHTML = `
       <!-- KPI Grid General -->
@@ -325,7 +636,7 @@ export async function renderHistorial(container) {
           <div class="card-bloque-titular">
             <span class="card-bloque-tag card-bloque-tag--indigo">Desempeño técnico</span>
             <h3>Producción y comisiones por técnico</h3>
-            <p class="card-bloque-bajada">Desglose de suscripciones vendidas, órdenes técnicas finalizadas y montos generados.</p>
+            <p class="card-bloque-bajada">Haz clic en cualquier técnico para desplegar su detalle completo de órdenes de trabajo y ventas.</p>
           </div>
           <span class="badge-monto badge-monto--mudo">${filas.length} técnico(s)</span>
         </div>
@@ -340,7 +651,8 @@ export async function renderHistorial(container) {
                   <th style="text-align: center;">Órdenes (Tot / Aprob)</th>
                   <th style="text-align: right;">Monto órdenes</th>
                   <th style="text-align: right;">Total generado</th>
-                  <th style="width: 140px;">Aporte %</th>
+                  <th style="width: 130px;">Aporte %</th>
+                  <th style="text-align: center; width: 140px;">Detalle</th>
                 </tr>
               </thead>
               <tbody>
@@ -348,9 +660,10 @@ export async function renderHistorial(container) {
                   const totalTecnico = f.montoVendido + f.montoInstalado;
                   const pctAporte = totalFacturado > 0 ? Math.round((totalTecnico / totalFacturado) * 100) : 0;
                   const inicial = (f.nombre || 'T').trim().charAt(0).toUpperCase();
+                  const estaActivo = String(f.id) === String(tecnicoSeleccionadoId);
 
                   return `
-                    <tr>
+                    <tr class="fila-tecnico-interactiva ${estaActivo ? 'fila-tecnico-interactiva--activa' : ''}" data-tecnico-id="${f.id}">
                       <td>
                         <div class="celda-tecnico-destacada">
                           <span class="subtab-avatar">${escapeHtml(inicial)}</span>
@@ -385,6 +698,11 @@ export async function renderHistorial(container) {
                           <span class="barra-pct-label">${pctAporte}% del período</span>
                         </div>
                       </td>
+                      <td style="text-align: center;">
+                        <button type="button" class="btn btn--chico ${estaActivo ? 'btn--primario' : 'btn--secundario'} btn-cambiar-detalle" data-tecnico-id="${f.id}">
+                          ${estaActivo ? '✓ Viendo detalle' : 'Ver detalle 🔍'}
+                        </button>
+                      </td>
                     </tr>
                   `;
                 }).join('')}
@@ -408,12 +726,16 @@ export async function renderHistorial(container) {
                     <strong class="monto-total-global">${formatMoney(totalFacturado)}</strong>
                   </td>
                   <td><strong style="color: #047857;">100%</strong></td>
+                  <td></td>
                 </tr>
               </tfoot>
             </table>
           </div>
         </div>
       </section>
+
+      <!-- CONTENEDOR DEL DETALLE COMPLETO DEL TÉCNICO -->
+      <div id="contenedor-detalle-tecnico"></div>
 
       <!-- Dashboard Visual: Gráficos de Producción -->
       <div class="graficos-dashboard-grid">
@@ -454,6 +776,54 @@ export async function renderHistorial(container) {
         </section>
       </div>
     `;
+
+    function refrescarDetalleTecnico(id, hacerScroll = false) {
+      tecnicoSeleccionadoId = id;
+      const tecnico = filas.find((f) => String(f.id) === String(id)) || filas[0];
+      const $contenedor = $general.querySelector('#contenedor-detalle-tecnico');
+      if ($contenedor && tecnico) {
+        $contenedor.innerHTML = renderDetalleTecnico(tecnico, filas, totalFacturado);
+        engancharEventosDetalle($contenedor, tecnico);
+        if (hacerScroll) {
+          $contenedor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+
+      $general.querySelectorAll('.fila-tecnico-interactiva').forEach((tr) => {
+        const esActiva = String(tr.dataset.tecnicoId) === String(id);
+        tr.classList.toggle('fila-tecnico-interactiva--activa', esActiva);
+        const $btn = tr.querySelector('.btn-cambiar-detalle');
+        if ($btn) {
+          $btn.className = `btn btn--chico ${esActiva ? 'btn--primario' : 'btn--secundario'} btn-cambiar-detalle`;
+          $btn.innerHTML = esActiva ? '✓ Viendo detalle' : 'Ver detalle 🔍';
+        }
+      });
+    }
+
+    function engancharEventosDetalle($cont, tecnico) {
+      const $sel = $cont.querySelector('#select-tecnico-activo');
+      if ($sel) {
+        $sel.addEventListener('change', (ev) => {
+          refrescarDetalleTecnico(ev.target.value, true);
+        });
+      }
+
+      const $btnCsv = $cont.querySelector('#btn-exportar-detalle-csv');
+      if ($btnCsv) {
+        $btnCsv.addEventListener('click', () => exportarDetalleTecnicoCsv(tecnico));
+      }
+    }
+
+    // Render inicial del detalle del técnico
+    refrescarDetalleTecnico(tecnicoSeleccionadoId, false);
+
+    // Eventos de selección en la tabla de resumen
+    $general.querySelectorAll('.fila-tecnico-interactiva').forEach((tr) => {
+      tr.addEventListener('click', (ev) => {
+        const id = tr.dataset.tecnicoId;
+        refrescarDetalleTecnico(id, true);
+      });
+    });
   }
 
   function graficoEconomico(filas) {
@@ -693,6 +1063,80 @@ export async function renderHistorial(container) {
           </div>
         </section>
       </div>
+
+      <!-- Listado Detallado de Ventas -->
+      <section class="card-bloque" style="margin-top: 24px;">
+        <div class="card-bloque-cabecera">
+          <div class="card-bloque-titular">
+            <span class="card-bloque-tag card-bloque-tag--indigo">Detalle completo</span>
+            <h3>Listado pormenorizado de ventas (${ventas.length})</h3>
+            <p class="card-bloque-bajada">Todas las solicitudes y contratos de clientes ingresados en el período.</p>
+          </div>
+          <span class="badge-monto badge-monto--mudo">${ventas.length} registro(s)</span>
+        </div>
+        <div class="card-bloque-body">
+          <div class="tabla-envoltorio">
+            <table class="tabla tabla--detalle-itemizado">
+              <thead>
+                <tr>
+                  <th style="width: 110px;">N° TuVes / ID</th>
+                  <th>Vendedor / Técnico</th>
+                  <th>Cliente</th>
+                  <th>Plan Comercial</th>
+                  <th>Comuna y Dirección</th>
+                  <th>Fecha Ingreso</th>
+                  <th style="text-align: right;">Comisión</th>
+                  <th style="text-align: center;">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${ventas.map((v) => {
+                  const dir = [v.comuna, v.cliente_direccion].filter(Boolean).join(' • ') || '—';
+                  const fecha = formatDateTime(v.creado_en);
+                  const vendedorNom = v.vendedor_nombre || 'TuVes (directo)';
+                  const esInstalada = v.estado === 'instalada';
+
+                  return `
+                    <tr>
+                      <td>
+                        <strong class="folio-tag" style="color: #2563EB; background: #EFF6FF; border-color: #BFDBFE;">
+                          ${escapeHtml(v.numero_orden_tuves || ('#' + v.id))}
+                        </strong>
+                      </td>
+                      <td>
+                        <strong class="fila-nombre">${escapeHtml(vendedorNom)}</strong>
+                      </td>
+                      <td>
+                        <div class="celda-cliente-info">
+                          <strong class="cliente-nombre">${escapeHtml(v.cliente_nombre)}</strong>
+                          ${v.cliente_telefono ? `<span class="cliente-contacto">📞 ${escapeHtml(v.cliente_telefono)}</span>` : ''}
+                        </div>
+                      </td>
+                      <td>
+                        <span class="plan-tag-inline">${escapeHtml(v.plan_nombre || 'Plan Estándar')}</span>
+                      </td>
+                      <td style="font-size: 0.82rem; color: var(--tinta-2);">
+                        ${escapeHtml(dir)}
+                      </td>
+                      <td style="font-size: 0.82rem; white-space: nowrap; color: var(--tinta-2);">
+                        ${fecha}
+                      </td>
+                      <td style="text-align: right;">
+                        <span class="badge-monto ${esInstalada ? 'badge-monto--positivo' : 'badge-monto--mudo'}">
+                          ${formatMoney(v.monto_vendedor)}
+                        </span>
+                      </td>
+                      <td style="text-align: center;">
+                        ${badge(v.estado)}
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
     `;
   }
 
@@ -847,6 +1291,79 @@ export async function renderHistorial(container) {
           </div>
         </section>
       </div>
+
+      <!-- Listado Detallado de Órdenes -->
+      <section class="card-bloque" style="margin-top: 24px;">
+        <div class="card-bloque-cabecera">
+          <div class="card-bloque-titular">
+            <span class="card-bloque-tag card-bloque-tag--amber">Detalle completo</span>
+            <h3>Listado pormenorizado de órdenes de trabajo (${ordenes.length})</h3>
+            <p class="card-bloque-bajada">Todas las intervenciones técnicas realizadas en terreno en el período.</p>
+          </div>
+          <span class="badge-monto badge-monto--mudo">${ordenes.length} registro(s)</span>
+        </div>
+        <div class="card-bloque-body">
+          <div class="tabla-envoltorio">
+            <table class="tabla tabla--detalle-itemizado">
+              <thead>
+                <tr>
+                  <th style="width: 100px;">Folio OT</th>
+                  <th>Técnico</th>
+                  <th>Tipo de Servicio</th>
+                  <th>Cliente</th>
+                  <th>Comuna y Dirección</th>
+                  <th>Fecha Trabajo</th>
+                  <th style="text-align: right;">Monto Técnico</th>
+                  <th style="text-align: center;">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${ordenes.map((o) => {
+                  const clienteNom = o.venta_cliente_nombre || o.cliente_nombre || 'Cliente OT';
+                  const tel = o.venta_cliente_telefono || o.cliente_telefono || '';
+                  const dir = [o.venta_comuna || o.comuna, o.venta_cliente_direccion || o.cliente_direccion].filter(Boolean).join(' • ') || '—';
+                  const fecha = formatDateTime(o.fecha_trabajo_dispositivo || o.creado_en);
+                  const esValida = ['aprobada', 'liquidada'].includes(o.estado);
+
+                  return `
+                    <tr>
+                      <td>
+                        <strong class="folio-tag">${escapeHtml(o.folio || ('#' + o.id))}</strong>
+                      </td>
+                      <td>
+                        <strong class="fila-nombre">${escapeHtml(o.tecnico_nombre || 'Técnico')}</strong>
+                      </td>
+                      <td>
+                        <span class="servicio-nombre">${escapeHtml(o.tipo_servicio_nombre || 'Servicio')}</span>
+                      </td>
+                      <td>
+                        <div class="celda-cliente-info">
+                          <strong class="cliente-nombre">${escapeHtml(clienteNom)}</strong>
+                          ${tel ? `<span class="cliente-contacto">📞 ${escapeHtml(tel)}</span>` : ''}
+                        </div>
+                      </td>
+                      <td style="font-size: 0.82rem; color: var(--tinta-2);">
+                        ${escapeHtml(dir)}
+                      </td>
+                      <td style="font-size: 0.82rem; white-space: nowrap; color: var(--tinta-2);">
+                        ${fecha}
+                      </td>
+                      <td style="text-align: right;">
+                        <span class="badge-monto ${esValida ? 'badge-monto--positivo' : 'badge-monto--mudo'}">
+                          ${formatMoney(o.monto_tecnico)}
+                        </span>
+                      </td>
+                      <td style="text-align: center;">
+                        ${badge(o.estado)}
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
     `;
   }
 
