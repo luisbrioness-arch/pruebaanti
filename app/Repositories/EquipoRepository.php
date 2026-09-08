@@ -115,7 +115,7 @@ final class EquipoRepository
             $sql .= ' AND e.bodega_id = :bodega_id';
             $params['bodega_id'] = $bodegaId;
         }
-        $sql .= ' ORDER BY e.creado_en DESC';
+        $sql .= ' ORDER BY te.nombre ASC, e.numero_serie ASC, e.id DESC';
         $stmt = Database::connection()->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();

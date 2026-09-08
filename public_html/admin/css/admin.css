@@ -890,8 +890,46 @@ body.reportar-eligiendo, body.reportar-eligiendo * { cursor: crosshair !importan
   font-family: var(--fuente-mono); font-weight: 700; font-size: 0.84rem;
   color: var(--tinta); background: #F1F5F9; padding: 3px 8px; border-radius: 6px;
   border: 1px solid #E2E8F0; letter-spacing: -0.01em; display: inline-block;
+  cursor: pointer; transition: all 0.15s ease;
+}
+.badge-serie:hover {
+  background-color: #E2E8F0; border-color: #CBD5E1; color: var(--acento-2);
 }
 .tipo-con-icono { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--tinta); }
+
+/* Columnas ordenables */
+.th-ordenable {
+  cursor: pointer; user-select: none; transition: all 0.15s ease;
+}
+.th-ordenable:hover {
+  color: var(--acento-2) !important; background: rgba(15, 118, 110, 0.05);
+}
+.th-ordenable .sort-indicator {
+  display: inline-block; margin-left: 4px; font-size: 0.72rem; color: var(--tinta-3);
+}
+.th-ordenable.th-activa {
+  color: var(--acento-2) !important; font-weight: 700;
+}
+.th-ordenable.th-activa .sort-indicator {
+  color: var(--acento-2); font-weight: 900;
+}
+
+/* Tabla compacta y ordenada de equipos */
+.tabla-equipos-compacta td {
+  padding: 10px 14px; vertical-align: middle;
+}
+.tabla-equipos-compacta tbody tr:nth-child(even) {
+  background-color: #F8FAFC;
+}
+.tabla-equipos-compacta tbody tr:hover {
+  background-color: #F1F5F9 !important;
+}
+.tabla-equipos-compacta .celda-acciones {
+  white-space: nowrap; flex-wrap: nowrap; padding-top: 6px; padding-bottom: 6px;
+}
+.tabla-equipos-compacta .menu-acciones button {
+  font-size: 0.78rem; font-weight: 600;
+}
 
 /* ---------- Toasts ---------- */
 .toast-pila { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 200; }

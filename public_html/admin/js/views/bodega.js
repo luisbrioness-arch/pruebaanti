@@ -386,9 +386,21 @@ export async function renderBodega(container, params = {}) {
           <div class="campo">
             <input type="text" id="filtro-tecbod-equipo" placeholder="Filtrar por técnico o bodega…">
           </div>
+          <div class="campo">
+            <select id="filtro-orden-equipo" title="Criterio de ordenación de la tabla">
+              <option value="serie_asc">🔢 Serie (0 → 9 / A → Z)</option>
+              <option value="serie_desc">🔢 Serie (9 → 0 / Z → A)</option>
+              <option value="tipo_asc">📦 Tipo de equipo (A-Z)</option>
+              <option value="tipo_desc">📦 Tipo de equipo (Z-A)</option>
+              <option value="estado_asc">🏷️ Por estado</option>
+              <option value="ubicacion_asc">📍 Ubicación / Técnico</option>
+              <option value="recientes">🕐 Más recientes primero</option>
+            </select>
+          </div>
         </div>
         <div class="filtros-equipos-meta">
           <span id="equipos-conteo" class="conteo-badge">Cargando inventario…</span>
+          <span style="font-size: 0.8rem; color: var(--tinta-3);">💡 Clic en los encabezados de la tabla para ordenar</span>
         </div>
       </div>
 
@@ -399,10 +411,15 @@ export async function renderBodega(container, params = {}) {
     const $filtroTipo = $contenido.querySelector('#filtro-tipo-equipo');
     const $filtroEstado = $contenido.querySelector('#filtro-estado-equipo');
     const $filtroTecBod = $contenido.querySelector('#filtro-tecbod-equipo');
+    const $filtroOrden = $contenido.querySelector('#filtro-orden-equipo');
     $filtroEstado.addEventListener('change', () => cargarTablaEquipos($filtroEstado.value));
     $filtroSerie.addEventListener('input', debounce(pintarFilasEquipos, 200));
     $filtroTipo.addEventListener('change', pintarFilasEquipos);
     $filtroTecBod.addEventListener('input', debounce(pintarFilasEquipos, 200));
+    $filtroOrden.addEventListener('change', (ev) => {
+      criterioOrden = ev.target.value;
+      pintarFilasEquipos();
+    });
 
     $contenido.querySelector('#btn-escanear-serie').addEventListener('click', async () => {
       const resultado = await abrirScanner();
@@ -546,6 +563,7 @@ export async function renderBodega(container, params = {}) {
     });
   }
 
+  let criterioOrden = 'serie_asc';
   let equiposCache = [];
   let estadoActual = '';
 
@@ -656,6 +674,38 @@ export async function renderBodega(container, params = {}) {
       return true;
     });
 
+    // Ordenación natural y según criterio seleccionado
+    equipos.sort((a, b) => {
+      if (criterioOrden === 'serie_asc') {
+        return (a.numero_serie || '').localeCompare(b.numero_serie || '', undefined, { numeric: true, sensitivity: 'base' });
+      }
+      if (criterioOrden === 'serie_desc') {
+        return (b.numero_serie || '').localeCompare(a.numero_serie || '', undefined, { numeric: true, sensitivity: 'base' });
+      }
+      if (criterioOrden === 'tipo_asc') {
+        const c = (a.tipo_equipo_nombre || '').localeCompare(b.tipo_equipo_nombre || '', undefined, { sensitivity: 'base' });
+        return c !== 0 ? c : (a.numero_serie || '').localeCompare(b.numero_serie || '', undefined, { numeric: true });
+      }
+      if (criterioOrden === 'tipo_desc') {
+        const c = (b.tipo_equipo_nombre || '').localeCompare(a.tipo_equipo_nombre || '', undefined, { sensitivity: 'base' });
+        return c !== 0 ? c : (a.numero_serie || '').localeCompare(b.numero_serie || '', undefined, { numeric: true });
+      }
+      if (criterioOrden === 'estado_asc') {
+        const c = (a.estado || '').localeCompare(b.estado || '');
+        return c !== 0 ? c : (a.numero_serie || '').localeCompare(b.numero_serie || '', undefined, { numeric: true });
+      }
+      if (criterioOrden === 'ubicacion_asc') {
+        const ubA = a.tecnico_nombre || a.bodega_nombre || '';
+        const ubB = b.tecnico_nombre || b.bodega_nombre || '';
+        const c = ubA.localeCompare(ubB, undefined, { sensitivity: 'base' });
+        return c !== 0 ? c : (a.numero_serie || '').localeCompare(b.numero_serie || '', undefined, { numeric: true });
+      }
+      if (criterioOrden === 'recientes') {
+        return (b.id || 0) - (a.id || 0);
+      }
+      return 0;
+    });
+
     const $conteo = $contenido.querySelector('#equipos-conteo');
     if ($conteo) {
       $conteo.innerHTML = `Mostrando <strong>${equipos.length}</strong> de ${equiposCache.length} equipo(s) en inventario`;
@@ -668,14 +718,27 @@ export async function renderBodega(container, params = {}) {
       }
       $tabla.innerHTML = `
         <div class="tabla-envoltorio">
-          <table class="tabla">
+          <table class="tabla tabla-equipos-compacta">
             <thead>
               <tr>
-                <th style="width: 25%;">Número de serie</th>
-                <th style="width: 20%;">Tipo de equipo</th>
-                <th style="width: 18%;">Estado</th>
-                <th style="width: 22%;">Ubicación / Asignado a</th>
-                <th style="width: 15%; text-align: right;">Acciones</th>
+                <th style="width: 44px; text-align: center; color: var(--tinta-3); font-size: 0.78rem;">#</th>
+                <th class="th-ordenable ${criterioOrden.startsWith('serie') ? 'th-activa' : ''}" data-sort="serie" style="width: 25%;" title="Clic para ordenar por número de serie">
+                  <span>Número de serie</span>
+                  <span class="sort-indicator">${criterioOrden === 'serie_asc' ? '▲' : (criterioOrden === 'serie_desc' ? '▼' : '↕')}</span>
+                </th>
+                <th class="th-ordenable ${criterioOrden.startsWith('tipo') ? 'th-activa' : ''}" data-sort="tipo" style="width: 20%;" title="Clic para ordenar por tipo">
+                  <span>Tipo de equipo</span>
+                  <span class="sort-indicator">${criterioOrden === 'tipo_asc' ? '▲' : (criterioOrden === 'tipo_desc' ? '▼' : '↕')}</span>
+                </th>
+                <th class="th-ordenable ${criterioOrden.startsWith('estado') ? 'th-activa' : ''}" data-sort="estado" style="width: 17%;" title="Clic para ordenar por estado">
+                  <span>Estado</span>
+                  <span class="sort-indicator">${criterioOrden === 'estado_asc' ? '▲' : '↕'}</span>
+                </th>
+                <th class="th-ordenable ${criterioOrden.startsWith('ubicacion') ? 'th-activa' : ''}" data-sort="ubicacion" style="width: 22%;" title="Clic para ordenar por ubicación">
+                  <span>Ubicación / Asignado a</span>
+                  <span class="sort-indicator">${criterioOrden === 'ubicacion_asc' ? '▲' : '↕'}</span>
+                </th>
+                <th style="width: 130px; text-align: right;">Acciones</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -683,11 +746,12 @@ export async function renderBodega(container, params = {}) {
         </div>
       `;
       const $tbody = $tabla.querySelector('tbody');
-      for (const e of equipos) {
+      equipos.forEach((e, idx) => {
         const tr = el(`
           <tr>
+            <td style="text-align: center; color: var(--tinta-3); font-size: 0.78rem; font-weight: 600;">${idx + 1}</td>
             <td>
-              <span class="badge-serie celda-mono">${escapeHtml(e.numero_serie)}</span>
+              <span class="badge-serie celda-mono" title="Clic para copiar serie" data-copiar="${escapeHtml(e.numero_serie)}">${escapeHtml(e.numero_serie)}</span>
             </td>
             <td>
               <span class="tipo-con-icono">
@@ -706,21 +770,17 @@ export async function renderBodega(container, params = {}) {
         `);
         const $acciones = tr.querySelector('.celda-acciones');
 
-        /** Sin conexión no hay fila nueva que pintar (el servidor decide el estado real) — se marca esta fila como "en camino" y se le quitan más acciones hasta que se sepa de verdad. */
         function marcarFilaPendiente(mensaje) {
-          $acciones.innerHTML = `<span class="chip chip--alerta">⏳ ${escapeHtml(mensaje)}</span>`;
+          $acciones.innerHTML = `<span class="chip chip--alerta" style="font-size: 0.72rem; padding: 2px 6px;">⏳ ${escapeHtml(mensaje)}</span>`;
         }
 
-        if (e.estado === 'bodega' || e.estado === 'maleta') {
-          $acciones.appendChild(el('<a href="#bodega?tab=asignar" class="btn btn--secundario btn--chico">→ Asignar a técnicos</a>'));
-        }
         if (e.estado === 'en_transito') {
           const dias = diasDesde(e.actualizado_en);
           const texto = dias >= DIAS_AVISO_PENDIENTE
-            ? `⚠ Esperando hace ${dias} días que ${escapeHtml(e.tecnico_nombre || 'el técnico')} confirme`
-            : `⏳ Esperando que ${escapeHtml(e.tecnico_nombre || 'el técnico')} confirme`;
-          const $chip = el(`<span class="chip ${dias >= DIAS_AVISO_PENDIENTE ? 'chip--malo' : 'chip--alerta'}">${texto}</span>`);
-          const btnCancelar = el('<button type="button" class="btn btn--secundario btn--chico">Cancelar envío</button>');
+            ? `⚠ Esperando hace ${dias}d`
+            : `⏳ En tránsito`;
+          const $chip = el(`<span class="chip ${dias >= DIAS_AVISO_PENDIENTE ? 'chip--malo' : 'chip--alerta'}" style="font-size: 0.72rem; padding: 2px 6px;">${texto}</span>`);
+          const btnCancelar = el('<button type="button" class="btn btn--secundario btn--chico" style="font-size: 0.75rem; padding: 3px 8px;">Cancelar</button>');
           btnCancelar.addEventListener('click', async () => {
             try {
               const { encolado } = await conColaSiHaceFalta('cancelar_traspaso_equipo', { id: e.id }, () => api(`/admin/equipos/${e.id}/cancelar-traspaso`, { method: 'POST', body: {} }));
@@ -733,18 +793,11 @@ export async function renderBodega(container, params = {}) {
             } catch (err) { toast(err.message, 'malo'); }
           });
           $acciones.append($chip, btnCancelar);
-        }
-        // Pedido: "nos falta una bodega de reversa donde lleguen los con
-        // falla, retiro o reparaciones" — tanto "retirado" (vuelve de
-        // instalar) como "falla_fabrica" (salió malo / está en reparación)
-        // se reingresan con el mismo formulario, eligiendo a qué bodega
-        // física llega (puede ser una dedicada, ej. "Bodega Reversa",
-        // creada como cualquier otra desde Ubicaciones).
-        if (['retirado', 'falla_fabrica'].includes(e.estado)) {
+        } else if (['retirado', 'falla_fabrica'].includes(e.estado)) {
           const form = el(`
-            <form class="form-inline">
-              <select name="bodega_id" required>${opcionesBodegas()}</select>
-              <button type="submit" class="btn btn--secundario btn--chico">${e.estado === 'retirado' ? 'Ingresó a bodega' : 'Reingresar (reparado)'}</button>
+            <form class="form-inline" style="gap: 4px;">
+              <select name="bodega_id" required style="max-width: 120px; font-size: 0.75rem; padding: 3px 6px;">${opcionesBodegas()}</select>
+              <button type="submit" class="btn btn--secundario btn--chico" style="font-size: 0.75rem; padding: 3px 8px;">${e.estado === 'retirado' ? 'Reingresar' : 'Reparado'}</button>
             </form>
           `);
           form.addEventListener('submit', async (ev) => {
@@ -763,21 +816,12 @@ export async function renderBodega(container, params = {}) {
             } catch (err) { toast(err.message, 'malo'); }
           });
           $acciones.appendChild(form);
-        }
-        if (e.estado === 'instalado') {
-          const btnRastreo = el('<button type="button" class="btn btn--secundario btn--chico">🔎 Rastreo</button>');
-          btnRastreo.addEventListener('click', () => abrirRastreoEquipo(e.id, e.numero_serie));
-          $acciones.appendChild(btnRastreo);
-        }
-        // Pedido: "se ve mal, que todas las opciones de perdido falla de
-        // fabrica o devuelto a tuvez esten en un boton solo como algo
-        // parecido a acciones" — un solo "Acciones ▾" (ver
-        // crearMenuAcciones arriba) en vez de 1-3 botones sueltos por fila.
-        if (!['falla_fabrica', 'devuelto_tuves', 'perdido'].includes(e.estado)) {
+        } else {
+          // Menú único de acciones consolidado y ordenado
           function abrirModalFallaFabrica() {
             const { root, cerrar } = abrirModal(`
               <h3>Marcar "${escapeHtml(e.numero_serie)}" como falla de fábrica</h3>
-              <p class="modal-explicacion">Sale de donde esté ahora sin culpar ni descontar a nadie. Elegí a qué bodega física llega.</p>
+              <p class="modal-explicacion">Sale de donde esté ahora sin culpar ni descontar a nadie. Elige a qué bodega física llega.</p>
               <form id="form-falla-fabrica">
                 <label class="campo">
                   <span>Bodega</span>
@@ -808,11 +852,8 @@ export async function renderBodega(container, params = {}) {
             });
           }
 
-          // "Perdido" y "Devuelto a TuVes" son terminales y sin bodega
-          // destino (el equipo sale del inventario activo), así que el
-          // modal es más simple: solo confirmar y, opcionalmente, una nota.
           const accionesTerminales = [
-            { tipo: 'marcar_perdido', ruta: 'perdido', boton: 'Perdido', titulo: `Marcar "${e.numero_serie}" como perdido`, explicacion: 'Sale del inventario activo — no queda en ninguna bodega ni maleta. Usalo si a un técnico se le extravió o se lo robaron.', toastOk: 'marcado como perdido.', pendienteMsg: 'perdido pendiente' },
+            { tipo: 'marcar_perdido', ruta: 'perdido', boton: 'Perdido', titulo: `Marcar "${e.numero_serie}" como perdido`, explicacion: 'Sale del inventario activo — no queda en ninguna bodega ni maleta. Úsalo si a un técnico se le extravió o se lo robaron.', toastOk: 'marcado como perdido.', pendienteMsg: 'perdido pendiente' },
             { tipo: 'marcar_devuelto_tuves', ruta: 'devuelto-tuves', boton: 'Devuelto a TuVes', titulo: `Marcar "${e.numero_serie}" como devuelto a TuVes`, explicacion: 'Sale del inventario activo — se devolvió al proveedor y ya no es stock propio.', toastOk: 'marcado como devuelto a TuVes.', pendienteMsg: 'devolución pendiente' },
           ];
           function abrirModalAccionTerminal(acc) {
@@ -849,13 +890,71 @@ export async function renderBodega(container, params = {}) {
             });
           }
 
-          $acciones.appendChild(crearMenuAcciones([
-            { texto: 'Falla de fábrica', clase: 'menu-item--malo', onClick: abrirModalFallaFabrica },
-            ...accionesTerminales.map((acc) => ({ texto: acc.boton, onClick: () => abrirModalAccionTerminal(acc) })),
-          ]));
+          const menuItems = [];
+
+          if (e.estado === 'bodega' || e.estado === 'maleta') {
+            menuItems.push({
+              texto: '🚚 Asignar a técnicos',
+              onClick: () => { window.location.hash = '#bodega?tab=asignar'; },
+            });
+          }
+
+          menuItems.push({
+            texto: '🔍 Ver historial y rastreo',
+            onClick: () => abrirRastreoEquipo(e.id, e.numero_serie),
+          });
+
+          if (!['falla_fabrica', 'devuelto_tuves', 'perdido'].includes(e.estado)) {
+            menuItems.push({
+              texto: '⚠️ Falla de fábrica',
+              clase: 'menu-item--malo',
+              onClick: abrirModalFallaFabrica,
+            });
+            menuItems.push({
+              texto: '📦 Devuelto a TuVes',
+              onClick: () => abrirModalAccionTerminal(accionesTerminales[1]),
+            });
+            menuItems.push({
+              texto: '❌ Marcar como perdido',
+              onClick: () => abrirModalAccionTerminal(accionesTerminales[0]),
+            });
+          }
+
+          $acciones.appendChild(crearMenuAcciones(menuItems));
         }
+
         $tbody.appendChild(tr);
-      }
+      });
+
+      // Listeners de ordenación al hacer clic en columnas
+      $tabla.querySelectorAll('.th-ordenable').forEach((th) => {
+        th.addEventListener('click', () => {
+          const col = th.dataset.sort;
+          if (col === 'serie') {
+            criterioOrden = criterioOrden === 'serie_asc' ? 'serie_desc' : 'serie_asc';
+          } else if (col === 'tipo') {
+            criterioOrden = criterioOrden === 'tipo_asc' ? 'tipo_desc' : 'tipo_asc';
+          } else if (col === 'estado') {
+            criterioOrden = criterioOrden === 'estado_asc' ? 'serie_asc' : 'estado_asc';
+          } else if (col === 'ubicacion') {
+            criterioOrden = criterioOrden === 'ubicacion_asc' ? 'serie_asc' : 'ubicacion_asc';
+          }
+          const $sel = $contenido.querySelector('#filtro-orden-equipo');
+          if ($sel) $sel.value = criterioOrden;
+          pintarFilasEquipos();
+        });
+      });
+
+      // Clic para copiar número de serie
+      $tabla.querySelectorAll('[data-copiar]').forEach((badge) => {
+        badge.addEventListener('click', () => {
+          const num = badge.dataset.copiar;
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(num);
+            toast(`Serie ${num} copiada al portapapeles.`, 'ok');
+          }
+        });
+      });
     } catch (e) {
       $tabla.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
     }
