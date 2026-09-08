@@ -42,6 +42,24 @@ function mostrarLogin(mensaje) {
   }
 }
 
+function iniciarRelojAdmin() {
+  const cont = document.getElementById('admin-reloj-fecha-hora');
+  if (!cont) return;
+
+  function tick() {
+    const ahora = new Date();
+    const hora = ahora.toLocaleTimeString('es-CL', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const fecha = ahora.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    cont.innerHTML = `
+      <span class="reloj-item"><span class="reloj-hora">🕒 ${hora}</span></span>
+      <span class="reloj-item"><span class="reloj-fecha">📅 ${fecha}</span></span>
+      <span class="reloj-version" title="Sistema en línea y actualizado">v20</span>
+    `;
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
 async function boot() {
   try {
     const { usuario } = await api('/auth/yo');
@@ -53,6 +71,7 @@ async function boot() {
     document.getElementById('usuario-nombre').textContent = usuario.nombre;
     $shell.hidden = false;
     $loginScreen.hidden = true;
+    iniciarRelojAdmin();
     startRouter();
     actualizarBadgePendientes();
     procesarCola();

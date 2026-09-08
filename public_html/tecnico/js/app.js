@@ -36,12 +36,26 @@ function mostrarLogin(mensaje) {
   }
 }
 
+function iniciarRelojTecnico() {
+  const elReloj = document.getElementById('topbar-reloj');
+  if (!elReloj) return;
+
+  function tick() {
+    const ahora = new Date();
+    const hora = ahora.toLocaleTimeString('es-CL', { hour12: false, hour: '2-digit', minute: '2-digit' });
+    elReloj.textContent = `🕒 ${hora}`;
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
 async function boot() {
   try {
     const { usuario } = await api('/auth/yo');
     setUsuarioActual(usuario);
     $shell.hidden = false;
     $loginScreen.hidden = true;
+    iniciarRelojTecnico();
     startRouter();
     // Cada vez que se abre la app es un buen momento para intentar vaciar
     // lo que haya quedado pendiente de un rato sin señal (ver offline.js).

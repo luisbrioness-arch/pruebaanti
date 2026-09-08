@@ -32,6 +32,23 @@ export async function renderHome(container) {
         </div>
       </div>
 
+      <div class="home-estado-actualizacion">
+        <div class="home-estado-izq">
+          <span class="punto-verde-pulso" aria-hidden="true"></span>
+          <div class="home-estado-texto">
+            <span class="home-estado-titulo">
+              Sistema Actualizado
+              <span class="home-estado-version-tag">v21</span>
+            </span>
+            <span class="home-estado-subtexto">Datos y conexión al día</span>
+          </div>
+        </div>
+        <div class="home-estado-reloj">
+          <div class="home-reloj-hora" id="home-reloj-hora">--:--:--</div>
+          <div class="home-reloj-fecha" id="home-reloj-fecha">--/--/----</div>
+        </div>
+      </div>
+
       <p class="campo-ayuda" id="home-pendientes" hidden></p>
 
       <div class="hub-grid">
@@ -118,6 +135,24 @@ export async function renderHome(container) {
       $badge.hidden = false;
     }
   }).catch(() => {});
+
+  // Reloj y fecha en vivo de la tarjeta de estado
+  const $relojHora = seccion.querySelector('#home-reloj-hora');
+  const $relojFecha = seccion.querySelector('#home-reloj-fecha');
+  function tickHome() {
+    if (!$relojHora || !seccion.isConnected) return;
+    const ahora = new Date();
+    $relojHora.textContent = ahora.toLocaleTimeString('es-CL', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    $relojFecha.textContent = ahora.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+  tickHome();
+  const timerHome = setInterval(() => {
+    if (!seccion.isConnected) {
+      clearInterval(timerHome);
+      return;
+    }
+    tickHome();
+  }, 1000);
 
   pintarBorradores(seccion.querySelector('#lista-borradores'));
 
