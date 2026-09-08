@@ -1368,23 +1368,343 @@ export async function renderBodega(container, params = {}) {
   function pintarTablaTiposEquipo() {
     const $tabla = $contenido.querySelector('#tabla-tipos-equipo');
     if (!$tabla) return;
+    if (!tiposEquipo.length) {
+      $tabla.innerHTML = '<p class="vacio" style="margin: 14px 0;">No hay tipos de equipo registrados en el catálogo.</p>';
+      return;
+    }
     $tabla.innerHTML = `
       <table class="tabla">
-        <thead><tr><th>Código</th><th>Nombre</th></tr></thead>
-        <tbody>${tiposEquipo.map((t) => `<tr><td class="celda-mono">${escapeHtml(t.codigo)}</td><td>${escapeHtml(t.nombre)}</td></tr>`).join('')}</tbody>
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Nombre</th>
+            <th style="text-align: right; width: 140px;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>${tiposEquipo.map((t) => `
+          <tr>
+            <td class="celda-mono">${escapeHtml(t.codigo)}</td>
+            <td>
+              <span style="display: inline-flex; align-items: center; gap: 8px;">
+                <span style="font-size: 1.1rem;">${iconForTipo(t.codigo)}</span>
+                <strong>${escapeHtml(t.nombre)}</strong>
+              </span>
+            </td>
+            <td style="text-align: right; width: 140px;">
+              <div style="display: inline-flex; gap: 6px; align-items: center; justify-content: flex-end;">
+                <button type="button" class="btn-accion btn-accion--editar" data-editar-tipo="${t.id}" title="Editar tipo de equipo">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                  <span>Editar</span>
+                </button>
+                <button type="button" class="btn-accion btn-accion--eliminar" data-borrar-tipo="${t.id}" title="Eliminar tipo de equipo">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                  <span>Borrar</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `).join('')}</tbody>
       </table>
     `;
+
+    $tabla.querySelectorAll('[data-editar-tipo]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const t = tiposEquipo.find((x) => String(x.id) === btn.dataset.editarTipo);
+        if (t) abrirModalEditarTipoEquipo(t);
+      });
+    });
+
+    $tabla.querySelectorAll('[data-borrar-tipo]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const t = tiposEquipo.find((x) => String(x.id) === btn.dataset.borrarTipo);
+        if (t) confirmarEliminarTipoEquipo(t);
+      });
+    });
+  }
+
+  function abrirModalEditarTipoEquipo(t) {
+    const { root, cerrar } = abrirModal(`
+      <div class="modal-encabezado-icono">
+        <div class="modal-icono-circulo modal-icono-circulo--teal">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+        </div>
+        <div>
+          <h3 style="margin: 0; font-size: 1.15rem;">Editar tipo de equipo</h3>
+          <p style="margin: 3px 0 0; font-size: 0.82rem; color: var(--tinta-2);">
+            Modifica el código o el nombre visible del equipo en el catálogo.
+          </p>
+        </div>
+      </div>
+      <form id="form-editar-tipo-equipo" style="margin-top: 18px;">
+        <label class="campo">
+          <span>Código</span>
+          <input type="text" name="codigo" value="${escapeHtml(t.codigo)}" pattern="[a-z0-9_]+" title="Solo minúsculas, números o guion bajo" required>
+        </label>
+        <label class="campo" style="margin-top: 12px;">
+          <span>Nombre</span>
+          <input type="text" name="nombre" value="${escapeHtml(t.nombre)}" required autofocus>
+        </label>
+        <div class="modal-acciones" style="margin-top: 22px;">
+          <button type="button" class="btn btn--secundario" id="btn-cancelar">Cancelar</button>
+          <button type="submit" class="btn btn--primario">Guardar cambios</button>
+        </div>
+      </form>
+    `);
+
+    root.querySelector('#btn-cancelar').addEventListener('click', cerrar);
+    root.querySelector('#form-editar-tipo-equipo').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const $submit = ev.target.querySelector('button[type="submit"]');
+      if ($submit.disabled) return;
+      $submit.disabled = true;
+      const fd = new FormData(ev.target);
+      const payload = {
+        id: t.id,
+        codigo: fd.get('codigo').trim(),
+        nombre: fd.get('nombre').trim(),
+      };
+      try {
+        const { datos, encolado } = await conColaSiHaceFalta('editar_tipo_equipo', payload, () =>
+          api(`/admin/catalogo/tipos-equipo/${t.id}`, { method: 'PUT', body: { codigo: payload.codigo, nombre: payload.nombre } })
+        );
+        cerrar();
+        if (encolado) {
+          toast(`Tipo "${payload.nombre}" guardado sin conexión.`, 'neutro');
+        } else {
+          toast(`Tipo de equipo "${payload.nombre}" actualizado.`, 'ok');
+          tiposEquipo = datos.tipos_equipo;
+          pintarTablaTiposEquipo();
+        }
+      } catch (e) {
+        toast(e.message, 'malo');
+        $submit.disabled = false;
+      }
+    });
+  }
+
+  function confirmarEliminarTipoEquipo(t) {
+    const { root, cerrar } = abrirModal(`
+      <div class="modal-encabezado-icono">
+        <div class="modal-icono-circulo modal-icono-circulo--malo">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </div>
+        <div>
+          <h3 style="margin: 0; font-size: 1.15rem;">¿Eliminar tipo "${escapeHtml(t.nombre)}"?</h3>
+          <p style="margin: 3px 0 0; font-size: 0.82rem; color: var(--tinta-2);">
+            Código: <code class="celda-mono">${escapeHtml(t.codigo)}</code><br>
+            Si no tiene equipos registrados en el sistema, se eliminará definitivamente. Si ya tiene equipos asociados, se desactivará del catálogo para conservar la trazabilidad histórica.
+          </p>
+        </div>
+      </div>
+      <div class="modal-acciones" style="margin-top: 22px;">
+        <button type="button" class="btn btn--secundario" id="btn-cancelar">Cancelar</button>
+        <button type="button" class="btn btn--malo" id="btn-confirmar">Sí, eliminar</button>
+      </div>
+    `);
+
+    root.querySelector('#btn-cancelar').addEventListener('click', cerrar);
+    root.querySelector('#btn-confirmar').addEventListener('click', async () => {
+      const $btn = root.querySelector('#btn-confirmar');
+      if ($btn.disabled) return;
+      $btn.disabled = true;
+      try {
+        const { datos, encolado } = await conColaSiHaceFalta('eliminar_tipo_equipo', { id: t.id }, () =>
+          api(`/admin/catalogo/tipos-equipo/${t.id}`, { method: 'DELETE' })
+        );
+        cerrar();
+        if (encolado) {
+          toast(`Tipo "${t.nombre}" eliminado sin conexión.`, 'neutro');
+        } else {
+          toast(datos?.resultado?.mensaje || `Tipo de equipo "${t.nombre}" eliminado.`, 'ok');
+          tiposEquipo = datos.tipos_equipo;
+          pintarTablaTiposEquipo();
+        }
+      } catch (e) {
+        toast(e.message, 'malo');
+        $btn.disabled = false;
+      }
+    });
   }
 
   function pintarTablaItemsFerreteria() {
     const $tabla = $contenido.querySelector('#tabla-items-ferreteria');
     if (!$tabla) return;
+    if (!items.length) {
+      $tabla.innerHTML = '<p class="vacio" style="margin: 14px 0;">No hay ítems de ferretería registrados en el catálogo.</p>';
+      return;
+    }
     $tabla.innerHTML = `
       <table class="tabla">
-        <thead><tr><th>Código</th><th>Nombre</th><th>Unidad</th></tr></thead>
-        <tbody>${items.map((i) => `<tr><td class="celda-mono">${escapeHtml(i.codigo)}</td><td>${escapeHtml(i.nombre)}</td><td>${escapeHtml(i.unidad_medida)}</td></tr>`).join('')}</tbody>
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Nombre</th>
+            <th>Unidad</th>
+            <th style="text-align: right; width: 140px;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>${items.map((i) => `
+          <tr>
+            <td class="celda-mono">${escapeHtml(i.codigo)}</td>
+            <td><strong>${escapeHtml(i.nombre)}</strong></td>
+            <td><span class="chip chip--neutro">${escapeHtml(i.unidad_medida)}</span></td>
+            <td style="text-align: right; width: 140px;">
+              <div style="display: inline-flex; gap: 6px; align-items: center; justify-content: flex-end;">
+                <button type="button" class="btn-accion btn-accion--editar" data-editar-item="${i.id}" title="Editar ítem de ferretería">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                  <span>Editar</span>
+                </button>
+                <button type="button" class="btn-accion btn-accion--eliminar" data-borrar-item="${i.id}" title="Eliminar ítem de ferretería">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                  <span>Borrar</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `).join('')}</tbody>
       </table>
     `;
+
+    $tabla.querySelectorAll('[data-editar-item]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const item = items.find((x) => String(x.id) === btn.dataset.editarItem);
+        if (item) abrirModalEditarItemFerreteria(item);
+      });
+    });
+
+    $tabla.querySelectorAll('[data-borrar-item]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const item = items.find((x) => String(x.id) === btn.dataset.borrarItem);
+        if (item) confirmarEliminarItemFerreteria(item);
+      });
+    });
+  }
+
+  function abrirModalEditarItemFerreteria(item) {
+    const { root, cerrar } = abrirModal(`
+      <div class="modal-encabezado-icono">
+        <div class="modal-icono-circulo modal-icono-circulo--teal">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+        </div>
+        <div>
+          <h3 style="margin: 0; font-size: 1.15rem;">Editar ítem de ferretería</h3>
+          <p style="margin: 3px 0 0; font-size: 0.82rem; color: var(--tinta-2);">
+            Modifica el código, nombre o unidad de medida del material.
+          </p>
+        </div>
+      </div>
+      <form id="form-editar-item" style="margin-top: 18px;">
+        <label class="campo">
+          <span>Código</span>
+          <input type="text" name="codigo" value="${escapeHtml(item.codigo)}" pattern="[a-z0-9_]+" title="Solo minúsculas, números o guion bajo" required>
+        </label>
+        <label class="campo" style="margin-top: 12px;">
+          <span>Nombre</span>
+          <input type="text" name="nombre" value="${escapeHtml(item.nombre)}" required autofocus>
+        </label>
+        <label class="campo" style="margin-top: 12px;">
+          <span>Unidad de medida</span>
+          <select name="unidad_medida">
+            <option value="unidad" ${item.unidad_medida === 'unidad' ? 'selected' : ''}>Unidad</option>
+            <option value="metro" ${item.unidad_medida === 'metro' ? 'selected' : ''}>Metro</option>
+          </select>
+        </label>
+        <div class="modal-acciones" style="margin-top: 22px;">
+          <button type="button" class="btn btn--secundario" id="btn-cancelar">Cancelar</button>
+          <button type="submit" class="btn btn--primario">Guardar cambios</button>
+        </div>
+      </form>
+    `);
+
+    root.querySelector('#btn-cancelar').addEventListener('click', cerrar);
+    root.querySelector('#form-editar-item').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const $submit = ev.target.querySelector('button[type="submit"]');
+      if ($submit.disabled) return;
+      $submit.disabled = true;
+      const fd = new FormData(ev.target);
+      const payload = {
+        id: item.id,
+        codigo: fd.get('codigo').trim(),
+        nombre: fd.get('nombre').trim(),
+        unidad_medida: fd.get('unidad_medida'),
+      };
+      try {
+        const { datos, encolado } = await conColaSiHaceFalta('editar_item_ferreteria', payload, () =>
+          api(`/admin/catalogo/items-ferreteria/${item.id}`, {
+            method: 'PUT',
+            body: { codigo: payload.codigo, nombre: payload.nombre, unidad_medida: payload.unidad_medida },
+          })
+        );
+        cerrar();
+        if (encolado) {
+          toast(`Ítem "${payload.nombre}" guardado sin conexión.`, 'neutro');
+        } else {
+          toast(`Ítem "${payload.nombre}" actualizado.`, 'ok');
+          items = datos.items;
+          pintarTablaItemsFerreteria();
+        }
+      } catch (e) {
+        toast(e.message, 'malo');
+        $submit.disabled = false;
+      }
+    });
+  }
+
+  function confirmarEliminarItemFerreteria(item) {
+    const { root, cerrar } = abrirModal(`
+      <div class="modal-encabezado-icono">
+        <div class="modal-icono-circulo modal-icono-circulo--malo">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </div>
+        <div>
+          <h3 style="margin: 0; font-size: 1.15rem;">¿Eliminar ítem "${escapeHtml(item.nombre)}"?</h3>
+          <p style="margin: 3px 0 0; font-size: 0.82rem; color: var(--tinta-2);">
+            Código: <code class="celda-mono">${escapeHtml(item.codigo)}</code><br>
+            Si no tiene movimientos ni órdenes en el historial, se eliminará definitivamente. Si ya tiene movimientos registrados, se desactivará del catálogo para preservar los registros.
+          </p>
+        </div>
+      </div>
+      <div class="modal-acciones" style="margin-top: 22px;">
+        <button type="button" class="btn btn--secundario" id="btn-cancelar">Cancelar</button>
+        <button type="button" class="btn btn--malo" id="btn-confirmar">Sí, eliminar</button>
+      </div>
+    `);
+
+    root.querySelector('#btn-cancelar').addEventListener('click', cerrar);
+    root.querySelector('#btn-confirmar').addEventListener('click', async () => {
+      const $btn = root.querySelector('#btn-confirmar');
+      if ($btn.disabled) return;
+      $btn.disabled = true;
+      try {
+        const { datos, encolado } = await conColaSiHaceFalta('eliminar_item_ferreteria', { id: item.id }, () =>
+          api(`/admin/catalogo/items-ferreteria/${item.id}`, { method: 'DELETE' })
+        );
+        cerrar();
+        if (encolado) {
+          toast(`Ítem "${item.nombre}" eliminado sin conexión.`, 'neutro');
+        } else {
+          toast(datos?.resultado?.mensaje || `Ítem "${item.nombre}" eliminado.`, 'ok');
+          items = datos.items;
+          pintarTablaItemsFerreteria();
+        }
+      } catch (e) {
+        toast(e.message, 'malo');
+        $btn.disabled = false;
+      }
+    });
   }
 
   // -------------------------------------------------------- Buscar por serie --

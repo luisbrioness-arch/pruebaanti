@@ -210,13 +210,17 @@ POST /api/admin/ferreteria/pendientes/{id}/cancelar                → el admin 
 ## Catálogo — tipos de equipo e ítems de ferretería
 
 ```
-GET  /api/admin/catalogo/tipos-equipo
-POST /api/admin/catalogo/tipos-equipo           { codigo, nombre }                    → 201
-GET  /api/admin/catalogo/items-ferreteria
-POST /api/admin/catalogo/items-ferreteria       { codigo, nombre, unidad_medida? }    → 201, unidad_medida: "unidad"|"metro" (default "unidad")
+GET    /api/admin/catalogo/tipos-equipo
+POST   /api/admin/catalogo/tipos-equipo           { codigo, nombre }                    → 201
+PUT    /api/admin/catalogo/tipos-equipo/{id}      { codigo, nombre }                    → 200
+DELETE /api/admin/catalogo/tipos-equipo/{id}                                            → 200
+GET    /api/admin/catalogo/items-ferreteria
+POST   /api/admin/catalogo/items-ferreteria       { codigo, nombre, unidad_medida? }    → 201, unidad_medida: "unidad"|"metro" (default "unidad")
+PUT    /api/admin/catalogo/items-ferreteria/{id}  { codigo, nombre, unidad_medida }     → 200
+DELETE /api/admin/catalogo/items-ferreteria/{id}                                        → 200
 ```
 
-Pedido: *"en bodega se puedan agregar nuevos items"* — antes solo se podía dar de alta una serie (equipo) o cargar cantidad (ferretería) de un tipo/ítem que YA existía en el catálogo; crear el tipo/ítem en sí exigía tocar la base a mano. Pestaña "Catálogo" en el panel, dentro de Bodega. `codigo` valida contra `^[a-z0-9_]+$` y tiene que ser único, mismo criterio que los planes del tarifario.
+Pedido: *"en bodega se puedan agregar nuevos items"* y *"se tienen que poder editar y borrar los que ya estaban"*. Pestaña "Catálogo" en el panel, dentro de Bodega. Permite crear, modificar nombre/código/unidad y borrar (o desactivar si tiene registros históricos asociados). `codigo` valida contra `^[a-z0-9_]+$` y tiene que ser único.
 
 ## Usuarios
 

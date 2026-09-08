@@ -144,7 +144,11 @@ $router->post('/api/admin/reportes/{id}/resolver', fn(Request $r) => (new AdminR
 $router->get('/api/admin/catalogo/tipos-equipo', fn(Request $r) => (new AdminBodegaController())->catalogoTiposEquipo($r));
 $router->get('/api/admin/catalogo/items-ferreteria', fn(Request $r) => (new AdminBodegaController())->catalogoItemsFerreteria($r));
 $router->post('/api/admin/catalogo/tipos-equipo', fn(Request $r) => (new AdminBodegaController())->crearTipoEquipo($r));
+$router->put('/api/admin/catalogo/tipos-equipo/{id}', fn(Request $r) => (new AdminBodegaController())->actualizarTipoEquipo($r));
+$router->delete('/api/admin/catalogo/tipos-equipo/{id}', fn(Request $r) => (new AdminBodegaController())->eliminarTipoEquipo($r));
 $router->post('/api/admin/catalogo/items-ferreteria', fn(Request $r) => (new AdminBodegaController())->crearItemFerreteria($r));
+$router->put('/api/admin/catalogo/items-ferreteria/{id}', fn(Request $r) => (new AdminBodegaController())->actualizarItemFerreteria($r));
+$router->delete('/api/admin/catalogo/items-ferreteria/{id}', fn(Request $r) => (new AdminBodegaController())->eliminarItemFerreteria($r));
 
 // Bodega — equipos
 $router->get('/api/admin/equipos', fn(Request $r) => (new AdminBodegaController())->listarEquipos($r));

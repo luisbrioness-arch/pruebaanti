@@ -94,11 +94,46 @@ final class BodegaService
         if ($nombre === '') {
             throw new ValidationException('El nombre no puede estar vacío.');
         }
-        if ($this->tiposEquipo->existeCodigo($codigo)) {
+        $existente = $this->tiposEquipo->buscarPorCodigoCualquiera($codigo);
+        if ($existente) {
+            if ((int) ($existente['activo'] ?? 1) === 0) {
+                $this->tiposEquipo->reactivar((int) $existente['id'], $nombre);
+                return $this->tiposEquipo->find((int) $existente['id']);
+            }
             throw new ValidationException('Ya existe un tipo de equipo con ese código.');
         }
         $id = $this->tiposEquipo->crear($codigo, $nombre);
-        return $this->tiposEquipo->porCodigo($codigo) ?? ['id' => $id, 'codigo' => $codigo, 'nombre' => $nombre];
+        return $this->tiposEquipo->find($id) ?? ['id' => $id, 'codigo' => $codigo, 'nombre' => $nombre];
+    }
+
+    public function actualizarTipoEquipo(int $id, string $codigo, string $nombre): array
+    {
+        $actual = $this->tiposEquipo->find($id);
+        if (!$actual) {
+            throw new ValidationException('Tipo de equipo no encontrado.');
+        }
+        $codigo = trim($codigo);
+        $nombre = trim($nombre);
+        if ($codigo === '' || !preg_match('/^[a-z0-9_]+$/', $codigo)) {
+            throw new ValidationException('El código debe tener solo minúsculas, números o guion bajo.');
+        }
+        if ($nombre === '') {
+            throw new ValidationException('El nombre no puede estar vacío.');
+        }
+        if ($this->tiposEquipo->existeCodigo($codigo, $id)) {
+            throw new ValidationException('Ya existe otro tipo de equipo con ese código.');
+        }
+        $this->tiposEquipo->actualizar($id, $codigo, $nombre);
+        return $this->tiposEquipo->find($id);
+    }
+
+    public function eliminarTipoEquipo(int $id): array
+    {
+        $actual = $this->tiposEquipo->find($id);
+        if (!$actual) {
+            throw new ValidationException('Tipo de equipo no encontrado.');
+        }
+        return $this->tiposEquipo->eliminar($id);
     }
 
     /** Mismo criterio que crearTipoEquipo(), para el catálogo de ferretería. */
@@ -115,11 +150,49 @@ final class BodegaService
         if (!in_array($unidadMedida, ['unidad', 'metro'], true)) {
             throw new ValidationException('Unidad de medida inválida (debe ser "unidad" o "metro").');
         }
-        if ($this->itemsFerreteria->existeCodigo($codigo)) {
+        $existente = $this->itemsFerreteria->buscarPorCodigoCualquiera($codigo);
+        if ($existente) {
+            if ((int) ($existente['activo'] ?? 1) === 0) {
+                $this->itemsFerreteria->reactivar((int) $existente['id'], $nombre, $unidadMedida);
+                return $this->itemsFerreteria->find((int) $existente['id']);
+            }
             throw new ValidationException('Ya existe un ítem de ferretería con ese código.');
         }
         $id = $this->itemsFerreteria->crear($codigo, $nombre, $unidadMedida);
         return $this->itemsFerreteria->find($id);
+    }
+
+    public function actualizarItemFerreteria(int $id, string $codigo, string $nombre, string $unidadMedida): array
+    {
+        $actual = $this->itemsFerreteria->find($id);
+        if (!$actual) {
+            throw new ValidationException('Ítem de ferretería no encontrado.');
+        }
+        $codigo = trim($codigo);
+        $nombre = trim($nombre);
+        if ($codigo === '' || !preg_match('/^[a-z0-9_]+$/', $codigo)) {
+            throw new ValidationException('El código debe tener solo minúsculas, números o guion bajo.');
+        }
+        if ($nombre === '') {
+            throw new ValidationException('El nombre no puede estar vacío.');
+        }
+        if (!in_array($unidadMedida, ['unidad', 'metro'], true)) {
+            throw new ValidationException('Unidad de medida inválida (debe ser "unidad" o "metro").');
+        }
+        if ($this->itemsFerreteria->existeCodigo($codigo, $id)) {
+            throw new ValidationException('Ya existe otro ítem de ferretería con ese código.');
+        }
+        $this->itemsFerreteria->actualizar($id, $codigo, $nombre, $unidadMedida);
+        return $this->itemsFerreteria->find($id);
+    }
+
+    public function eliminarItemFerreteria(int $id): array
+    {
+        $actual = $this->itemsFerreteria->find($id);
+        if (!$actual) {
+            throw new ValidationException('Ítem de ferretería no encontrado.');
+        }
+        return $this->itemsFerreteria->eliminar($id);
     }
 
     private function requerirBodega(int $bodegaId): array

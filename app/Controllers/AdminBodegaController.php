@@ -27,7 +27,6 @@ final class AdminBodegaController
         Response::json(['items' => (new ItemFerreteriaRepository())->all()]);
     }
 
-    /** Alta de catálogo (pedido: "en bodega se puedan agregar nuevos items") — ver BodegaService::crearTipoEquipo. */
     public function crearTipoEquipo(Request $req): void
     {
         Auth::requireAdmin();
@@ -37,6 +36,26 @@ final class AdminBodegaController
         Response::json(['tipos_equipo' => (new TipoEquipoRepository())->all(), 'creado' => $tipo], 201);
     }
 
+    public function actualizarTipoEquipo(Request $req): void
+    {
+        Auth::requireAdmin();
+        $id = (int) $req->param('id');
+        $tipo = (new BodegaService())->actualizarTipoEquipo(
+            $id,
+            (string) $req->input('codigo', ''),
+            (string) $req->input('nombre', '')
+        );
+        Response::json(['tipos_equipo' => (new TipoEquipoRepository())->all(), 'actualizado' => $tipo]);
+    }
+
+    public function eliminarTipoEquipo(Request $req): void
+    {
+        Auth::requireAdmin();
+        $id = (int) $req->param('id');
+        $res = (new BodegaService())->eliminarTipoEquipo($id);
+        Response::json(['tipos_equipo' => (new TipoEquipoRepository())->all(), 'resultado' => $res]);
+    }
+
     public function crearItemFerreteria(Request $req): void
     {
         Auth::requireAdmin();
@@ -44,6 +63,27 @@ final class AdminBodegaController
             (string) $req->input('codigo', ''), (string) $req->input('nombre', ''), (string) $req->input('unidad_medida', 'unidad')
         );
         Response::json(['items' => (new ItemFerreteriaRepository())->all(), 'creado' => $item], 201);
+    }
+
+    public function actualizarItemFerreteria(Request $req): void
+    {
+        Auth::requireAdmin();
+        $id = (int) $req->param('id');
+        $item = (new BodegaService())->actualizarItemFerreteria(
+            $id,
+            (string) $req->input('codigo', ''),
+            (string) $req->input('nombre', ''),
+            (string) $req->input('unidad_medida', 'unidad')
+        );
+        Response::json(['items' => (new ItemFerreteriaRepository())->all(), 'actualizado' => $item]);
+    }
+
+    public function eliminarItemFerreteria(Request $req): void
+    {
+        Auth::requireAdmin();
+        $id = (int) $req->param('id');
+        $res = (new BodegaService())->eliminarItemFerreteria($id);
+        Response::json(['items' => (new ItemFerreteriaRepository())->all(), 'resultado' => $res]);
     }
 
     public function listarEquipos(Request $req): void
