@@ -273,7 +273,7 @@ function etiquetaFecha(fechaStr) {
   return { texto: fechaFmt, tono: 'neutro' };
 }
 
-function pintarVentasPendientes($div, ventas) {
+function pintarVentasPendientes($div, ventas, onActualizar = null) {
   if (!ventas.length) {
     $div.innerHTML = `
       <div class="vacio-tarjeta" style="padding: 36px 20px;">
