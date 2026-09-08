@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import {
-  badge, escapeHtml, formatMoney, formatDateTime, el,
+  badge, escapeHtml, formatMoney, formatDateTime, el, ESTADO_LABEL,
 } from '../utils.js';
 import { abrirModal } from '../modal.js';
 import { conColaSiHaceFalta } from '../offline.js';
@@ -141,6 +141,7 @@ export async function renderHistorial(container) {
         <div id="tabla-conflictos"><div class="cargando-bloque"><div class="spinner"></div><p>Consultando conflictos…</p></div></div>
       </div>
     </div>
+    <div id="documento-impresion-oficial" class="documento-impresion-oficial"></div>
   `));
 
   const $selectTecnico = container.querySelector('select[name="tecnico_id"]');
@@ -157,6 +158,8 @@ export async function renderHistorial(container) {
   const $subtabConflictos = container.querySelector('#subtab-conflictos');
   const $subtabs = Array.from(container.querySelectorAll('#subtabs-informes .subtab'));
   let ultimoGeneral = [];
+  let ultimoVentas = [];
+  let ultimoOrdenes = [];
 
   const VISTAS = {
     general: $vistaGeneral,
@@ -189,7 +192,10 @@ export async function renderHistorial(container) {
     cargar();
   });
 
-  container.querySelector('#btn-imprimir-informe').addEventListener('click', () => window.print());
+  container.querySelector('#btn-imprimir-informe').addEventListener('click', () => {
+    prepararInformeImpresion();
+    window.print();
+  });
 
   function queryActual() {
     const fd = new FormData($form);
@@ -200,6 +206,301 @@ export async function renderHistorial(container) {
     }
     const qs = params.toString();
     return qs ? `?${qs}` : '';
+  }
+
+  function prepararInformeImpresion(tecnicoId = null) {
+    const $doc = container.querySelector('#documento-impresion-oficial');
+    if (!$doc) return;
+
+    const fd = new FormData($form);
+    const desde = fd.get('desde');
+    const hasta = fd.get('hasta');
+    const adminNom = document.querySelector('#usuario-nombre')?.textContent?.trim() || 'Administración General';
+    const ahora = new Date();
+    const fechaEmision = ahora.toLocaleString('es-CL', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+    const folioInforme = `INF-${ahora.getFullYear()}${String(ahora.getMonth() + 1).padStart(2, '0')}${String(ahora.getDate()).padStart(2, '0')}-${String(ahora.getHours()).padStart(2, '0')}${String(ahora.getMinutes()).padStart(2, '0')}`;
+
+    let periodoTexto = 'Histórico acumulado completo';
+    if (desde && hasta) {
+      periodoTexto = `${desde.split('-').reverse().join('/')} al ${hasta.split('-').reverse().join('/')}`;
+    } else if (desde) {
+      periodoTexto = `Desde ${desde.split('-').reverse().join('/')}`;
+    } else if (hasta) {
+      periodoTexto = `Hasta ${hasta.split('-').reverse().join('/')}`;
+    }
+
+    const idFiltro = tecnicoId || $selectTecnico.value || null;
+    let tecnicoNombre = 'Todos los técnicos (Consolidado)';
+    let ventasInforme = ultimoVentas;
+    let ordenesInforme = ultimoOrdenes;
+    let filasInforme = ultimoGeneral;
+
+    if (idFiltro) {
+      const tecnicoObj = ultimoGeneral.find((f) => String(f.id) === String(idFiltro));
+      if (tecnicoObj) {
+        tecnicoNombre = tecnicoObj.nombre;
+        ventasInforme = ultimoVentas.filter((v) => String(v.vendedor_id) === String(idFiltro));
+        ordenesInforme = ultimoOrdenes.filter((o) => String(o.tecnico_id) === String(idFiltro));
+        filasInforme = [tecnicoObj];
+      }
+    }
+
+    const totales = filasInforme.reduce((acc, f) => ({
+      ventasTotal: acc.ventasTotal + f.ventasTotal,
+      ventasInstaladas: acc.ventasInstaladas + f.ventasInstaladas,
+      montoVendido: acc.montoVendido + f.montoVendido,
+      ordenesTotal: acc.ordenesTotal + f.ordenesTotal,
+      ordenesAprobadas: acc.ordenesAprobadas + f.ordenesAprobadas,
+      montoInstalado: acc.montoInstalado + f.montoInstalado,
+    }), { ventasTotal: 0, ventasInstaladas: 0, montoVendido: 0, ordenesTotal: 0, ordenesAprobadas: 0, montoInstalado: 0 });
+
+    const totalFacturado = totales.montoVendido + totales.montoInstalado;
+    const totalTrabajos = totales.ventasInstaladas + totales.ordenesAprobadas;
+
+    const ordenesOrdenadas = [...ordenesInforme].sort((a, b) => {
+      const fa = new Date(a.fecha_trabajo_dispositivo || a.creado_en || 0);
+      const fb = new Date(b.fecha_trabajo_dispositivo || b.creado_en || 0);
+      return fb - fa;
+    });
+
+    const ventasOrdenadas = [...ventasInforme].sort((a, b) => {
+      const fa = new Date(a.creado_en || 0);
+      const fb = new Date(b.creado_en || 0);
+      return fb - fa;
+    });
+
+    $doc.innerHTML = `
+      <header class="doc-encabezado">
+        <div>
+          <span class="doc-marca-empresa">Hogar TV · Telecomunicaciones DTH</span>
+          <span class="doc-submarca"> | Operaciones y Servicios en Terreno</span>
+          <h1 class="doc-titulo-informe">Informe Oficial de Rendimiento y Liquidación</h1>
+        </div>
+        <div class="doc-meta-caja">
+          <span class="doc-folio-tag">${escapeHtml(folioInforme)}</span>
+          <div><strong>Emisión:</strong> ${escapeHtml(fechaEmision)}</div>
+          <div><strong>Emitido por:</strong> ${escapeHtml(adminNom)}</div>
+        </div>
+      </header>
+
+      <div class="doc-parametros-grid">
+        <div class="doc-param-item">
+          <span class="doc-param-label">Período Auditado</span>
+          <span class="doc-param-valor">${escapeHtml(periodoTexto)}</span>
+        </div>
+        <div class="doc-param-item">
+          <span class="doc-param-label">Técnico / Responsable</span>
+          <span class="doc-param-valor">${escapeHtml(tecnicoNombre)}</span>
+        </div>
+        <div class="doc-param-item">
+          <span class="doc-param-label">Personal Activo</span>
+          <span class="doc-param-valor">${filasInforme.length} técnico(s) evaluado(s)</span>
+        </div>
+        <div class="doc-param-item" style="text-align: right;">
+          <span class="doc-param-label">Condición Operativa</span>
+          <span class="doc-param-valor" style="color: #047857;">VÁLIDO PARA LIQUIDACIÓN</span>
+        </div>
+      </div>
+
+      <div class="doc-kpis-fila">
+        <div class="doc-kpi-celda">
+          <span class="doc-kpi-label">Ventas Instaladas</span>
+          <div class="doc-kpi-numero">${totales.ventasInstaladas}</div>
+          <span class="doc-kpi-sub">${totales.ventasTotal} ventas reg. (${formatMoney(totales.montoVendido)})</span>
+        </div>
+        <div class="doc-kpi-celda">
+          <span class="doc-kpi-label">Órdenes Aprobadas</span>
+          <div class="doc-kpi-numero">${totales.ordenesAprobadas}</div>
+          <span class="doc-kpi-sub">${totales.ordenesTotal} órdenes tot. (${formatMoney(totales.montoInstalado)})</span>
+        </div>
+        <div class="doc-kpi-celda">
+          <span class="doc-kpi-label">Trabajos Concluidos</span>
+          <div class="doc-kpi-numero">${totalTrabajos}</div>
+          <span class="doc-kpi-sub">Operaciones de terreno efectivas</span>
+        </div>
+        <div class="doc-kpi-celda">
+          <span class="doc-kpi-label">Total a Liquidar / Facturado</span>
+          <div class="doc-kpi-numero">${formatMoney(totalFacturado)}</div>
+          <span class="doc-kpi-sub">100% computable en período</span>
+        </div>
+      </div>
+
+      <section class="doc-seccion">
+        <div class="doc-seccion-titulo">
+          <span>1. Resumen Consolidado de Rendimiento y Comisiones</span>
+          <span class="doc-seccion-sub">${filasInforme.length} técnico(s)</span>
+        </div>
+        <table class="doc-tabla">
+          <thead>
+            <tr>
+              <th>Técnico</th>
+              <th style="text-align: center;">Ventas (Reg / Inst)</th>
+              <th style="text-align: right;">Comisiones Venta</th>
+              <th style="text-align: center;">Órdenes (Tot / Aprob)</th>
+              <th style="text-align: right;">Monto Órdenes</th>
+              <th style="text-align: right;">Total Computable</th>
+              <th style="text-align: right; width: 60px;">Aporte</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filasInforme.map((f) => {
+              const totalTec = f.montoVendido + f.montoInstalado;
+              const pct = totalFacturado > 0 ? Math.round((totalTec / totalFacturado) * 100) : 0;
+              return `
+                <tr>
+                  <td><strong>${escapeHtml(f.nombre)}</strong></td>
+                  <td style="text-align: center;">${f.ventasTotal} reg / <strong>${f.ventasInstaladas} inst</strong></td>
+                  <td class="doc-monto">${formatMoney(f.montoVendido)}</td>
+                  <td style="text-align: center;">${f.ordenesTotal} tot / <strong>${f.ordenesAprobadas} aprob</strong></td>
+                  <td class="doc-monto">${formatMoney(f.montoInstalado)}</td>
+                  <td class="doc-monto" style="font-weight: 800;">${formatMoney(totalTec)}</td>
+                  <td style="text-align: right;">${pct}%</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td><strong>TOTAL CONSOLIDADO</strong></td>
+              <td style="text-align: center;"><strong>${totales.ventasTotal} reg / ${totales.ventasInstaladas} inst</strong></td>
+              <td class="doc-monto"><strong>${formatMoney(totales.montoVendido)}</strong></td>
+              <td style="text-align: center;"><strong>${totales.ordenesTotal} tot / ${totales.ordenesAprobadas} aprob</strong></td>
+              <td class="doc-monto"><strong>${formatMoney(totales.montoInstalado)}</strong></td>
+              <td class="doc-monto" style="font-size: 8.5pt;"><strong>${formatMoney(totalFacturado)}</strong></td>
+              <td style="text-align: right;"><strong>100%</strong></td>
+            </tr>
+          </tfoot>
+        </table>
+      </section>
+
+      <section class="doc-seccion">
+        <div class="doc-seccion-titulo">
+          <span>2. Detalle Pormenorizado de Órdenes de Trabajo en Terreno</span>
+          <span class="doc-seccion-sub">${ordenesOrdenadas.length} órdenes registradas</span>
+        </div>
+        ${ordenesOrdenadas.length === 0 ? `
+          <p style="font-size: 7.5pt; color: #64748B; padding: 6pt; border: 0.5pt dashed #CBD5E1; text-align: center;">
+            No se registran órdenes de trabajo técnicas en este período.
+          </p>
+        ` : `
+          <table class="doc-tabla">
+            <thead>
+              <tr>
+                <th style="width: 70px;">Folio OT</th>
+                <th>Técnico</th>
+                <th>Tipo Servicio</th>
+                <th>Cliente y Teléfono</th>
+                <th>Comuna y Dirección</th>
+                <th style="width: 80px;">Fecha Trabajo</th>
+                <th style="text-align: right; width: 75px;">Monto</th>
+                <th style="text-align: center; width: 65px;">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${ordenesOrdenadas.map((o) => {
+                const cliente = o.venta_cliente_nombre || o.cliente_nombre || 'Cliente OT';
+                const tel = o.venta_cliente_telefono || o.cliente_telefono || '';
+                const dir = [o.venta_comuna || o.comuna, o.venta_cliente_direccion || o.cliente_direccion].filter(Boolean).join(' • ') || '—';
+                const fecha = formatDateTime(o.fecha_trabajo_dispositivo || o.creado_en);
+                const estadoTxt = ESTADO_LABEL[o.estado] || o.estado;
+                return `
+                  <tr>
+                    <td class="doc-folio">${escapeHtml(o.folio || ('#' + o.id))}</td>
+                    <td>${escapeHtml(o.tecnico_nombre || '—')}</td>
+                    <td><strong>${escapeHtml(o.tipo_servicio_nombre || 'Servicio')}</strong></td>
+                    <td>${escapeHtml(cliente)}${tel ? ` <span style="color: #64748B;">(${escapeHtml(tel)})</span>` : ''}</td>
+                    <td>${escapeHtml(dir)}</td>
+                    <td style="white-space: nowrap;">${fecha}</td>
+                    <td class="doc-monto">${formatMoney(o.monto_tecnico)}</td>
+                    <td style="text-align: center;"><span class="doc-badge">${escapeHtml(estadoTxt)}</span></td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="6"><strong>SUBTOTAL ÓRDENES DE TERRENO</strong></td>
+                <td class="doc-monto"><strong>${formatMoney(totales.montoInstalado)}</strong></td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        `}
+      </section>
+
+      <section class="doc-seccion">
+        <div class="doc-seccion-titulo">
+          <span>3. Detalle Pormenorizado de Suscripciones y Ventas Comerciales</span>
+          <span class="doc-seccion-sub">${ventasOrdenadas.length} ventas registradas</span>
+        </div>
+        ${ventasOrdenadas.length === 0 ? `
+          <p style="font-size: 7.5pt; color: #64748B; padding: 6pt; border: 0.5pt dashed #CBD5E1; text-align: center;">
+            No se registran ventas comerciales en este período.
+          </p>
+        ` : `
+          <table class="doc-tabla">
+            <thead>
+              <tr>
+                <th style="width: 75px;">N° Venta / TuVes</th>
+                <th>Vendedor / Técnico</th>
+                <th>Cliente y RUT</th>
+                <th>Plan Comercial</th>
+                <th>Comuna y Dirección</th>
+                <th style="width: 80px;">Fecha Venta</th>
+                <th style="text-align: right; width: 75px;">Comisión</th>
+                <th style="text-align: center; width: 65px;">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${ventasOrdenadas.map((v) => {
+                const dir = [v.comuna, v.cliente_direccion].filter(Boolean).join(' • ') || '—';
+                const fecha = formatDateTime(v.creado_en);
+                const estadoTxt = ESTADO_LABEL[v.estado] || v.estado;
+                return `
+                  <tr>
+                    <td class="doc-folio">${escapeHtml(v.numero_orden_tuves || ('#' + v.id))}</td>
+                    <td>${escapeHtml(v.vendedor_nombre || 'TuVes Directo')}</td>
+                    <td><strong>${escapeHtml(v.cliente_nombre)}</strong>${v.cliente_rut ? ` <span style="color: #64748B;">(${escapeHtml(v.cliente_rut)})</span>` : ''}</td>
+                    <td>${escapeHtml(v.plan_nombre || 'Plan Estándar')}</td>
+                    <td>${escapeHtml(dir)}</td>
+                    <td style="white-space: nowrap;">${fecha}</td>
+                    <td class="doc-monto">${formatMoney(v.monto_vendedor)}</td>
+                    <td style="text-align: center;"><span class="doc-badge">${escapeHtml(estadoTxt)}</span></td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="6"><strong>SUBTOTAL COMISIONES DE VENTA</strong></td>
+                <td class="doc-monto"><strong>${formatMoney(totales.montoVendido)}</strong></td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        `}
+      </section>
+
+      <div class="doc-firmas-bloque">
+        <div class="doc-firma-col">
+          <div class="doc-firma-linea"></div>
+          <div class="doc-firma-cargo">Firma y Timbre Supervisor / Administración</div>
+          <div class="doc-firma-aclaracion">Hogar TV · Servicios de Telecomunicaciones DTH</div>
+        </div>
+        <div class="doc-firma-col">
+          <div class="doc-firma-linea"></div>
+          <div class="doc-firma-cargo">Firma de Conformidad del Técnico</div>
+          <div class="doc-firma-aclaracion">${tecnicoNombre.includes('(') ? 'Nombre y Firma del Responsable' : escapeHtml(tecnicoNombre)}</div>
+        </div>
+      </div>
+
+      <footer class="doc-pie-oficial">
+        <span>Documento oficial generado por Sistema Terreno DTH (Hogar TV) · Válido para auditoría y cálculo de liquidaciones.</span>
+        <span>Generado el ${escapeHtml(fechaEmision)}</span>
+      </footer>
+    `;
   }
 
   // =========================================================================
@@ -253,7 +554,15 @@ export async function renderHistorial(container) {
             </div>
           </div>
 
-          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <button type="button" class="btn btn--primario btn--chico btn-con-icono no-imprimir" id="btn-imprimir-detalle-pdf">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                <rect x="6" y="14" width="12" height="8"></rect>
+              </svg>
+              <span>Imprimir Informe (PDF)</span>
+            </button>
             <button type="button" class="btn btn--secundario btn--chico btn-con-icono no-imprimir" id="btn-exportar-detalle-csv">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
               <span>Exportar Detalle (CSV)</span>
@@ -811,6 +1120,14 @@ export async function renderHistorial(container) {
       const $btnCsv = $cont.querySelector('#btn-exportar-detalle-csv');
       if ($btnCsv) {
         $btnCsv.addEventListener('click', () => exportarDetalleTecnicoCsv(tecnico));
+      }
+
+      const $btnPdf = $cont.querySelector('#btn-imprimir-detalle-pdf');
+      if ($btnPdf) {
+        $btnPdf.addEventListener('click', () => {
+          prepararInformeImpresion(tecnico.id);
+          window.print();
+        });
       }
     }
 
@@ -1546,9 +1863,12 @@ export async function renderHistorial(container) {
     $general.innerHTML = '<div class="cargando-bloque"><div class="spinner"></div><p>Cargando métricas consolidadas…</p></div>';
     try {
       const { ventas, ordenes } = await api(`/admin/historial${queryActual()}`);
+      ultimoVentas = ventas;
+      ultimoOrdenes = ordenes;
       pintarInformeVentas(ventas);
       pintarInformeInstalaciones(ordenes);
       pintarGeneral(ventas, ordenes);
+      prepararInformeImpresion();
     } catch (e) {
       const msg = `<div class="callout-aviso callout-aviso--error"><div class="callout-texto">${escapeHtml(e.message)}</div></div>`;
       $informeVentas.innerHTML = msg;
