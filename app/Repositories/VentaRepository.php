@@ -83,7 +83,7 @@ final class VentaRepository
     public function findConDetalle(int $id): ?array
     {
         $stmt = Database::connection()->prepare(
-            "SELECT v.*, p.nombre AS plan_nombre, u.nombre AS vendedor_nombre, u.email AS vendedor_email
+            "SELECT v.*, p.nombre AS plan_nombre, p.codigo AS plan_codigo, u.nombre AS vendedor_nombre, u.email AS vendedor_email
              FROM ventas v
              JOIN planes p ON p.id = v.plan_id
              LEFT JOIN usuarios u ON u.id = v.vendedor_id
@@ -106,6 +106,20 @@ final class VentaRepository
         );
         $stmtOrden->execute([$id]);
         $orden = $stmtOrden->fetch() ?: null;
+
+        // Fallback: si no tiene venta_id explícito pero el folio de la orden coincide con el N° TuVes
+        if (!$orden && !empty($venta['numero_venta_tuves'])) {
+            $stmtOrden = Database::connection()->prepare(
+                "SELECT o.*, u.nombre AS tecnico_nombre, u.email AS tecnico_email, ts.nombre AS tipo_servicio_nombre
+                 FROM ordenes o
+                 JOIN usuarios u ON u.id = o.tecnico_id
+                 JOIN tipos_servicio ts ON ts.id = o.tipo_servicio_id
+                 WHERE o.folio = ?
+                 ORDER BY o.id DESC LIMIT 1"
+            );
+            $stmtOrden->execute([$venta['numero_venta_tuves']]);
+            $orden = $stmtOrden->fetch() ?: null;
+        }
 
         if ($orden) {
             $orden['materiales'] = (new OrdenMaterialRepository())->paraOrden((int) $orden['id']);

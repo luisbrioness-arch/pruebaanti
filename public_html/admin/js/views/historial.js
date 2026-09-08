@@ -5,6 +5,7 @@ import {
 import { abrirModal } from '../modal.js';
 import { conColaSiHaceFalta } from '../offline.js';
 import { toast } from '../toast.js';
+import { abrirModalDetalleVenta, abrirModalDetalleOrden } from '../modal-detalle.js';
 
 /** 'YYYY-MM-DD' del primer y último día del mes actual para arranque por defecto */
 function primerDiaMes() {
@@ -195,6 +196,42 @@ export async function renderHistorial(container) {
   container.querySelector('#btn-imprimir-informe').addEventListener('click', () => {
     prepararInformeImpresion();
     window.print();
+  });
+
+  // Delegación de clic para ver el detalle integral del cliente, fechas y equipos
+  container.addEventListener('click', (ev) => {
+    // Si se hizo clic en un botón de acción de formulario o link específico, no interferir
+    if (ev.target.closest('button, select, input, a')) {
+      return;
+    }
+
+    const $trVenta = ev.target.closest('tr[data-venta-id]');
+    if ($trVenta) {
+      const vId = Number($trVenta.dataset.ventaId);
+      let venta = ultimoVentas.find((x) => Number(x.id) === vId);
+      if (!venta && Array.isArray(ultimoGeneral)) {
+        for (const tec of ultimoGeneral) {
+          const match = (tec.ventas || []).find((x) => Number(x.id) === vId);
+          if (match) { venta = match; break; }
+        }
+      }
+      abrirModalDetalleVenta(venta || { id: vId }, () => cargar());
+      return;
+    }
+
+    const $trOrden = ev.target.closest('tr[data-orden-id]');
+    if ($trOrden) {
+      const oId = Number($trOrden.dataset.ordenId);
+      let orden = ultimoOrdenes.find((x) => Number(x.id) === oId);
+      if (!orden && Array.isArray(ultimoGeneral)) {
+        for (const tec of ultimoGeneral) {
+          const match = (tec.ordenes || []).find((x) => Number(x.id) === oId);
+          if (match) { orden = match; break; }
+        }
+      }
+      abrirModalDetalleOrden(orden || { id: oId }, () => cargar());
+      return;
+    }
   });
 
   function queryActual() {
@@ -645,7 +682,7 @@ export async function renderHistorial(container) {
                       const esValida = ['aprobada', 'liquidada'].includes(o.estado);
 
                       return `
-                        <tr>
+                        <tr class="fila-cliqueable" data-orden-id="${o.id}" title="Presiona para ver el detalle de la orden, cliente y equipos">
                           <td>
                             <strong class="folio-tag">${escapeHtml(o.folio || ('#' + o.id))}</strong>
                           </td>
@@ -719,7 +756,7 @@ export async function renderHistorial(container) {
                       const esInstalada = v.estado === 'instalada';
 
                       return `
-                        <tr>
+                        <tr class="fila-cliqueable" data-venta-id="${v.id}" title="Presiona para ver el detalle del cliente, fechas de venta e instalación y equipos">
                           <td>
                             <strong class="folio-tag" style="color: #2563EB; background: #EFF6FF; border-color: #BFDBFE;">
                               ${escapeHtml(v.numero_orden_tuves || ('#' + v.id))}
@@ -1414,7 +1451,7 @@ export async function renderHistorial(container) {
                   const esInstalada = v.estado === 'instalada';
 
                   return `
-                    <tr>
+                    <tr class="fila-cliqueable" data-venta-id="${v.id}" title="Presiona para ver el detalle del cliente, fechas de venta e instalación y equipos">
                       <td>
                         <strong class="folio-tag" style="color: #2563EB; background: #EFF6FF; border-color: #BFDBFE;">
                           ${escapeHtml(v.numero_orden_tuves || ('#' + v.id))}
@@ -1643,7 +1680,7 @@ export async function renderHistorial(container) {
                   const esValida = ['aprobada', 'liquidada'].includes(o.estado);
 
                   return `
-                    <tr>
+                    <tr class="fila-cliqueable" data-orden-id="${o.id}" title="Presiona para ver el detalle de la orden, cliente y equipos">
                       <td>
                         <strong class="folio-tag">${escapeHtml(o.folio || ('#' + o.id))}</strong>
                       </td>

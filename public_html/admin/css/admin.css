@@ -2036,6 +2036,23 @@ a.tile[href*="billetera"]:hover { box-shadow: 0 14px 30px -4px rgba(15, 118, 110
   text-align: center;
   min-width: 115px;
 }
+.fila-cliqueable {
+  cursor: pointer !important;
+  transition: background-color 0.15s ease;
+}
+.fila-cliqueable:hover {
+  background-color: #F1F5F9 !important;
+}
+.fila-cliqueable:hover .folio-tag {
+  border-color: #93C5FD;
+  box-shadow: 0 2px 5px rgba(37, 99, 235, 0.18);
+}
+.fila-cliqueable:hover .cliente-nombre {
+  color: #0284C7 !important;
+}
+.fila-cliqueable:active {
+  background-color: #E2E8F0 !important;
+}
 .folio-tag {
   font-family: var(--fuente-mono);
   font-size: 0.84rem;
