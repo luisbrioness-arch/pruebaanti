@@ -99,42 +99,46 @@ export async function renderInicio(container) {
           </p>
         </div>
         <div class="inicio-periodo-control">
-          <div class="periodo-nav-card">
-            <button type="button" class="btn-periodo-nav" id="periodo-ant" title="Ir al mes anterior">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-            </button>
-            
-            <div class="periodo-select-wrapper" title="Clic para seleccionar otro mes">
-              <div class="periodo-info-principal">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="periodo-icono-cal">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                  <line x1="16" y1="2" x2="16" y2="6"></line>
-                  <line x1="8" y1="2" x2="8" y2="6"></line>
-                  <line x1="3" y1="10" x2="21" y2="10"></line>
-                </svg>
-                <span id="periodo-label-mes" class="periodo-label-mes">Cargando…</span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="periodo-icono-flecha"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          <div class="periodo-barra-accion">
+            <div class="periodo-nav-card" id="periodo-nav-card">
+              <button type="button" class="btn-periodo-nav" id="periodo-ant" title="Ir al mes anterior">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              </button>
+              
+              <div class="periodo-select-wrapper" title="Clic para seleccionar otro mes">
+                <div class="periodo-info-principal">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="periodo-icono-cal">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  <span id="periodo-label-mes" class="periodo-label-mes">Cargando…</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="periodo-icono-flecha"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </div>
+                <select id="select-periodo-mes" class="periodo-select-invisible" title="Seleccionar otro mes"></select>
               </div>
-              <select id="select-periodo-mes" class="periodo-select-invisible" title="Seleccionar otro mes"></select>
+
+              <button type="button" class="btn-periodo-nav" id="periodo-sig" title="Ir al mes siguiente">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </button>
             </div>
 
-            <button type="button" class="btn-periodo-nav" id="periodo-sig" title="Ir al mes siguiente">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            <button type="button" class="btn-periodo-hoy es-actual" id="periodo-hoy" title="Estás viendo las métricas del mes en curso">
+              <span class="punto-actual-dot">●</span>
+              <span>Mes actual</span>
             </button>
           </div>
 
-          <span id="periodo-rango-subtexto" class="periodo-rango-badge">1 al 30 de mes</span>
-
-          <button type="button" class="btn btn--chico btn--secundario btn-con-icono" id="periodo-hoy" title="Volver al mes en curso" hidden>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
-            <span>Este mes</span>
-          </button>
+          <div class="periodo-barra-inferior">
+            <span id="periodo-rango-subtexto" class="periodo-rango-badge">Cargando rango…</span>
+          </div>
         </div>
       </div>
 
       <!-- Sección 1: Métricas Clave del Período -->
-      <div id="inicio-tiles" style="margin-bottom: 30px;">
-        <div class="cargando-bloque"><div class="spinner"></div><p>Cargando métricas del período…</p></div>
+      <div id="inicio-tiles" style="margin-bottom: 30px; min-height: 120px;">
+        <div class="cargando-bloque" style="min-height: 120px; display: flex; align-items: center; justify-content: center; flex-direction: column;"><div class="spinner"></div><p style="margin-top: 8px;">Cargando métricas del período…</p></div>
       </div>
 
       <!-- Sección 2: Accesos Directos a Módulos -->
@@ -218,9 +222,11 @@ export async function renderInicio(container) {
   const $btnAnt = seccion.querySelector('#periodo-ant');
   const $btnSig = seccion.querySelector('#periodo-sig');
   const $btnHoy = seccion.querySelector('#periodo-hoy');
+  const $navCard = seccion.querySelector('#periodo-nav-card');
   const $tiles = seccion.querySelector('#inicio-tiles');
   const mesDeHoy = mesActualStr();
   let mesMostrado = mesDeHoy;
+  let primerCargaPeriodo = true;
 
   function actualizarOpcionesSelect(seleccionado) {
     const opciones = listaOpcionesMeses(mesDeHoy, 24, 3);
@@ -233,22 +239,52 @@ export async function renderInicio(container) {
 
   async function cargarPeriodo(mes) {
     mesMostrado = mes;
-    $btnHoy.hidden = mes === mesDeHoy;
+    const esActual = (mes === mesDeHoy);
+
     $labelMes.textContent = formatMesNombre(mes);
     actualizarOpcionesSelect(mes);
-    $tiles.innerHTML = '<div class="cargando-bloque"><div class="spinner"></div><p>Actualizando período…</p></div>';
+
+    if (esActual) {
+      $btnHoy.className = 'btn-periodo-hoy es-actual';
+      $btnHoy.innerHTML = `
+        <span class="punto-actual-dot">●</span>
+        <span>Mes actual</span>
+      `;
+      $btnHoy.title = 'Estás viendo las métricas del mes en curso';
+    } else {
+      $btnHoy.className = 'btn-periodo-hoy es-distinto';
+      $btnHoy.innerHTML = `
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>
+        <span>Volver a mes actual</span>
+      `;
+      $btnHoy.title = 'Clic para volver a las métricas del mes actual';
+    }
+
+    if (!primerCargaPeriodo) {
+      if ($navCard) $navCard.classList.add('periodo-cargando');
+      $tiles.classList.add('cargando-suave');
+    }
+
     try {
       const r = await api(`/admin/indicadores?mes=${mes}`);
       const d1 = new Date(r.periodo.desde + 'T00:00:00');
       const d2 = new Date(r.periodo.hasta + 'T00:00:00');
       const mesTexto = d1.toLocaleDateString('es-CL', { month: 'long' });
-      $rangoSubtexto.textContent = `${d1.getDate()} al ${d2.getDate()} de ${mesTexto}`;
+      $rangoSubtexto.textContent = `Período: ${d1.getDate()} al ${d2.getDate()} de ${mesTexto} ${d1.getFullYear()}`;
       pintarTiles($tiles, r);
       pintarAlertas(seccion.querySelector('#inicio-alertas'), r);
     } catch (e) {
-      $tiles.innerHTML = `
-        <div class="callout-aviso callout-aviso--error"><div class="callout-texto">${escapeHtml(e.message)}</div></div>
-      `;
+      if (primerCargaPeriodo) {
+        $tiles.innerHTML = `
+          <div class="callout-aviso callout-aviso--error"><div class="callout-texto">${escapeHtml(e.message)}</div></div>
+        `;
+      } else {
+        toast(`Error al cargar datos del período: ${e.message}`, 'error');
+      }
+    } finally {
+      primerCargaPeriodo = false;
+      if ($navCard) $navCard.classList.remove('periodo-cargando');
+      $tiles.classList.remove('cargando-suave');
     }
   }
 
@@ -256,16 +292,21 @@ export async function renderInicio(container) {
     cargarPeriodo(ev.target.value);
   });
 
-  $btnAnt.addEventListener('click', () => {
+  $btnAnt.addEventListener('click', (ev) => {
+    ev.preventDefault();
     cargarPeriodo(desplazarMes(mesMostrado, -1));
   });
 
-  $btnSig.addEventListener('click', () => {
+  $btnSig.addEventListener('click', (ev) => {
+    ev.preventDefault();
     cargarPeriodo(desplazarMes(mesMostrado, 1));
   });
 
-  $btnHoy.addEventListener('click', () => {
-    cargarPeriodo(mesDeHoy);
+  $btnHoy.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    if (mesMostrado !== mesDeHoy) {
+      cargarPeriodo(mesDeHoy);
+    }
   });
 
   await cargarPeriodo(mesDeHoy);
@@ -410,7 +451,7 @@ function pintarTiles($div, r) {
     <div class="informes-kpi-grid" style="margin-bottom: 0;">
       <div class="informes-kpi-card informes-kpi-card--ordenes">
         <div class="informes-kpi-cabecera">
-          <span class="informes-kpi-etiqueta">Instalaciones Este Mes</span>
+          <span class="informes-kpi-etiqueta">Instalaciones del Mes</span>
           <div class="informes-kpi-icono informes-kpi-icono--verde">🛠️</div>
         </div>
         <div class="informes-kpi-numero">${r.instalaciones_mes.n}</div>
@@ -422,7 +463,7 @@ function pintarTiles($div, r) {
 
       <div class="informes-kpi-card informes-kpi-card--ventas">
         <div class="informes-kpi-cabecera">
-          <span class="informes-kpi-etiqueta">Ventas Este Mes</span>
+          <span class="informes-kpi-etiqueta">Ventas del Mes</span>
           <div class="informes-kpi-icono informes-kpi-icono--azul">💼</div>
         </div>
         <div class="informes-kpi-numero">${r.ventas_mes.n}</div>
@@ -446,7 +487,7 @@ function pintarTiles($div, r) {
 
       <a href="#billetera" class="informes-kpi-card informes-kpi-card--destacado" style="text-decoration: none;">
         <div class="informes-kpi-cabecera">
-          <span class="informes-kpi-etiqueta">Total del Mes</span>
+          <span class="informes-kpi-etiqueta">Facturación del Mes</span>
           <div class="informes-kpi-icono informes-kpi-icono--destacado">💰</div>
         </div>
         <div class="informes-kpi-numero">${formatMoney(r.total_mes)}</div>
