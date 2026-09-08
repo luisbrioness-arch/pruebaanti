@@ -352,6 +352,9 @@ export async function renderBodega(container, params = {}) {
         </form>
       </div>
 
+      <!-- Alertas de Stock Crítico y Resumen de Disponibilidad en Bodega -->
+      <div id="bodega-resumen-stock" style="margin-bottom: 20px;"></div>
+
       <!-- Barra de Filtros y Búsqueda -->
       <div class="card-bloque filtros-equipos-toolbar" style="margin-bottom: 20px;">
         <div class="filtros-equipos-grid">
@@ -546,6 +549,86 @@ export async function renderBodega(container, params = {}) {
   let equiposCache = [];
   let estadoActual = '';
 
+  function pintarResumenAlertasStock() {
+    const $resumen = $contenido.querySelector('#bodega-resumen-stock');
+    if (!$resumen) return;
+
+    // Calcular equipos disponibles en bodega (stock central disponible para despacho)
+    const enBodega = equiposCache.filter((e) => e.estado === 'bodega');
+    const conteoPorTipo = {};
+    tiposEquipo.forEach((t) => {
+      conteoPorTipo[t.codigo] = {
+        codigo: t.codigo,
+        nombre: t.nombre,
+        total: 0,
+      };
+    });
+
+    enBodega.forEach((e) => {
+      if (conteoPorTipo[e.tipo_equipo_codigo]) {
+        conteoPorTipo[e.tipo_equipo_codigo].total++;
+      } else {
+        conteoPorTipo[e.tipo_equipo_codigo] = {
+          codigo: e.tipo_equipo_codigo,
+          nombre: e.tipo_equipo_nombre || e.tipo_equipo_codigo,
+          total: 1,
+        };
+      }
+    });
+
+    const UMBRAL_CRITICO = 5;
+    const tiposCriticos = Object.values(conteoPorTipo).filter((t) => t.total < UMBRAL_CRITICO);
+
+    $resumen.innerHTML = `
+      ${tiposCriticos.length > 0 ? `
+        <div class="alerta-stock-critico" style="margin-bottom: 14px;">
+          <div class="alerta-stock-icono">⚠️</div>
+          <div class="alerta-stock-cuerpo">
+            <strong>Alerta de Stock Bajo en Bodega Central</strong>
+            <p>Hay equipos con stock menor a ${UMBRAL_CRITICO} unidades disponibles para asignar:</p>
+            <div class="alerta-stock-tags">
+              ${tiposCriticos.map((t) => `
+                <span class="chip-stock-alerta ${t.total === 0 ? 'chip-stock-alerta--agotado' : ''}">
+                  ${iconForTipo(t.codigo)} ${escapeHtml(t.nombre)}: <strong>${t.total} ${t.total === 1 ? 'disponible' : 'disponibles'}</strong>
+                </span>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      ` : ''}
+
+      <div class="tarjetas-resumen-stock">
+        ${Object.values(conteoPorTipo).map((t) => {
+          const esCritico = t.total < UMBRAL_CRITICO;
+          const esAgotado = t.total === 0;
+          return `
+            <div class="tarjeta-stock-item ${esAgotado ? 'tarjeta-stock--agotado' : (esCritico ? 'tarjeta-stock--critico' : '')}" title="Filtrar por ${escapeHtml(t.nombre)} en bodega" data-filtro-tipo="${t.codigo}">
+              <span class="stock-item-icono">${iconForTipo(t.codigo)}</span>
+              <div class="stock-item-info">
+                <span class="stock-item-nombre">${escapeHtml(t.nombre)}</span>
+                <span class="stock-item-cantidad">${t.total} <small>en bodega</small></span>
+              </div>
+              <span class="stock-item-status ${esAgotado ? 'status--agotado' : (esCritico ? 'status--bajo' : 'status--ok')}">
+                ${esAgotado ? 'Agotado' : (esCritico ? 'Stock bajo' : 'Disponible')}
+              </span>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+    $resumen.querySelectorAll('.tarjeta-stock-item').forEach((card) => {
+      card.addEventListener('click', () => {
+        const codigo = card.dataset.filtroTipo;
+        const $filtroTipo = $contenido.querySelector('#filtro-tipo-equipo');
+        const $filtroEstado = $contenido.querySelector('#filtro-estado-equipo');
+        if ($filtroTipo) $filtroTipo.value = codigo;
+        if ($filtroEstado) $filtroEstado.value = 'bodega';
+        cargarTablaEquipos('bodega');
+      });
+    });
+  }
+
   async function cargarTablaEquipos(estado) {
     const $tabla = $contenido.querySelector('#tabla-equipos');
     estadoActual = estado;
@@ -553,6 +636,7 @@ export async function renderBodega(container, params = {}) {
       const qs = estado ? `?estado=${encodeURIComponent(estado)}` : '';
       const { equipos } = await api(`/admin/equipos${qs}`);
       equiposCache = equipos;
+      pintarResumenAlertasStock();
       pintarFilasEquipos();
     } catch (e) {
       $tabla.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;

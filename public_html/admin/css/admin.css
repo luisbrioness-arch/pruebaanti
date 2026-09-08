@@ -2416,3 +2416,141 @@ a.tile[href*="billetera"]:hover { box-shadow: 0 14px 30px -4px rgba(15, 118, 110
   background: #F8FAFC !important;
 }
 
+/* ==========================================================================
+   Alertas de Stock Crítico y Resumen en Bodega Central
+   ========================================================================== */
+.alerta-stock-critico {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: #FFFBEB;
+  border: 1.5px solid #FCD34D;
+  border-left: 5px solid #F59E0B;
+  border-radius: var(--radio);
+  padding: 16px 20px;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.12);
+}
+.alerta-stock-icono {
+  font-size: 1.6rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.alerta-stock-cuerpo strong {
+  display: block;
+  color: #92400E;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+.alerta-stock-cuerpo p {
+  color: #B45309;
+  font-size: 0.84rem;
+  margin: 3px 0 8px;
+}
+.alerta-stock-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.chip-stock-alerta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FDE68A;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.chip-stock-alerta--agotado {
+  background: #FEE2E2;
+  color: #991B1B;
+  border-color: #FECACA;
+}
+
+/* Tarjetas Resumen de Stock por Tipo */
+.tarjetas-resumen-stock {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.tarjeta-stock-item {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-chico);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  box-shadow: var(--sombra-card);
+  transition: all 0.18s ease;
+  position: relative;
+}
+.tarjeta-stock-item:hover {
+  transform: translateY(-2px);
+  border-color: var(--acento);
+  box-shadow: var(--sombra);
+}
+.tarjeta-stock--critico {
+  border-color: #FCD34D;
+  background: #FFFDF5;
+}
+.tarjeta-stock--agotado {
+  border-color: #FECACA;
+  background: #FFF5F5;
+}
+.stock-item-icono {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+.stock-item-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.stock-item-nombre {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--tinta-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stock-item-cantidad {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--tinta);
+  font-family: var(--fuente-mono);
+  line-height: 1.2;
+}
+.stock-item-cantidad small {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--tinta-3);
+  font-family: var(--fuente);
+}
+.stock-item-status {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.status--ok {
+  background: #ECFDF5;
+  color: #059669;
+}
+.status--bajo {
+  background: #FEF3C7;
+  color: #D97706;
+}
+.status--agotado {
+  background: #FEE2E2;
+  color: #DC2626;
+}
+
