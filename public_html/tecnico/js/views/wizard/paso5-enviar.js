@@ -41,6 +41,15 @@ export async function renderPaso5(container, ctx) {
           : '<p class="vacio">Sin ítems.</p>'}
       </div>
 
+      ${orden.observaciones ? `
+        <div class="resumen-bloque">
+          <h3>📝 Nota de Cierre / Diagnóstico</h3>
+          <p style="margin: 0; font-size: 0.88rem; line-height: 1.45; color: var(--tinta-1); font-style: italic;">
+            "${escapeHtml(orden.observaciones)}"
+          </p>
+        </div>
+      ` : ''}
+
       <div class="resumen-alerta">
         <span>⚠️</span>
         <span>Una vez enviada, esta orden ya no se puede editar desde el celular. Revisa que todo esté correcto.</span>

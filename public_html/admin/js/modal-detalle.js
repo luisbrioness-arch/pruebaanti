@@ -500,7 +500,113 @@ export function abrirModalDetalleVenta(v, onActualizar) {
           </div>
         </div>
       ` : ''}
+
+      <!-- Nota de Cierre del Servicio Técnico -->
+      <div class="bloque-nota-cierre" style="margin-top: 14px; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 12px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 1.1rem;">📝</span>
+            <strong style="font-size: 0.88rem; color: #1e293b;">Nota de Cierre / Diagnóstico Técnico:</strong>
+          </div>
+          <button type="button" class="btn btn--chico btn--secundario" id="btn-toggle-editar-nota-venta" style="padding: 2px 10px; font-size: 0.75rem; font-weight: 600;">
+            ${orden.observaciones ? '✏️ Editar nota' : '+ Agregar nota de cierre'}
+          </button>
+        </div>
+
+        <div id="vista-nota-cierre-venta">
+          ${orden.observaciones ? `
+            <div style="background: #ffffff; border-left: 4px solid #10b981; padding: 10px 12px; border-radius: 6px; font-size: 0.84rem; color: #1e293b; line-height: 1.45; box-shadow: 0 1px 3px rgba(0,0,0,0.05); word-break: break-word;">
+              <div style="font-size: 0.72rem; color: #047857; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                <span>✅</span> <span>DIAGNÓSTICO Y TRABAJO REALIZADO:</span>
+              </div>
+              <div style="white-space: pre-wrap;">${escapeHtml(orden.observaciones)}</div>
+            </div>
+          ` : `
+            <div style="background: #fffbeb; border: 1px dashed #f59e0b; border-radius: 6px; padding: 10px 12px; font-size: 0.82rem; color: #92400e; line-height: 1.4;">
+              <span>⚠️ <strong>Sin nota de cierre registrada.</strong> Presiona <strong>+ Agregar nota de cierre</strong> para registrarla.</span>
+            </div>
+          `}
+        </div>
+
+        <div id="form-edicion-nota-venta" hidden style="margin-top: 8px;">
+          <textarea id="input-nota-cierre-venta" class="input" rows="3" style="width: 100%; font-size: 0.84rem; padding: 8px 10px; border: 1.5px solid #0284c7; border-radius: 6px; resize: vertical; box-sizing: border-box; line-height: 1.4;" placeholder="Escribe el diagnóstico técnico, problemas o trabajo realizado...">${escapeHtml(orden.observaciones || '')}</textarea>
+          <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px;">
+            <button type="button" class="btn btn--chico btn--secundario" id="btn-cancelar-edicion-nota-venta">Cancelar</button>
+            <button type="button" class="btn btn--chico btn--primario" id="btn-guardar-nota-cierre-venta">Guardar Nota de Cierre</button>
+          </div>
+        </div>
+      </div>
     `;
+
+    // Conectar eventos para nota de cierre en modal de venta
+    const $btnToggleVenta = $ordenContenido.querySelector('#btn-toggle-editar-nota-venta');
+    const $vistaNotaVenta = $ordenContenido.querySelector('#vista-nota-cierre-venta');
+    const $formNotaVenta = $ordenContenido.querySelector('#form-edicion-nota-venta');
+    const $inputNotaVenta = $ordenContenido.querySelector('#input-nota-cierre-venta');
+    const $btnCancelarVenta = $ordenContenido.querySelector('#btn-cancelar-edicion-nota-venta');
+    const $btnGuardarVenta = $ordenContenido.querySelector('#btn-guardar-nota-cierre-venta');
+
+    function refrescarVistaNotaVenta(texto) {
+      if (texto) {
+        $vistaNotaVenta.innerHTML = `
+          <div style="background: #ffffff; border-left: 4px solid #10b981; padding: 10px 12px; border-radius: 6px; font-size: 0.84rem; color: #1e293b; line-height: 1.45; box-shadow: 0 1px 3px rgba(0,0,0,0.05); word-break: break-word;">
+            <div style="font-size: 0.72rem; color: #047857; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+              <span>✅</span> <span>DIAGNÓSTICO Y TRABAJO REALIZADO:</span>
+            </div>
+            <div style="white-space: pre-wrap;">${escapeHtml(texto)}</div>
+          </div>
+        `;
+        $btnToggleVenta.textContent = '✏️ Editar nota';
+      } else {
+        $vistaNotaVenta.innerHTML = `
+          <div style="background: #fffbeb; border: 1px dashed #f59e0b; border-radius: 6px; padding: 10px 12px; font-size: 0.82rem; color: #92400e; line-height: 1.4;">
+            <span>⚠️ <strong>Sin nota de cierre registrada.</strong> Presiona <strong>+ Agregar nota de cierre</strong> para registrarla.</span>
+          </div>
+        `;
+        $btnToggleVenta.textContent = '+ Agregar nota de cierre';
+      }
+    }
+
+    $btnToggleVenta?.addEventListener('click', () => {
+      const abrir = $formNotaVenta.hidden;
+      $formNotaVenta.hidden = !abrir;
+      $vistaNotaVenta.hidden = abrir;
+      if (abrir) {
+        $inputNotaVenta.value = orden.observaciones || '';
+        $inputNotaVenta.focus();
+      }
+    });
+
+    $btnCancelarVenta?.addEventListener('click', () => {
+      $formNotaVenta.hidden = true;
+      $vistaNotaVenta.hidden = false;
+      $inputNotaVenta.value = orden.observaciones || '';
+    });
+
+    $btnGuardarVenta?.addEventListener('click', async () => {
+      const nuevaNota = $inputNotaVenta.value.trim();
+      $btnGuardarVenta.disabled = true;
+      $btnGuardarVenta.textContent = 'Guardando…';
+      try {
+        await api(`/admin/ordenes/${orden.id}/nota-cierre`, {
+          method: 'PUT',
+          body: { observaciones: nuevaNota }
+        });
+        orden.observaciones = nuevaNota;
+        refrescarVistaNotaVenta(nuevaNota);
+        $formNotaVenta.hidden = true;
+        $vistaNotaVenta.hidden = false;
+        toast('Nota de cierre guardada con éxito.', 'ok');
+        if (typeof onActualizar === 'function') {
+          onActualizar();
+        }
+      } catch (err) {
+        toast('Error al guardar la nota: ' + err.message, 'error');
+      } finally {
+        $btnGuardarVenta.disabled = false;
+        $btnGuardarVenta.textContent = 'Guardar Nota de Cierre';
+      }
+    });
   }).catch((err) => {
     const $ordenContenido = root.querySelector('#modal-orden-contenido');
     if ($ordenContenido) {
@@ -738,15 +844,116 @@ export async function abrirModalDetalleOrden(o, onActualizar) {
         </div>
       ` : ''}
 
-      ${ordenDetalle.observaciones ? `
-        <div style="margin-top: 12px;">
-          <span class="detalle-campo-label" style="display: block; margin-bottom: 2px;">Observaciones del Técnico:</span>
-          <p style="margin: 0; font-size: 0.82rem; color: var(--tinta-2); line-height: 1.35; font-style: italic;">
-            "${escapeHtml(ordenDetalle.observaciones)}"
-          </p>
+      <!-- Nota de Cierre / Diagnóstico Técnico -->
+      <div class="bloque-nota-cierre" style="margin-top: 14px; background: #f8fafc; border: 1.5px solid ${((ordenDetalle.tipo_servicio_codigo === 'soporte_falla') || (ordenDetalle.tipo_servicio_nombre && ordenDetalle.tipo_servicio_nombre.toLowerCase().includes('soporte')) || (o.tipo_servicio_nombre && o.tipo_servicio_nombre.toLowerCase().includes('soporte'))) ? '#f59e0b' : '#cbd5e1'}; border-radius: 8px; padding: 12px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 1.1rem;">📝</span>
+            <strong style="font-size: 0.88rem; color: #1e293b;">Nota de Cierre / Diagnóstico Técnico:</strong>
+            ${((ordenDetalle.tipo_servicio_codigo === 'soporte_falla') || (ordenDetalle.tipo_servicio_nombre && ordenDetalle.tipo_servicio_nombre.toLowerCase().includes('soporte')) || (o.tipo_servicio_nombre && o.tipo_servicio_nombre.toLowerCase().includes('soporte'))) ? '<span class="card-bloque-tag card-bloque-tag--amber" style="font-size: 0.7rem; padding: 2px 6px;">Soporte / Falla</span>' : ''}
+          </div>
+          <button type="button" class="btn btn--chico btn--secundario" id="btn-toggle-editar-nota" style="padding: 2px 10px; font-size: 0.75rem; font-weight: 600;">
+            ${ordenDetalle.observaciones ? '✏️ Editar nota' : '+ Agregar nota de cierre'}
+          </button>
         </div>
-      ` : ''}
+
+        <div id="vista-nota-cierre">
+          ${ordenDetalle.observaciones ? `
+            <div style="background: #ffffff; border-left: 4px solid #10b981; padding: 10px 12px; border-radius: 6px; font-size: 0.84rem; color: #1e293b; line-height: 1.45; box-shadow: 0 1px 3px rgba(0,0,0,0.05); word-break: break-word;">
+              <div style="font-size: 0.72rem; color: #047857; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                <span>✅</span> <span>DIAGNÓSTICO Y SOLUCIÓN EN TERRENO:</span>
+              </div>
+              <div style="white-space: pre-wrap;">${escapeHtml(ordenDetalle.observaciones)}</div>
+            </div>
+          ` : `
+            <div style="background: #fffbeb; border: 1px dashed #f59e0b; border-radius: 6px; padding: 10px 12px; font-size: 0.82rem; color: #92400e; line-height: 1.4;">
+              <span>⚠️ <strong>Sin nota de cierre registrada.</strong> ${((ordenDetalle.tipo_servicio_codigo === 'soporte_falla') || (ordenDetalle.tipo_servicio_nombre && ordenDetalle.tipo_servicio_nombre.toLowerCase().includes('soporte')) || (o.tipo_servicio_nombre && o.tipo_servicio_nombre.toLowerCase().includes('soporte'))) ? 'En servicios técnicos de soporte o falla es fundamental registrar el diagnóstico y solución.' : ''} Presiona <strong>+ Agregar nota de cierre</strong> para registrarla.</span>
+            </div>
+          `}
+        </div>
+
+        <div id="form-edicion-nota" hidden style="margin-top: 8px;">
+          <textarea id="input-nota-cierre" class="input" rows="3" style="width: 100%; font-size: 0.84rem; padding: 8px 10px; border: 1.5px solid #0284c7; border-radius: 6px; resize: vertical; box-sizing: border-box; line-height: 1.4;" placeholder="Escribe el diagnóstico técnico, causa de la falla y solución ejecutada en terreno...">${escapeHtml(ordenDetalle.observaciones || '')}</textarea>
+          <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px;">
+            <button type="button" class="btn btn--chico btn--secundario" id="btn-cancelar-edicion-nota">Cancelar</button>
+            <button type="button" class="btn btn--chico btn--primario" id="btn-guardar-nota-cierre">Guardar Nota de Cierre</button>
+          </div>
+        </div>
+      </div>
     `;
+
+    // Conectar eventos para edición de nota de cierre
+    const $btnToggle = $equiposContenido.querySelector('#btn-toggle-editar-nota');
+    const $vistaNota = $equiposContenido.querySelector('#vista-nota-cierre');
+    const $formNota = $equiposContenido.querySelector('#form-edicion-nota');
+    const $inputNota = $equiposContenido.querySelector('#input-nota-cierre');
+    const $btnCancelar = $equiposContenido.querySelector('#btn-cancelar-edicion-nota');
+    const $btnGuardar = $equiposContenido.querySelector('#btn-guardar-nota-cierre');
+    const esSoporteOrden = ((ordenDetalle.tipo_servicio_codigo === 'soporte_falla') || (ordenDetalle.tipo_servicio_nombre && ordenDetalle.tipo_servicio_nombre.toLowerCase().includes('soporte')) || (o.tipo_servicio_nombre && o.tipo_servicio_nombre.toLowerCase().includes('soporte')));
+
+    function refrescarVistaNota(texto) {
+      if (texto) {
+        $vistaNota.innerHTML = `
+          <div style="background: #ffffff; border-left: 4px solid #10b981; padding: 10px 12px; border-radius: 6px; font-size: 0.84rem; color: #1e293b; line-height: 1.45; box-shadow: 0 1px 3px rgba(0,0,0,0.05); word-break: break-word;">
+            <div style="font-size: 0.72rem; color: #047857; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+              <span>✅</span> <span>DIAGNÓSTICO Y SOLUCIÓN EN TERRENO:</span>
+            </div>
+            <div style="white-space: pre-wrap;">${escapeHtml(texto)}</div>
+          </div>
+        `;
+        $btnToggle.textContent = '✏️ Editar nota';
+      } else {
+        $vistaNota.innerHTML = `
+          <div style="background: #fffbeb; border: 1px dashed #f59e0b; border-radius: 6px; padding: 10px 12px; font-size: 0.82rem; color: #92400e; line-height: 1.4;">
+            <span>⚠️ <strong>Sin nota de cierre registrada.</strong> ${esSoporteOrden ? 'En servicios técnicos de soporte o falla es fundamental registrar el diagnóstico y solución.' : ''} Presiona <strong>+ Agregar nota de cierre</strong> para registrarla.</span>
+          </div>
+        `;
+        $btnToggle.textContent = '+ Agregar nota de cierre';
+      }
+    }
+
+    $btnToggle?.addEventListener('click', () => {
+      const abrir = $formNota.hidden;
+      $formNota.hidden = !abrir;
+      $vistaNota.hidden = abrir;
+      if (abrir) {
+        $inputNota.value = ordenDetalle.observaciones || '';
+        $inputNota.focus();
+      }
+    });
+
+    $btnCancelar?.addEventListener('click', () => {
+      $formNota.hidden = true;
+      $vistaNota.hidden = false;
+      $inputNota.value = ordenDetalle.observaciones || '';
+    });
+
+    $btnGuardar?.addEventListener('click', async () => {
+      const nuevaNota = $inputNota.value.trim();
+      $btnGuardar.disabled = true;
+      $btnGuardar.textContent = 'Guardando…';
+      try {
+        await api(`/admin/ordenes/${o.id}/nota-cierre`, {
+          method: 'PUT',
+          body: { observaciones: nuevaNota }
+        });
+        ordenDetalle.observaciones = nuevaNota;
+        o.observaciones = nuevaNota;
+        refrescarVistaNota(nuevaNota);
+        $formNota.hidden = true;
+        $vistaNota.hidden = false;
+        toast('Nota de cierre guardada con éxito.', 'ok');
+        if (typeof onActualizar === 'function') {
+          onActualizar();
+        }
+      } catch (err) {
+        toast('Error al guardar la nota: ' + err.message, 'error');
+      } finally {
+        $btnGuardar.disabled = false;
+        $btnGuardar.textContent = 'Guardar Nota de Cierre';
+      }
+    });
+
   } catch (err) {
     const $equiposContenido = root.querySelector('#modal-orden-equipos-contenido');
     if ($equiposContenido) {

@@ -178,4 +178,30 @@ final class AdminOrdenController
         }
         return $valor;
     }
+
+    /**
+     * Actualiza la nota de cierre / diagnóstico técnico de una orden.
+     */
+    public function actualizarNotaCierre(Request $req): void
+    {
+        Auth::requireAdmin();
+        $id = (int) $req->param('id');
+        $repo = new OrdenRepository();
+        $orden = $repo->find($id);
+        if (!$orden) {
+            throw new NotFoundException('Orden de trabajo no encontrada.');
+        }
+
+        $nota = trim((string) $req->input('observaciones', ''));
+        $repo->actualizar($id, [
+            'observaciones' => $nota !== '' ? $nota : null,
+            'actualizado_en' => date('Y-m-d H:i:s'),
+        ]);
+
+        Response::json([
+            'ok' => true,
+            'id' => $id,
+            'observaciones' => $nota !== '' ? $nota : null,
+        ]);
+    }
 }

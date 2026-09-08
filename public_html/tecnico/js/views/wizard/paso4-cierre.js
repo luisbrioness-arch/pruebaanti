@@ -11,6 +11,13 @@ import { encolar } from '../../offline.js';
 import { getCatalogoFerreteria } from '../../storage.js';
 
 export async function renderPaso4(container, ctx) {
+  const tipoServicio = ctx.getTipoServicio();
+  const esSoporte = tipoServicio && (
+    tipoServicio.codigo === 'soporte_falla' ||
+    (tipoServicio.nombre && tipoServicio.nombre.toLowerCase().includes('soporte')) ||
+    (tipoServicio.nombre && tipoServicio.nombre.toLowerCase().includes('falla'))
+  );
+
   const seccion = el(`
     <div style="display: contents;">
     <section class="wizard-paso">
@@ -27,19 +34,25 @@ export async function renderPaso4(container, ctx) {
       <form id="form-cierre" class="paso1-form" novalidate>
         <label class="campo">
           <span>Señal (%)</span>
-          <input type="number" name="senal_porcentaje" min="0" max="100" inputmode="numeric">
+          <input type="number" name="senal_porcentaje" min="0" max="100" inputmode="numeric" placeholder="Ej: 85">
         </label>
         <label class="campo">
           <span>Calidad (%)</span>
-          <input type="number" name="calidad_porcentaje" min="0" max="100" inputmode="numeric">
+          <input type="number" name="calidad_porcentaje" min="0" max="100" inputmode="numeric" placeholder="Ej: 80">
         </label>
         <label class="campo">
           <span>Metros de cable usados</span>
-          <input type="number" name="metros_cable" min="0" step="0.5" inputmode="decimal">
+          <input type="number" name="metros_cable" min="0" step="0.5" inputmode="decimal" placeholder="0">
         </label>
-        <label class="campo">
-          <span>Observaciones</span>
-          <textarea name="observaciones" maxlength="500"></textarea>
+        <label class="campo ${esSoporte ? 'campo--destacado' : ''}" style="${esSoporte ? 'background: #fffbeb; border: 1.5px solid #f59e0b; border-radius: 8px; padding: 10px 12px; margin-top: 8px;' : ''}">
+          <span style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px;">
+            <strong style="color: ${esSoporte ? '#92400e' : 'inherit'}; font-size: 0.9rem;">
+              ${esSoporte ? '📝 Nota de Cierre / Diagnóstico y Trabajo Realizado *' : 'Observaciones / Nota de Cierre'}
+            </strong>
+            ${esSoporte ? '<span class="chip chip--alerta" style="font-size: 0.68rem; font-weight: 700;">Obligatorio en soporte</span>' : ''}
+          </span>
+          <textarea name="observaciones" maxlength="500" rows="3" style="width: 100%; box-sizing: border-box;" placeholder="${esSoporte ? 'Describe el diagnóstico técnico, causa del problema, solución ejecutada y estado final del servicio...' : 'Observaciones o notas adicionales del servicio en terreno...'}"></textarea>
+          ${esSoporte ? '<span style="font-size: 0.74rem; color: #78350f; display: block; margin-top: 4px;">Por favor indica el diagnóstico de la falla y qué trabajo realizaste para resolverla.</span>' : ''}
         </label>
       </form>
       <p class="campo-error" id="paso4-error" hidden></p>
@@ -219,6 +232,16 @@ export async function renderPaso4(container, ctx) {
       if (valor !== '' && (Number(valor) < 0 || Number(valor) > 100)) {
         $error.textContent = 'Señal y calidad deben estar entre 0 y 100.';
         $error.hidden = false;
+        return;
+      }
+    }
+
+    if (esSoporte) {
+      const nota = (form.elements.observaciones.value || '').trim();
+      if (!nota) {
+        $error.textContent = 'Debes ingresar la Nota de Cierre / Diagnóstico detallando el trabajo y solución efectuada.';
+        $error.hidden = false;
+        form.elements.observaciones.focus();
         return;
       }
     }

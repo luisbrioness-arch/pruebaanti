@@ -446,7 +446,10 @@ export async function renderHistorial(container) {
                   <tr>
                     <td class="doc-folio">${escapeHtml(o.folio || ('#' + o.id))}</td>
                     <td>${escapeHtml(o.tecnico_nombre || '—')}</td>
-                    <td><strong>${escapeHtml(o.tipo_servicio_nombre || 'Servicio')}</strong></td>
+                    <td>
+                      <strong>${escapeHtml(o.tipo_servicio_nombre || 'Servicio')}</strong>
+                      ${o.observaciones ? `<div style="font-size: 6.8pt; color: #475569; margin-top: 2px; font-style: italic; line-height: 1.25;"><strong>Nota cierre:</strong> ${escapeHtml(o.observaciones)}</div>` : ''}
+                    </td>
                     <td>${escapeHtml(cliente)}${tel ? ` <span style="color: #64748B;">(${escapeHtml(tel)})</span>` : ''}</td>
                     <td>${escapeHtml(dir)}</td>
                     <td style="white-space: nowrap;">${fecha}</td>
@@ -1689,6 +1692,11 @@ export async function renderHistorial(container) {
                       </td>
                       <td>
                         <span class="servicio-nombre">${escapeHtml(o.tipo_servicio_nombre || 'Servicio')}</span>
+                        ${o.observaciones ? `
+                          <div style="font-size: 0.74rem; color: var(--tinta-2); margin-top: 2px; line-height: 1.25; max-width: 250px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" title="Nota de cierre: ${escapeHtml(o.observaciones)}">
+                            📝 <em style="font-style: normal; color: #047857;">${escapeHtml(o.observaciones)}</em>
+                          </div>
+                        ` : ''}
                       </td>
                       <td>
                         <div class="celda-cliente-info">
