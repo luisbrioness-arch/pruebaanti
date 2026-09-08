@@ -173,16 +173,7 @@ textarea { resize: vertical; min-height: 70px; }
 }
 #logout-btn:hover { background: rgba(239, 68, 68, 0.22); color: #FFFFFF; }
 
-#view {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 24px 32px;
-  max-width: 100%;
-  width: 100%;
-  margin: 0;
-  box-sizing: border-box;
-}
+#view { flex: 1; overflow: auto; padding: 32px 36px; max-width: 1260px; margin: 0 auto; width: 100%; }
 
 .vacio { color: var(--tinta-3); padding: 20px; text-align: center; }
 .vacio--chico { padding: 8px 0; font-size: .82rem; }
@@ -190,14 +181,8 @@ textarea { resize: vertical; min-height: 70px; }
 .vacio-celda { text-align: center; color: var(--tinta-3); padding: 14px; }
 
 .panel-simple {
-  max-width: 100%;
-  width: 100%;
-  margin: 0 auto;
-  box-sizing: border-box;
-  background: var(--superficie);
-  border: 1px solid var(--borde);
-  border-radius: var(--radio-lg);
-  padding: 28px 32px;
+  max-width: 960px; margin: 0 auto; background: var(--superficie);
+  border: 1px solid var(--borde); border-radius: var(--radio-lg); padding: 28px 32px;
   box-shadow: var(--sombra-card);
 }
 .panel-cabecera { margin-bottom: 20px; }
@@ -258,12 +243,8 @@ textarea { resize: vertical; min-height: 70px; }
 /* ==========================================================================
    Tarifario y Card Blocks Modernos
    ========================================================================== */
-.vista-contenedor {
-  width: 100%;
-  max-width: 100%;
-  margin: 0;
-  box-sizing: border-box;
-}
+.vista-contenedor { max-width: 1060px; margin: 0 auto; }
+.vista-contenedor--informes { max-width: 1260px; margin: 0 auto; width: 100%; }
 .vista-cabecera {
   display: flex; justify-content: space-between; align-items: flex-start;
   margin-bottom: 24px; gap: 16px;
@@ -2014,16 +1995,17 @@ a.tile[href*="billetera"]:hover { box-shadow: 0 14px 30px -4px rgba(15, 118, 110
 }
 .tabla--detalle-itemizado th {
   background: #F8FAFC;
-  font-size: 0.75rem;
+  font-size: 0.74rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--tinta-2);
-  padding: 10px 14px;
+  padding: 9px 10px;
   white-space: nowrap;
 }
 .tabla--detalle-itemizado td {
-  padding: 11px 14px;
+  padding: 9px 10px;
   vertical-align: middle;
+  font-size: 0.84rem;
 }
 .tabla--detalle-itemizado th:first-child,
 .tabla--detalle-itemizado td:first-child {

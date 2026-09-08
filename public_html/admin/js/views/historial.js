@@ -20,7 +20,7 @@ function ultimoDiaMes() {
 
 export async function renderHistorial(container) {
   container.appendChild(el(`
-    <div class="vista-contenedor">
+    <div class="vista-contenedor vista-contenedor--informes">
       <div class="vista-cabecera">
         <div>
           <h2 class="vista-titulo">Informes y Rendimiento</h2>
