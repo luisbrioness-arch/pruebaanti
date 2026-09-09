@@ -21,13 +21,29 @@ export async function renderPaso4(container, ctx) {
   const seccion = el(`
     <div style="display: contents;">
     <section class="wizard-paso">
-      <h2>Ferretería usada (opcional)</h2>
-      <p class="wizard-paso-intro" id="ferreteria-intro">Busca y agrega los materiales usados. Si este servicio no requirió ferretería ni conectores, continúa directamente al cierre abajo.</p>
-      <div class="lista-ferreteria" id="lista-ferreteria"></div>
+      <h2>Materiales y Ferretería</h2>
+      <p class="wizard-paso-intro" id="ferreteria-intro">¿Utilizaste ferretería o materiales en este servicio?</p>
 
-      <div class="campo" id="agregar-ferreteria" hidden style="position: relative;">
-        <input type="text" id="buscar-item-ferreteria" placeholder="Busca un ítem (ej: grampa, conector…)" autocomplete="off">
-        <div class="resultados-buscador" id="resultados-item-ferreteria" hidden></div>
+      <div class="decision-ferreteria-grid">
+        <button type="button" class="btn-decision-ferreteria activo" id="btn-no-ferreteria">
+          <span style="font-size: 1.4rem; margin-bottom: 4px;">🚫</span>
+          <span>No usé materiales</span>
+          <span style="font-size: 0.72rem; font-weight: 500; opacity: 0.8; margin-top: 2px;">Sin gasto de ferretería</span>
+        </button>
+        <button type="button" class="btn-decision-ferreteria" id="btn-si-ferreteria">
+          <span style="font-size: 1.4rem; margin-bottom: 4px;">🔩</span>
+          <span>Sí, agregar ferretería</span>
+          <span style="font-size: 0.72rem; font-weight: 500; opacity: 0.8; margin-top: 2px;">Grampas, conectores, etc.</span>
+        </button>
+      </div>
+
+      <div id="bloque-detalle-ferreteria" hidden>
+        <div class="lista-ferreteria" id="lista-ferreteria"></div>
+
+        <div class="campo" id="agregar-ferreteria" hidden style="position: relative; margin-top: 8px;">
+          <input type="text" id="buscar-item-ferreteria" placeholder="🔍 Escribe para buscar (ej: grampa, conector…)" autocomplete="off">
+          <div class="resultados-buscador" id="resultados-item-ferreteria" hidden></div>
+        </div>
       </div>
 
       <h2>Cierre técnico</h2>
@@ -80,8 +96,40 @@ export async function renderPaso4(container, ctx) {
   const $agregar = seccion.querySelector('#agregar-ferreteria');
   const $buscar = seccion.querySelector('#buscar-item-ferreteria');
   const $resultados = seccion.querySelector('#resultados-item-ferreteria');
+  const $bloqueDetalle = seccion.querySelector('#bloque-detalle-ferreteria');
+  const $btnNoFerreteria = seccion.querySelector('#btn-no-ferreteria');
+  const $btnSiFerreteria = seccion.querySelector('#btn-si-ferreteria');
 
   let items = []; // [{item_ferreteria_id, item_nombre, unidad_medida, cantidad_final}]
+
+  function actualizarVisualDecision() {
+    const tieneFerreteria = items.length > 0;
+    $btnNoFerreteria.classList.toggle('activo', !tieneFerreteria);
+    $btnSiFerreteria.classList.toggle('activo', tieneFerreteria);
+    $bloqueDetalle.hidden = !tieneFerreteria;
+    if (tieneFerreteria && catalogoFerreteria.length) {
+      $agregar.hidden = false;
+    }
+  }
+
+  $btnNoFerreteria.addEventListener('click', () => {
+    items = [];
+    $btnNoFerreteria.classList.add('activo');
+    $btnSiFerreteria.classList.remove('activo');
+    $bloqueDetalle.hidden = true;
+    pintarFerreteria();
+  });
+
+  $btnSiFerreteria.addEventListener('click', () => {
+    $btnSiFerreteria.classList.add('activo');
+    $btnNoFerreteria.classList.remove('activo');
+    $bloqueDetalle.hidden = false;
+    if (catalogoFerreteria.length) {
+      $agregar.hidden = false;
+    }
+    pintarFerreteria();
+    setTimeout(() => $buscar.focus(), 60);
+  });
   // Catálogo completo — de acá sale todo lo que el técnico puede agregar,
   // ya no hay un "kit por defecto" que lo precargue. Si no hay señal ni
   // caché todavía (getCatalogoFerreteria vacío), simplemente no se ofrece
@@ -138,7 +186,7 @@ export async function renderPaso4(container, ctx) {
     if (!items.length) {
       $lista.innerHTML = `
         <div style="background: rgba(0,0,0,0.02); border: 1.5px dashed var(--borde, #cbd5e1); border-radius: 8px; padding: 12px 14px; text-align: center; color: var(--tinta-2, #64748b); font-size: 0.84rem; margin-bottom: 12px;">
-          <span>🔩 <strong>Sin ferretería:</strong> Si no utilizaste materiales ni conectores en este servicio, puedes avanzar directamente.</span>
+          <span>🔩 Escribe en el buscador de abajo para agregar los materiales que utilizaste.</span>
         </div>
       `;
     } else {
@@ -171,6 +219,9 @@ export async function renderPaso4(container, ctx) {
         });
         fila.querySelector('.item-ferreteria-quitar').addEventListener('click', () => {
           items = items.filter((i) => i !== item);
+          if (items.length === 0) {
+            // si quitó todos, se mantiene visible la lista pero se puede cerrar con el botón
+          }
           pintarFerreteria();
         });
         $lista.appendChild(fila);
@@ -184,18 +235,15 @@ export async function renderPaso4(container, ctx) {
   }
 
   function cargarFerreteria() {
-    // Ya no hay ninguna llamada al servidor acá: sin kit que precargar no
-    // hace falta ir a buscar nada antes de mostrar la pantalla. Si el
-    // técnico ya había guardado ferretería en un paso anterior de ESTA
-    // orden (volvió atrás y avanzó de nuevo), se respeta lo que ya eligió.
     const orden = ctx.getOrden();
-    items = orden.ferreteria.map((f) => ({
+    items = (orden.ferreteria || []).map((f) => ({
       item_ferreteria_id: f.item_ferreteria_id, item_nombre: f.item_nombre,
       unidad_medida: f.unidad_medida, cantidad_final: Number(f.cantidad_final),
     }));
     if (!catalogoFerreteria.length) {
-      $intro.textContent = 'Sin catálogo de ferretería en caché todavía (hace falta haber entrado acá alguna vez con señal) — puedes seguir sin agregar nada; se ajusta después con el administrador si hace falta.';
+      $intro.textContent = 'Sin catálogo de ferretería en caché todavía — puedes seguir sin agregar nada; se ajusta después con el administrador si hace falta.';
     }
+    actualizarVisualDecision();
     pintarFerreteria();
   }
   cargarFerreteria();
