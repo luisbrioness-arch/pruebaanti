@@ -27,6 +27,7 @@ export async function renderPaso2(container, ctx) {
     <div style="display: contents;">
     <section class="wizard-paso">
       <h2>Equipos</h2>
+      <div id="alerta-stock-maleta-paso2"></div>
       ${esSoporte ? `
         <div class="callout-aviso" style="margin-bottom: 14px; background: #eff6ff; border: 1.5px solid #93c5fd; border-radius: 8px; padding: 10px 12px; color: #1e3a8a; font-size: 0.84rem; line-height: 1.45;">
           <div style="display: flex; align-items: flex-start; gap: 8px;">
@@ -81,6 +82,32 @@ export async function renderPaso2(container, ctx) {
   const $siguiente = seccion.querySelector('#paso2-siguiente');
   const $inputManual = seccion.querySelector('#input-manual');
   const $avisoDecos = seccion.querySelector('#aviso-decos-plan');
+
+  const $alertaStock = seccion.querySelector('#alerta-stock-maleta-paso2');
+  const maleta = getMaleta();
+  const decosMaleta = (maleta?.equipos || []).filter((e) => /deco/i.test(e.tipo_equipo_nombre || ''));
+  if ($alertaStock && requiereEquipos) {
+    if (decosMaleta.length === 0) {
+      $alertaStock.innerHTML = `
+        <div style="background: #fef2f2; border: 1.5px solid #dc2626; border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 0.84rem; color: #991b1b; display: flex; align-items: flex-start; gap: 8px;">
+          <span style="font-size: 1.25rem; line-height: 1;">🚨</span>
+          <div>
+            <strong>Sin decodificadores en maleta (0 unidades):</strong><br>
+            No tienes decos disponibles en tu maleta virtual. Si instalas un equipo nuevo, el servidor lo rechazará si no está a tu nombre en el sistema.
+          </div>
+        </div>
+      `;
+    } else if (decosMaleta.length === 1) {
+      $alertaStock.innerHTML = `
+        <div style="background: #fff7ed; border: 1.5px solid #ea580c; border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 0.84rem; color: #9a3412; display: flex; align-items: flex-start; gap: 8px;">
+          <span style="font-size: 1.25rem; line-height: 1;">⚠️</span>
+          <div>
+            <strong>Stock crítico en maleta:</strong> Solo te queda 1 decodificador disponible. Si este servicio requiere más de 1 deco, te faltará material.
+          </div>
+        </div>
+      `;
+    }
+  }
 
   // Si la orden viene de una venta propia, avisa cuántos decos trae ese
   // plan (pedido: "que aqui aparezcan si este plan por ejemplo era de 3

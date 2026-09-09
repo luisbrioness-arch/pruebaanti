@@ -44,14 +44,26 @@ export async function renderTraspasos(container) {
       return;
     }
     const decos = equipos.filter((e) => /deco/i.test(e.tipo_equipo_nombre));
-    const alertaBajoStock = decos.length < 2 ? `
-      <div style="background: #fff7ed; border: 1.5px solid #ea580c; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: flex; align-items: center; gap: 10px;">
-        <span style="font-size: 1.3rem;">⚠️</span>
-        <div style="font-size: 0.84rem; color: #9a3412;">
-          <strong>Stock bajo de decodificadores:</strong> Tienes ${decos.length} unidad${decos.length === 1 ? '' : 'es'} en tu maleta. Recuerda solicitar recarga a bodega central si vas a salir a terreno.
+    let alertaBajoStock = '';
+    if (decos.length === 0) {
+      alertaBajoStock = `
+        <div style="background: #fef2f2; border: 1.5px solid #dc2626; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 1.3rem;">🚨</span>
+          <div style="font-size: 0.84rem; color: #991b1b;">
+            <strong>Sin decodificadores (0 unidades):</strong> No podrás completar órdenes de instalación de televisión. Solicita recarga urgente a bodega central.
+          </div>
         </div>
-      </div>
-    ` : '';
+      `;
+    } else if (decos.length === 1) {
+      alertaBajoStock = `
+        <div style="background: #fff7ed; border: 1.5px solid #ea580c; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 1.3rem;">⚠️</span>
+          <div style="font-size: 0.84rem; color: #9a3412;">
+            <strong>Stock crítico (1 decodificador restante):</strong> Solo te queda 1 unidad en maleta. Si atiendes un servicio con más de 1 deco o falla un equipo, te faltará material.
+          </div>
+        </div>
+      `;
+    }
 
     $maleta.innerHTML = `
       ${alertaBajoStock}

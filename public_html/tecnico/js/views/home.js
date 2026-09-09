@@ -32,6 +32,8 @@ export async function renderHome(container) {
         </div>
       </div>
 
+      <div id="home-contenedor-alerta-stock"></div>
+
       <p class="campo-ayuda" id="home-pendientes" hidden></p>
 
       <div class="hub-grid">
@@ -125,11 +127,36 @@ export async function renderHome(container) {
     if (!maleta || !maleta.equipos) return;
     const decos = maleta.equipos.filter((e) => /deco/i.test(e.tipo_equipo_nombre));
     const $desc = seccion.querySelector('#btn-traspasos .hub-card-desc');
+    const $alerta = seccion.querySelector('#home-contenedor-alerta-stock');
+
     if ($desc) {
-      if (decos.length < 2) {
-        $desc.innerHTML = `<span style="color: #ea580c; font-weight: 700;">⚠️ ${decos.length} deco${decos.length === 1 ? '' : 's'} en maleta</span>`;
+      if (decos.length === 0) {
+        $desc.innerHTML = '<span style="color: #dc2626; font-weight: 800;">🚨 0 decos (sin stock)</span>';
+      } else if (decos.length === 1) {
+        $desc.innerHTML = '<span style="color: #ea580c; font-weight: 700;">⚠️ 1 deco (crítico)</span>';
       } else {
-        $desc.textContent = `${decos.length} decos disponibles`;
+        $desc.innerHTML = `<span style="color: #047857; font-weight: 600;">✅ ${decos.length} decos listos</span>`;
+      }
+    }
+
+    if ($alerta) {
+      if (decos.length < 2) {
+        const esCero = decos.length === 0;
+        $alerta.innerHTML = `
+          <div style="background: ${esCero ? '#fef2f2' : '#fff7ed'}; border: 1.5px solid ${esCero ? '#ef4444' : '#ea580c'}; border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1.3rem;">${esCero ? '🚨' : '⚠️'}</span>
+              <div style="font-size: 0.82rem; color: ${esCero ? '#991b1b' : '#9a3412'}; line-height: 1.35;">
+                <strong>${esCero ? 'Sin decodificadores disponibles' : 'Stock bajo de decodificadores'}</strong><br>
+                ${esCero ? 'No tienes decos para nuevas instalaciones. Pide recarga a bodega central.' : 'Solo te queda 1 decodificador en tu maleta técnica.'}
+              </div>
+            </div>
+            <button type="button" class="btn btn--chico" id="btn-ir-maleta-alerta" style="background: ${esCero ? '#dc2626' : '#ea580c'}; color: #fff; border: none; font-size: 0.76rem; font-weight: 700; white-space: nowrap; padding: 6px 11px; border-radius: 6px; cursor: pointer;">Ver Maleta</button>
+          </div>
+        `;
+        $alerta.querySelector('#btn-ir-maleta-alerta')?.addEventListener('click', () => irA('traspasos'));
+      } else {
+        $alerta.innerHTML = '';
       }
     }
   }

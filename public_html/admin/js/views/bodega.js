@@ -250,7 +250,38 @@ export async function renderBodega(container, params = {}) {
         api(`/admin/equipos?estado=maleta&tecnico_id=${tecnicoId}`),
         api(`/admin/ferreteria/stock?tecnico_id=${tecnicoId}`),
       ]);
+      const decosTecnico = equiposTecnico.filter((e) => /deco/i.test(e.tipo_equipo_nombre || ''));
+      let alertaDecos = '';
+      if (decosTecnico.length === 0) {
+        alertaDecos = `
+          <div style="background: #fef2f2; border: 1.5px solid #dc2626; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 1.5rem;">🚨</span>
+              <div>
+                <strong style="color: #991b1b; font-size: 0.95rem;">Técnico sin decodificadores (0 unidades en maleta)</strong>
+                <p style="margin: 2px 0 0 0; color: #b91c1c; font-size: 0.85rem;">Este instalador no podrá completar órdenes de televisión hasta que se le asigne stock.</p>
+              </div>
+            </div>
+            <button type="button" class="btn btn--primario btn--chico btn-ir-asignar-decos" style="background: #dc2626; border-color: #b91c1c;">➕ Asignar decos</button>
+          </div>
+        `;
+      } else if (decosTecnico.length === 1) {
+        alertaDecos = `
+          <div style="background: #fff7ed; border: 1.5px solid #ea580c; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 1.5rem;">⚠️</span>
+              <div>
+                <strong style="color: #9a3412; font-size: 0.95rem;">Stock crítico de decodificadores (1 unidad en maleta)</strong>
+                <p style="margin: 2px 0 0 0; color: #c2410c; font-size: 0.85rem;">Al técnico solo le queda 1 decodificador disponible para terreno.</p>
+              </div>
+            </div>
+            <button type="button" class="btn btn--secundario btn--chico btn-ir-asignar-decos">➕ Asignar decos</button>
+          </div>
+        `;
+      }
+
       $div.innerHTML = `
+        ${alertaDecos}
         <div style="display: flex; justify-content: flex-end; margin-bottom: 14px;">
           <a href="#guia?tecnicoId=${tecnicoId}" class="btn btn--secundario btn--chico btn-con-icono">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -318,6 +349,15 @@ export async function renderBodega(container, params = {}) {
           </div>
         </section>
       `;
+
+      const $btnAsignar = $div.querySelector('.btn-ir-asignar-decos');
+      if ($btnAsignar) {
+        $btnAsignar.addEventListener('click', async () => {
+          params.tecnicoId = tecnicoId;
+          params.tab = 'asignar';
+          await activarVista('principal');
+        });
+      }
     } catch (e) {
       $div.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
     }
@@ -1099,7 +1139,7 @@ export async function renderBodega(container, params = {}) {
           $barra.innerHTML = `
             <form id="form-accion-masiva" class="form-fila">
               <span class="campo-ayuda">${seleccionados.size} en bodega seleccionados</span>
-              <select name="tecnico_id" required>${opcionesUsuarios()}</select>
+              <select name="tecnico_id" required>${opcionesUsuarios(params.tecnicoId)}</select>
               <button type="submit" class="btn btn--primario btn--chico">Enviar seleccionados</button>
             </form>
           `;
@@ -1200,7 +1240,7 @@ export async function renderBodega(container, params = {}) {
         if (modo === 'bodega') {
           const form = el(`
             <form class="form-inline">
-              <select name="tecnico_id" required>${opcionesUsuarios()}</select>
+              <select name="tecnico_id" required>${opcionesUsuarios(params.tecnicoId)}</select>
               <button type="submit" class="btn btn--secundario btn--chico">Enviar</button>
             </form>
           `);
