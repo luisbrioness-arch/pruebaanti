@@ -196,16 +196,34 @@ export async function renderBodega(container, params = {}) {
   $vistas.forEach((v) => v.addEventListener('click', () => activarVista(v.dataset.vista)));
 
   // --------------------------------------------- "Bodega técnicos" (submenú) --
-  // Pedido: "que los tecnicos como son pocos aparezcan en pestañas
-  // seleccionables y que ahi se despliegue su bodega" — reemplaza el
-  // <select> por una pestaña por técnico (mismo patrón visual que las demás
-  // sub-navegaciones de este archivo: .subtabs / .subtab).
+  // Pestañas de técnicos con avatar, carga automática inicial y tarjetas estructuradas
   async function renderVistaTecnicos() {
     const lista = tecnicos();
+    if (!lista || !lista.length) {
+      $nivel2.innerHTML = '<p class="vacio">No hay técnicos registrados en el sistema.</p>';
+      return;
+    }
     $nivel2.innerHTML = `
-      <nav class="subtabs subtabs--tecnicos">
-        ${lista.map((t) => `<button type="button" class="subtab" data-tecnico-id="${t.id}">${escapeHtml(t.nombre)}</button>`).join('')}
-      </nav>
+      <div class="subtabs-contenedor-tecnicos" style="margin-top: 14px;">
+        <div class="subtabs-etiqueta-tecnicos">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          <span>Técnico:</span>
+        </div>
+        <nav class="subtabs subtabs--tecnicos">
+          ${lista.map((t) => {
+            const inicial = (t.nombre || 'T').trim().charAt(0).toUpperCase();
+            return `
+              <button type="button" class="subtab" data-tecnico-id="${t.id}">
+                <span class="subtab-avatar">${escapeHtml(inicial)}</span>
+                <span>${escapeHtml(t.nombre)}</span>
+              </button>
+            `;
+          }).join('')}
+        </nav>
+      </div>
       <div id="contenido-tecnico"></div>
     `;
     const $botones = Array.from($nivel2.querySelectorAll('.subtabs--tecnicos .subtab'));
@@ -215,36 +233,90 @@ export async function renderBodega(container, params = {}) {
         cargarBodegaTecnico(Number(btn.dataset.tecnicoId));
       });
     });
-    if (lista.length === 1) $botones[0].click();
+
+    // Auto-seleccionar el técnico solicitado en la URL o el primero de la lista para que nunca quede en blanco
+    const tecnicoBuscado = params.tecnicoId ? $botones.find(b => b.dataset.tecnicoId === String(params.tecnicoId)) : null;
+    const $botonInicial = tecnicoBuscado || $botones[0];
+    if ($botonInicial) {
+      $botonInicial.click();
+    }
   }
 
   async function cargarBodegaTecnico(tecnicoId) {
     const $div = $nivel2.querySelector('#contenido-tecnico');
-    $div.innerHTML = '<p class="vacio">Cargando…</p>';
+    $div.innerHTML = '<div class="cargando-bloque"><div class="spinner"></div><p>Cargando inventario del técnico…</p></div>';
     try {
       const [{ equipos: equiposTecnico }, { stock }] = await Promise.all([
         api(`/admin/equipos?estado=maleta&tecnico_id=${tecnicoId}`),
         api(`/admin/ferreteria/stock?tecnico_id=${tecnicoId}`),
       ]);
       $div.innerHTML = `
-        <div class="form-fila" style="margin: 10px 0;">
-          <a href="#guia?tecnicoId=${tecnicoId}" class="btn btn--secundario">🖨 Ver guía de despacho pendiente</a>
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 14px;">
+          <a href="#guia?tecnicoId=${tecnicoId}" class="btn btn--secundario btn--chico btn-con-icono">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <span>Ver guía de despacho pendiente</span>
+          </a>
         </div>
-        <h3>Equipos en su maleta (${equiposTecnico.length})</h3>
-        ${equiposTecnico.length ? `
-          <table class="tabla">
-            <thead><tr><th>Serie</th><th>Tipo</th></tr></thead>
-            <tbody>${equiposTecnico.map((e) => `<tr><td class="celda-mono">${escapeHtml(e.numero_serie)}</td><td>${escapeHtml(e.tipo_equipo_nombre)}</td></tr>`).join('')}</tbody>
-          </table>
-        ` : '<p class="vacio">No tiene equipos en su maleta.</p>'}
 
-        <h3>Ferretería confirmada</h3>
-        ${stock.length ? `
-          <table class="tabla">
-            <thead><tr><th>Ítem</th><th>Cantidad</th></tr></thead>
-            <tbody>${stock.map((s) => `<tr><td>${escapeHtml(s.item_nombre)}</td><td class="${Number(s.cantidad_actual) < 0 ? 'celda-negativa' : ''}">${s.cantidad_actual} ${escapeHtml(s.unidad_medida)}</td></tr>`).join('')}</tbody>
-          </table>
-        ` : '<p class="vacio">Sin ferretería confirmada.</p>'}
+        <section class="card-bloque" style="margin-bottom: 20px;">
+          <div class="card-bloque-cabecera">
+            <div class="card-bloque-titular">
+              <span class="card-bloque-tag card-bloque-tag--indigo">Maleta técnica</span>
+              <h3>Equipos en su maleta</h3>
+              <p class="card-bloque-bajada">Decodificadores y equipos en poder de este instalador.</p>
+            </div>
+            <span class="badge-monto badge-monto--mudo">${equiposTecnico.length} equipo${equiposTecnico.length === 1 ? '' : 's'}</span>
+          </div>
+          <div class="card-bloque-body">
+            ${equiposTecnico.length ? `
+              <div class="tabla-envoltorio">
+                <table class="tabla">
+                  <thead><tr><th>N° Serie</th><th>Tipo de Equipo</th></tr></thead>
+                  <tbody>${equiposTecnico.map((e) => `<tr><td class="celda-mono"><strong>${escapeHtml(e.numero_serie)}</strong></td><td>${escapeHtml(e.tipo_equipo_nombre)}</td></tr>`).join('')}</tbody>
+                </table>
+              </div>
+            ` : `
+              <div class="vacio-tarjeta">
+                <div class="vacio-icono">📦</div>
+                <p class="vacio-titulo">No tiene equipos en su maleta</p>
+                <p class="vacio-desc">Todos los equipos asignados han sido instalados o devueltos a bodega central.</p>
+              </div>
+            `}
+          </div>
+        </section>
+
+        <section class="card-bloque">
+          <div class="card-bloque-cabecera">
+            <div class="card-bloque-titular">
+              <span class="card-bloque-tag card-bloque-tag--amber">Materiales</span>
+              <h3>Ferretería confirmada</h3>
+              <p class="card-bloque-bajada">Stock físico confirmado por el instalador para órdenes de trabajo.</p>
+            </div>
+            <span class="badge-monto badge-monto--mudo">${stock.length} ítem${stock.length === 1 ? '' : 's'}</span>
+          </div>
+          <div class="card-bloque-body">
+            ${stock.length ? `
+              <div class="tabla-envoltorio">
+                <table class="tabla">
+                  <thead><tr><th>Ítem</th><th>Cantidad disponible</th></tr></thead>
+                  <tbody>${stock.map((s) => `<tr><td><strong>${escapeHtml(s.item_nombre)}</strong></td><td class="${Number(s.cantidad_actual) < 0 ? 'celda-negativa' : ''}"><strong>${s.cantidad_actual}</strong> <span style="color: var(--tinta-3); font-size: 0.85em;">${escapeHtml(s.unidad_medida)}</span></td></tr>`).join('')}</tbody>
+                </table>
+              </div>
+            ` : `
+              <div class="vacio-tarjeta">
+                <div class="vacio-icono">🧰</div>
+                <p class="vacio-titulo">Sin ferretería confirmada</p>
+                <p class="vacio-desc">El técnico no registra stock de ferretería en su custodia.</p>
+              </div>
+            `}
+          </div>
+        </section>
       `;
     } catch (e) {
       $div.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
