@@ -3,6 +3,8 @@
 // { root, cerrar }. Cierra con Escape o clic fuera, a menos que se pida lo
 // contrario explícitamente (formularios con datos sin guardar).
 
+import { escapeHtml } from './utils.js';
+
 const overlay = () => document.getElementById('modal-overlay');
 const contenedor = () => document.getElementById('modal-contenido');
 
@@ -42,4 +44,21 @@ export function abrirModal(html, { cerrarConEscape = true, amplio = false } = {}
   if (primerCampo) primerCampo.focus();
 
   return { root: box, cerrar };
+}
+
+/** Confirmación modal sí/no — devuelve Promise<boolean>. */
+export function confirmar(mensaje, { textoOk = 'Confirmar', textoCancelar = 'Cancelar', peligro = false } = {}) {
+  return new Promise((resolve) => {
+    const { root, cerrar } = abrirModal(`
+      <div style="padding: 6px 0;">
+        <p style="font-size: 1.05rem; font-weight: 600; color: var(--tinta); margin: 0 0 20px;">${escapeHtml(mensaje)}</p>
+        <div class="modal-acciones" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+          <button type="button" class="btn btn--secundario" id="modal-confirmar-cancelar">${escapeHtml(textoCancelar)}</button>
+          <button type="button" class="btn ${peligro ? 'btn--peligro' : 'btn--primario'}" id="modal-confirmar-ok">${escapeHtml(textoOk)}</button>
+        </div>
+      </div>
+    `);
+    root.querySelector('#modal-confirmar-cancelar').addEventListener('click', () => { cerrar(); resolve(false); });
+    root.querySelector('#modal-confirmar-ok').addEventListener('click', () => { cerrar(); resolve(true); });
+  });
 }

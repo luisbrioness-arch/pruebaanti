@@ -1,8 +1,10 @@
-import { api } from '../api.js';
+import { api, ApiError } from '../api.js';
 import { el, escapeHtml } from '../utils.js';
 import { irA } from '../router.js';
 import { setTopbar } from '../topbar.js';
 import { toast } from '../toast.js';
+import { encolar } from '../offline.js';
+import { getCatalogoPlanes, setCatalogoPlanes } from '../storage.js';
 
 export async function renderVenta(container) {
   setTopbar({ titulo: 'Registrar venta', atras: () => irA('home') });
@@ -64,15 +66,32 @@ export async function renderVenta(container) {
   container.appendChild(seccion);
 
   const $select = seccion.querySelector('select[name="plan"]');
-  try {
-    const { planes } = await api('/catalogo/planes');
-    $select.innerHTML = planes.length
-      ? '<option value="" disabled selected>Elige un plan</option>' +
-        planes.map((p) => `<option value="${escapeHtml(p.codigo)}">${escapeHtml(p.nombre)}</option>`).join('')
-      : '<option value="" disabled selected>No hay planes configurados</option>';
-  } catch {
-    $select.innerHTML = '<option value="" disabled selected>No se pudieron cargar los planes — revisa tu señal</option>';
+  let planes = getCatalogoPlanes();
+
+  function pintarPlanes(lista) {
+    if (!lista || !lista.length) {
+      $select.innerHTML = '<option value="" disabled selected>No hay planes configurados</option>';
+      return;
+    }
+    $select.innerHTML = '<option value="" disabled selected>Elige un plan</option>' +
+      lista.map((p) => `<option value="${escapeHtml(p.codigo)}">${escapeHtml(p.nombre)}</option>`).join('');
   }
+
+  if (planes && planes.length) {
+    pintarPlanes(planes);
+  }
+
+  // Refrescar catálogo en segundo plano si hay conexión
+  api('/catalogo/planes').then(({ planes: p }) => {
+    if (p && p.length) {
+      setCatalogoPlanes(p);
+      pintarPlanes(p);
+    }
+  }).catch(() => {
+    if (!planes || !planes.length) {
+      $select.innerHTML = '<option value="" disabled selected>No se pudieron cargar los planes — revisa tu señal</option>';
+    }
+  });
 
   const form = seccion.querySelector('#form-venta');
   const $error = seccion.querySelector('#venta-error');
@@ -83,7 +102,7 @@ export async function renderVenta(container) {
     $error.hidden = true;
     const datos = Object.fromEntries(new FormData(form));
     if (!datos.numero_venta_tuves || !datos.cliente_nombre || !datos.comuna || !datos.plan) {
-      $error.textContent = 'Completa todos los campos.';
+      $error.textContent = 'Completa todos los campos obligatorios.';
       $error.hidden = false;
       return;
     }
@@ -91,9 +110,23 @@ export async function renderVenta(container) {
     $btn.textContent = 'Guardando…';
     try {
       await api('/ventas', { method: 'POST', body: datos });
-      toast('Venta registrada.', 'ok');
+      toast('Venta registrada con éxito.', 'ok');
       irA('home');
     } catch (e) {
+      if (e instanceof ApiError && e.code === 'sin_conexion') {
+        try {
+          await encolar('venta', null, datos);
+          toast('Venta guardada sin conexión. Se enviará automáticamente al recuperar señal.', 'ok');
+          irA('home');
+          return;
+        } catch {
+          $error.textContent = 'No se pudo guardar la venta sin conexión en este dispositivo.';
+          $error.hidden = false;
+          $btn.disabled = false;
+          $btn.textContent = 'Guardar venta';
+          return;
+        }
+      }
       $error.textContent = e.message;
       $error.hidden = false;
       $btn.disabled = false;

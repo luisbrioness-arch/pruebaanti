@@ -11,6 +11,7 @@ import { renderGuia } from './views/guia.js';
 import { renderInicio } from './views/inicio.js';
 import { initModoReportar } from './reportar.js';
 import { initAjustes } from './ajustes.js';
+import { confirmar } from './modal.js';
 
 route('inicio', renderInicio);
 route('historial', renderHistorial);
@@ -53,7 +54,6 @@ function iniciarRelojAdmin() {
     cont.innerHTML = `
       <span class="reloj-item"><span class="reloj-hora">🕒 ${hora}</span></span>
       <span class="reloj-item"><span class="reloj-fecha">📅 ${fecha}</span></span>
-      <span class="reloj-version" title="Sistema en línea y actualizado">v20</span>
     `;
   }
   tick();
@@ -83,6 +83,13 @@ async function boot() {
 }
 
 document.getElementById('logout-btn')?.addEventListener('click', async () => {
+  const siCerrar = await confirmar('¿Estás seguro de que deseas cerrar sesión?', {
+    textoOk: 'Cerrar sesión',
+    textoCancelar: 'Cancelar',
+    peligro: true,
+  });
+  if (!siCerrar) return;
+
   await api('/auth/logout', { method: 'POST' }).catch(() => {});
   location.hash = '';
   boot();

@@ -11,6 +11,7 @@
 const NS = 'tdh_';
 const K_CATALOGO = NS + 'catalogo';
 const K_CATALOGO_FERRETERIA = NS + 'catalogo_ferreteria';
+const K_CATALOGO_PLANES = NS + 'catalogo_planes';
 const K_MALETA = NS + 'maleta';
 const K_BORRADORES = NS + 'borradores';
 const K_ORDEN_LOCAL_PREFIJO = NS + 'orden_';
@@ -46,6 +47,14 @@ export function getCatalogoFerreteria() {
 }
 export function setCatalogoFerreteria(items) {
   escribir(K_CATALOGO_FERRETERIA, items);
+}
+
+/** Catálogo de planes — para que el registro de venta funcione sin conexión (ver venta.js). */
+export function getCatalogoPlanes() {
+  return leer(K_CATALOGO_PLANES, null);
+}
+export function setCatalogoPlanes(planes) {
+  escribir(K_CATALOGO_PLANES, planes);
 }
 
 export function getMaleta() {

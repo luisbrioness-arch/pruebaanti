@@ -4,7 +4,7 @@ import { irA } from '../router.js';
 import { setTopbar } from '../topbar.js';
 import { toast } from '../toast.js';
 import { confirmar } from '../modal.js';
-import { listarBorradores, eliminarBorrador, setCatalogo, setMaleta, setCatalogoFerreteria } from '../storage.js';
+import { listarBorradores, eliminarBorrador, setCatalogo, setMaleta, setCatalogoFerreteria, setCatalogoPlanes } from '../storage.js';
 import { getUsuarioActual } from '../session.js';
 import { generarUuid } from '../uuid.js';
 import { onColaCambio, colaContar } from '../offline.js';
@@ -203,5 +203,11 @@ async function refrescarCatalogos() {
     // idem — el paso 4 sigue funcionando, solo sin el buscador de
     // ferretería (no hay de dónde sacar los nombres) hasta que se cachee
     // con señal al menos una vez.
+  }
+  try {
+    const { planes } = await api('/catalogo/planes');
+    setCatalogoPlanes(planes);
+  } catch {
+    // idem — la venta directa sigue funcionando offline si ya se cargó una vez
   }
 }

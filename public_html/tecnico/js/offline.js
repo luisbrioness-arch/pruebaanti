@@ -73,6 +73,7 @@ function rutaYMetodo(tipo, uuid) {
     case 'ferreteria': return { path: `/ordenes/${encodeURIComponent(uuid)}/ferreteria`, method: 'POST' };
     case 'cierre': return { path: `/ordenes/${encodeURIComponent(uuid)}/cierre`, method: 'PATCH' };
     case 'enviar': return { path: `/ordenes/${encodeURIComponent(uuid)}/enviar`, method: 'POST' };
+    case 'venta': return { path: '/ventas', method: 'POST' };
     default: throw new Error('Tipo de acción pendiente desconocido: ' + tipo);
   }
 }
@@ -149,6 +150,7 @@ function etiquetaTipo(tipo) {
   return {
     crear_orden: 'crear orden', material: 'agregar equipo', foto: 'subir foto',
     ferreteria: 'ferretería', cierre: 'cierre técnico', enviar: 'enviar orden',
+    venta: 'registrar venta',
   }[tipo] || tipo;
 }
 
