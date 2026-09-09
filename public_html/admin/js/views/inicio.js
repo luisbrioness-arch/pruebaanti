@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { el, escapeHtml, formatMoney, formatDateTime, badge } from '../utils.js';
+import { el, escapeHtml, formatMoney, formatDateTime, badge, botonCopiarHtml } from '../utils.js';
 import { abrirModal } from '../modal.js';
 import { toast } from '../toast.js';
 import { abrirModalDetalleVenta, etiquetaFecha } from '../modal-detalle.js';
@@ -363,6 +363,7 @@ function pintarVentasPendientes($div, ventas, onActualizar = null) {
         <tr class="fila-cliqueable" data-venta-id="${v.id}" title="Toca para ver quién vendió, cuándo y detalles de la orden">
           <td>
             <strong class="fila-nombre" style="color: var(--acento-2);">${escapeHtml(v.cliente_nombre)}</strong>
+            ${v.cliente_rut ? `<div style="font-size: 0.76rem; color: var(--tinta-3); margin-top: 2px;">RUT: ${escapeHtml(v.cliente_rut)}${botonCopiarHtml(v.cliente_rut, 'Copiar RUT')}</div>` : ''}
           </td>
           <td>
             <div style="font-size: 0.84rem;">
@@ -372,6 +373,7 @@ function pintarVentasPendientes($div, ventas, onActualizar = null) {
           </td>
           <td>
             <span class="card-bloque-tag card-bloque-tag--indigo">${escapeHtml(v.plan_nombre)}</span>
+            ${v.numero_venta_tuves ? `<div style="font-size: 0.76rem; color: var(--tinta-3); margin-top: 3px; font-family: var(--fuente-mono, monospace);">TuVes: #${escapeHtml(v.numero_venta_tuves)}${botonCopiarHtml(v.numero_venta_tuves, 'Copiar N° TuVes')}</div>` : ''}
           </td>
           <td>
             <span class="usuario-pill">${escapeHtml(v.vendedor_nombre || 'TuVes (directo)')}</span>

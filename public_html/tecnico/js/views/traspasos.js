@@ -59,11 +59,12 @@ export async function renderTraspasos(container) {
         <p class="campo-ayuda" style="margin-bottom: 6px;">Equipos (${equipos.length})</p>
         <div class="lista-borradores" style="margin-bottom: 14px;">
           ${equipos.map((e) => `
-            <div class="tarjeta-borrador" style="cursor: default;">
+            <div class="tarjeta-borrador" style="cursor: default; display: flex; justify-content: space-between; align-items: center;">
               <span class="tarjeta-borrador-info">
                 <span class="tarjeta-borrador-folio">${escapeHtml(e.tipo_equipo_nombre)}</span><br>
                 <span class="tarjeta-borrador-meta celda-mono">${escapeHtml(e.numero_serie)}</span>
               </span>
+              <button type="button" class="btn-copiar-dato" data-copiar="${escapeHtml(e.numero_serie)}" title="Copiar serie" style="display: inline-flex; align-items: center; justify-content: center; background: var(--superficie-2, #f1f5f9); border: 1.5px solid var(--borde-fuerte, #cbd5e1); border-radius: 8px; cursor: pointer; padding: 6px 10px; font-size: 0.85rem; color: var(--tinta); flex-shrink: 0;" aria-label="Copiar serie">📋</button>
             </div>
           `).join('')}
         </div>

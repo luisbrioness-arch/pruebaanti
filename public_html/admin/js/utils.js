@@ -118,3 +118,10 @@ export function enCampoDeTexto(elemento) {
   const tag = elemento?.tagName;
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || elemento?.isContentEditable;
 }
+
+/** Genera un botón compacto de copiar al portapapeles */
+export function botonCopiarHtml(texto, label = 'Copiar') {
+  if (!texto || texto === '—' || texto === 'No registrado' || texto === 'No informado' || texto === 'Sin comuna') return '';
+  return `<button type="button" class="btn-copiar-dato" data-copiar="${escapeHtml(String(texto))}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">📋</button>`;
+}
+

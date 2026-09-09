@@ -11,6 +11,7 @@ import { renderTraspasos } from './views/traspasos.js';
 import { renderWizard } from './views/wizard/wizard.js';
 import { initModoReportar } from './reportar.js';
 import { confirmar } from './modal.js';
+import { toast } from './toast.js';
 
 route('home', renderHome);
 route('venta', renderVenta);
@@ -209,4 +210,38 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// Listener global para botones de copiar al portapapeles en la app técnico
+document.addEventListener('click', (ev) => {
+  const btn = ev.target.closest('.btn-copiar-dato, [data-copiar]');
+  if (!btn) return;
+  ev.stopPropagation();
+  const valor = btn.dataset.copiar;
+  if (!valor) return;
+
+  const copiarFallback = () => {
+    try {
+      const t = document.createElement('textarea');
+      t.value = valor;
+      t.style.position = 'fixed';
+      t.style.opacity = '0';
+      document.body.appendChild(t);
+      t.select();
+      document.execCommand('copy');
+      document.body.removeChild(t);
+      toast(`Copiado: ${valor}`, 'ok');
+    } catch {
+      toast('No se pudo copiar automáticamente', 'alerta');
+    }
+  };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(valor).then(() => {
+      toast(`Copiado: ${valor}`, 'ok');
+    }).catch(copiarFallback);
+  } else {
+    copiarFallback();
+  }
+});
+
 boot();
+

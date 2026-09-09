@@ -1846,6 +1846,35 @@ a.tile[href*="billetera"]:hover { box-shadow: 0 14px 30px -4px rgba(15, 118, 110
   border: 1px solid rgba(13, 148, 136, 0.2);
 }
 
+.btn-copiar-dato {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--superficie-2, #f8fafc);
+  border: 1px solid var(--borde, #cbd5e1);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 1px 4px;
+  font-size: 0.74rem;
+  opacity: 0.85;
+  vertical-align: middle;
+  margin-left: 5px;
+  color: var(--tinta-2, #64748b);
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+.btn-copiar-dato:hover {
+  opacity: 1;
+  border-color: var(--acento);
+  background: var(--acento-suave);
+  color: var(--acento);
+  transform: scale(1.08);
+}
+.btn-copiar-dato:active {
+  transform: scale(0.95);
+}
+
+
 /* Grid de KPIs de Informes */
 .informes-kpi-grid {
   display: grid;

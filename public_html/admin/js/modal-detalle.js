@@ -1,9 +1,11 @@
 import { api } from './api.js';
 import {
-  escapeHtml, formatMoney, formatDateTime, badge, ESTADO_LABEL,
+  escapeHtml, formatMoney, formatDateTime, badge, ESTADO_LABEL, botonCopiarHtml,
 } from './utils.js';
 import { abrirModal } from './modal.js';
 import { toast } from './toast.js';
+
+export { botonCopiarHtml };
 
 /**
  * Calcula el texto y tono para la fecha solicitada de instalación.
@@ -21,40 +23,6 @@ export function etiquetaFecha(fechaStr) {
   return { texto: fechaFmt, tono: 'neutro' };
 }
 
-export function botonCopiarHtml(texto, label = 'Copiar') {
-  if (!texto || texto === '—' || texto === 'No registrado' || texto === 'No informado' || texto === 'Sin comuna') return '';
-  return `<button type="button" class="btn-copiar-dato" data-copiar="${escapeHtml(String(texto))}" title="${escapeHtml(label)}" style="display: inline-flex; align-items: center; justify-content: center; background: none; border: 1px solid var(--borde, #cbd5e1); border-radius: 4px; cursor: pointer; padding: 1px 5px; font-size: 0.74rem; opacity: 0.8; vertical-align: middle; margin-left: 4px; color: var(--tinta-2, #64748b); line-height: 1;" aria-label="${escapeHtml(label)}">📋</button>`;
-}
-
-document.addEventListener('click', (ev) => {
-  const btn = ev.target.closest('.btn-copiar-dato');
-  if (!btn) return;
-  ev.stopPropagation();
-  const valor = btn.dataset.copiar;
-  if (!valor) return;
-  const copiarFallback = () => {
-    try {
-      const t = document.createElement('textarea');
-      t.value = valor;
-      t.style.position = 'fixed';
-      t.style.opacity = '0';
-      document.body.appendChild(t);
-      t.select();
-      document.execCommand('copy');
-      document.body.removeChild(t);
-      toast(`Copiado: ${valor}`, 'ok');
-    } catch {
-      toast(`No se pudo copiar automáticamente`, 'alerta');
-    }
-  };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(valor).then(() => {
-      toast(`Copiado: ${valor}`, 'ok');
-    }).catch(copiarFallback);
-  } else {
-    copiarFallback();
-  }
-});
 
 /**
  * Deduce la cantidad esperada de decodificadores a partir del nombre del plan.
@@ -97,6 +65,7 @@ export function abrirModalDetalleVenta(v, onActualizar) {
           <a href="tel:${escapeHtml(v.cliente_telefono)}" class="btn btn--chico btn--secundario" style="color: #0f766e; background: #fff; font-weight: 700; text-decoration: none; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.15);" title="Llamar al cliente">
             📞 ${escapeHtml(v.cliente_telefono)}
           </a>
+          ${botonCopiarHtml(v.cliente_telefono, 'Copiar teléfono')}
           ${telLimpio ? `
             <a href="https://wa.me/${telLimpio.startsWith('56') ? telLimpio : ('56' + telLimpio)}" target="_blank" rel="noopener" class="btn btn--chico" style="background: #22C55E; color: #fff; font-weight: 700; text-decoration: none; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.15);" title="Contactar por WhatsApp">
               💬 WhatsApp
@@ -117,7 +86,7 @@ export function abrirModalDetalleVenta(v, onActualizar) {
         <div class="detalle-campo-fila">
           <span class="detalle-campo-label">Cliente / Titular:</span>
           <span class="detalle-campo-valor">
-            <strong>${escapeHtml(v.cliente_nombre || '—')}</strong>
+            <strong>${escapeHtml(v.cliente_nombre || '—')}</strong>${botonCopiarHtml(v.cliente_nombre, 'Copiar nombre')}
           </span>
         </div>
 
@@ -131,7 +100,7 @@ export function abrirModalDetalleVenta(v, onActualizar) {
         <div class="detalle-campo-fila">
           <span class="detalle-campo-label">Dirección Domicilio:</span>
           <span class="detalle-campo-valor" style="max-width: 65%; line-height: 1.3;">
-            ${escapeHtml(v.cliente_direccion || '—')}
+            ${escapeHtml(v.cliente_direccion || '—')}${botonCopiarHtml(v.cliente_direccion, 'Copiar dirección')}
             ${mapsUrl ? `
               <br><a href="${mapsUrl}" target="_blank" rel="noopener" style="font-size: 0.76rem; color: #0284C7; text-decoration: none; font-weight: 700;">🗺️ Ver mapa</a>
             ` : ''}
@@ -663,6 +632,7 @@ export function abrirModalDetalleVenta(v, onActualizar) {
 export async function abrirModalDetalleOrden(o, onActualizar) {
   const folioTxt = o.folio || ('#' + o.id);
   const clienteNom = o.venta_cliente_nombre || o.cliente_nombre || 'Cliente OT';
+  const clienteRut = o.venta_cliente_rut || o.cliente_rut || '';
   const clienteTel = o.venta_cliente_telefono || o.cliente_telefono || '';
   const comuna = o.venta_comuna || o.comuna || 'Sin comuna';
   const direccion = o.venta_cliente_direccion || o.cliente_direccion || '—';
@@ -678,7 +648,7 @@ export async function abrirModalDetalleOrden(o, onActualizar) {
         <div>
           <div class="modal-banner-nombre">${escapeHtml(clienteNom)}</div>
           <div class="modal-banner-sub">
-            Folio OT: <strong>${escapeHtml(folioTxt)}</strong>${botonCopiarHtml(o.folio || folioTxt, 'Copiar Folio OT')} · 📍 ${escapeHtml(comuna)}
+            Folio OT: <strong>${escapeHtml(folioTxt)}</strong>${botonCopiarHtml(o.folio || folioTxt, 'Copiar Folio OT')}${clienteRut ? ` · RUT: <strong>${escapeHtml(clienteRut)}</strong>${botonCopiarHtml(clienteRut, 'Copiar RUT')}` : ''} · 📍 ${escapeHtml(comuna)}
           </div>
         </div>
       </div>
@@ -687,6 +657,7 @@ export async function abrirModalDetalleOrden(o, onActualizar) {
           <a href="tel:${escapeHtml(clienteTel)}" class="btn btn--chico btn--secundario" style="color: #0f766e; background: #fff; font-weight: 700; text-decoration: none; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.15);" title="Llamar al cliente">
             📞 ${escapeHtml(clienteTel)}
           </a>
+          ${botonCopiarHtml(clienteTel, 'Copiar teléfono')}
           ${telLimpio ? `
             <a href="https://wa.me/${telLimpio.startsWith('56') ? telLimpio : ('56' + telLimpio)}" target="_blank" rel="noopener" class="btn btn--chico" style="background: #22C55E; color: #fff; font-weight: 700; text-decoration: none; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.15);" title="Contactar por WhatsApp">
               💬 WhatsApp
@@ -707,19 +678,37 @@ export async function abrirModalDetalleOrden(o, onActualizar) {
         <div class="detalle-campo-fila">
           <span class="detalle-campo-label">Cliente / Titular:</span>
           <span class="detalle-campo-valor">
-            <strong>${escapeHtml(clienteNom)}</strong>
+            <strong>${escapeHtml(clienteNom)}</strong>${botonCopiarHtml(clienteNom, 'Copiar nombre')}
           </span>
         </div>
+
+        ${clienteRut ? `
+          <div class="detalle-campo-fila">
+            <span class="detalle-campo-label">RUT Cliente:</span>
+            <span class="detalle-campo-valor" style="font-family: var(--fuente-mono, monospace);">
+              ${escapeHtml(clienteRut)}${botonCopiarHtml(clienteRut, 'Copiar RUT')}
+            </span>
+          </div>
+        ` : ''}
 
         <div class="detalle-campo-fila">
           <span class="detalle-campo-label">Dirección Domicilio:</span>
           <span class="detalle-campo-valor" style="max-width: 65%; line-height: 1.3;">
-            ${escapeHtml(direccion)}
+            ${escapeHtml(direccion)}${botonCopiarHtml(direccion, 'Copiar dirección')}
             ${mapsUrl ? `
               <br><a href="${mapsUrl}" target="_blank" rel="noopener" style="font-size: 0.76rem; color: #0284C7; text-decoration: none; font-weight: 700;">🗺️ Ver mapa</a>
             ` : ''}
           </span>
         </div>
+
+        ${o.numero_orden_tuves ? `
+          <div class="detalle-campo-fila">
+            <span class="detalle-campo-label">N° Venta / TuVes:</span>
+            <span class="detalle-campo-valor" style="font-family: var(--fuente-mono, monospace);">
+              ${escapeHtml(o.numero_orden_tuves)}${botonCopiarHtml(o.numero_orden_tuves, 'Copiar N° TuVes')}
+            </span>
+          </div>
+        ` : ''}
 
         <div class="detalle-campo-fila">
           <span class="detalle-campo-label">Comuna:</span>

@@ -12,6 +12,7 @@ import { renderInicio } from './views/inicio.js';
 import { initModoReportar } from './reportar.js';
 import { initAjustes } from './ajustes.js';
 import { confirmar } from './modal.js';
+import { toast } from './toast.js';
 
 route('inicio', renderInicio);
 route('historial', renderHistorial);
@@ -95,4 +96,38 @@ document.getElementById('logout-btn')?.addEventListener('click', async () => {
   boot();
 });
 
+// Listener global para botones e insignias de copiar al portapapeles
+document.addEventListener('click', (ev) => {
+  const btn = ev.target.closest('.btn-copiar-dato, [data-copiar]');
+  if (!btn) return;
+  ev.stopPropagation();
+  const valor = btn.dataset.copiar;
+  if (!valor) return;
+
+  const copiarFallback = () => {
+    try {
+      const t = document.createElement('textarea');
+      t.value = valor;
+      t.style.position = 'fixed';
+      t.style.opacity = '0';
+      document.body.appendChild(t);
+      t.select();
+      document.execCommand('copy');
+      document.body.removeChild(t);
+      toast(`Copiado: ${valor}`, 'ok');
+    } catch {
+      toast('No se pudo copiar automáticamente', 'alerta');
+    }
+  };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(valor).then(() => {
+      toast(`Copiado: ${valor}`, 'ok');
+    }).catch(copiarFallback);
+  } else {
+    copiarFallback();
+  }
+});
+
 boot();
+

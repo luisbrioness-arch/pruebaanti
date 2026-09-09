@@ -1,7 +1,7 @@
 import { api } from '../api.js';
 import { toast } from '../toast.js';
 import { conColaSiHaceFalta } from '../offline.js';
-import { badge, escapeHtml, el, formatDateTime, MOVIMIENTO_EQUIPO_LABEL, debounce } from '../utils.js';
+import { badge, escapeHtml, el, formatDateTime, MOVIMIENTO_EQUIPO_LABEL, debounce, botonCopiarHtml } from '../utils.js';
 import { abrirScanner } from '../scanner.js';
 import { abrirModal } from '../modal.js';
 
@@ -278,7 +278,7 @@ export async function renderBodega(container, params = {}) {
               <div class="tabla-envoltorio">
                 <table class="tabla">
                   <thead><tr><th>N° Serie</th><th>Tipo de Equipo</th></tr></thead>
-                  <tbody>${equiposTecnico.map((e) => `<tr><td class="celda-mono"><strong>${escapeHtml(e.numero_serie)}</strong></td><td>${escapeHtml(e.tipo_equipo_nombre)}</td></tr>`).join('')}</tbody>
+                  <tbody>${equiposTecnico.map((e) => `<tr><td class="celda-mono"><strong>${escapeHtml(e.numero_serie)}</strong>${botonCopiarHtml(e.numero_serie, 'Copiar serie')}</td><td>${escapeHtml(e.tipo_equipo_nombre)}</td></tr>`).join('')}</tbody>
                 </table>
               </div>
             ` : `
@@ -1184,7 +1184,7 @@ export async function renderBodega(container, params = {}) {
         const tr = el(`
           <tr data-equipo-id="${e.id}" data-texto="${escapeHtml((e.numero_serie + ' ' + e.tipo_equipo_nombre + ' ' + (e.tecnico_nombre || e.bodega_nombre || '')).toLowerCase())}">
             <td><input type="checkbox" class="check-equipo" data-id="${e.id}"></td>
-            <td class="celda-mono">${escapeHtml(e.numero_serie)}</td>
+            <td class="celda-mono">${escapeHtml(e.numero_serie)}${botonCopiarHtml(e.numero_serie, 'Copiar serie')}</td>
             <td>${escapeHtml(e.tipo_equipo_nombre)}</td>
             <td>${escapeHtml(e.tecnico_nombre || e.bodega_nombre || '—')}</td>
             <td class="celda-acciones"></td>
@@ -1940,7 +1940,7 @@ export async function renderBodega(container, params = {}) {
             <tbody>
               ${equipos.map((e) => `
                 <tr data-id="${e.id}">
-                  <td class="celda-mono">${escapeHtml(e.numero_serie)}</td>
+                  <td class="celda-mono">${escapeHtml(e.numero_serie)}${botonCopiarHtml(e.numero_serie, 'Copiar serie')}</td>
                   <td>${escapeHtml(e.tipo_equipo_nombre)}</td>
                   <td>${badge(e.estado)}</td>
                   <td>${escapeHtml(e.tecnico_nombre || '—')}</td>
