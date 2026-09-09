@@ -21,8 +21,8 @@ export async function renderPaso4(container, ctx) {
   const seccion = el(`
     <div style="display: contents;">
     <section class="wizard-paso">
-      <h2>Ferretería usada</h2>
-      <p class="wizard-paso-intro" id="ferreteria-intro">Busca y agrega lo que usaste en este trabajo.</p>
+      <h2>Ferretería usada (opcional)</h2>
+      <p class="wizard-paso-intro" id="ferreteria-intro">Busca y agrega los materiales usados. Si este servicio no requirió ferretería ni conectores, continúa directamente al cierre abajo.</p>
       <div class="lista-ferreteria" id="lista-ferreteria"></div>
 
       <div class="campo" id="agregar-ferreteria" hidden style="position: relative;">
@@ -136,7 +136,11 @@ export async function renderPaso4(container, ctx) {
 
   function pintarFerreteria() {
     if (!items.length) {
-      $lista.innerHTML = '<p class="vacio">Sin ítems de ferretería para este servicio todavía — agrega lo que hayas usado.</p>';
+      $lista.innerHTML = `
+        <div style="background: rgba(0,0,0,0.02); border: 1.5px dashed var(--borde, #cbd5e1); border-radius: 8px; padding: 12px 14px; text-align: center; color: var(--tinta-2, #64748b); font-size: 0.84rem; margin-bottom: 12px;">
+          <span>🔩 <strong>Sin ferretería:</strong> Si no utilizaste materiales ni conectores en este servicio, puedes avanzar directamente.</span>
+        </div>
+      `;
     } else {
       $lista.innerHTML = '';
       for (const item of items) {

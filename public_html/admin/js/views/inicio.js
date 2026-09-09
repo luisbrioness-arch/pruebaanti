@@ -324,7 +324,16 @@ function pintarVentasPendientes($div, ventas, onActualizar = null) {
     `;
     return;
   }
+
   $div.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+      <div style="position: relative; flex: 1; max-width: 380px;">
+        <input type="search" id="filtro-ventas-pendientes" placeholder="🔍 Buscar por cliente, comuna, plan o N°..." class="input" style="width: 100%; padding: 7px 12px; font-size: 0.85rem; border-radius: 8px; border: 1.5px solid var(--borde-fuerte, #cbd5e1); background: var(--blanco, #ffffff);">
+      </div>
+      <span class="campo-ayuda" id="contador-ventas-pendientes" style="font-weight: 600; color: var(--tinta-2); font-size: 0.82rem;">
+        Mostrando ${ventas.length} de ${ventas.length} ${ventas.length === 1 ? 'venta' : 'ventas'}
+      </span>
+    </div>
     <div class="tabla-envoltorio">
       <table class="tabla">
         <thead>
@@ -336,47 +345,102 @@ function pintarVentasPendientes($div, ventas, onActualizar = null) {
             <th style="text-align: right;">Fecha solicitada</th>
           </tr>
         </thead>
-        <tbody>
-          ${ventas.map((v) => {
-            const { texto, tono } = etiquetaFecha(v.fecha_instalacion_solicitada);
-            return `
-              <tr class="fila-cliqueable" data-venta-id="${v.id}" title="Toca para ver quién vendió, cuándo y detalles de la orden">
-                <td>
-                  <strong class="fila-nombre" style="color: var(--acento-2);">${escapeHtml(v.cliente_nombre)}</strong>
-                </td>
-                <td>
-                  <div style="font-size: 0.84rem;">
-                    <div>${escapeHtml(v.cliente_direccion || '—')}</div>
-                    <span style="color: var(--tinta-3); font-size: 0.78rem;">📍 ${escapeHtml(v.comuna || 'Sin comuna')}</span>
-                  </div>
-                </td>
-                <td>
-                  <span class="card-bloque-tag card-bloque-tag--indigo">${escapeHtml(v.plan_nombre)}</span>
-                </td>
-                <td>
-                  <span class="usuario-pill">${escapeHtml(v.vendedor_nombre || 'TuVes (directo)')}</span>
-                </td>
-                <td style="text-align: right;">
-                  <span class="chip chip--${tono}">${escapeHtml(texto)}</span>
-                  <span style="color: var(--tinta-3); margin-left: 6px; font-weight: 800; font-size: 0.95rem;">→</span>
-                </td>
-              </tr>
-            `;
-          }).join('')}
+        <tbody id="tbody-ventas-pendientes">
+          ${renderFilasVentas(ventas)}
         </tbody>
       </table>
+      <div id="vacio-ventas-filtro" class="vacio-tarjeta" style="display: none; padding: 28px 16px;">
+        <p class="vacio-titulo" style="font-size: 0.95rem;">Sin coincidencias para la búsqueda</p>
+        <p class="vacio-desc" style="font-size: 0.82rem;">Intenta con otro término o limpia el buscador para ver todas las ventas.</p>
+      </div>
     </div>
   `;
 
-  // Abrir detalle al presionar cualquier fila de la lista
-  $div.querySelectorAll('tr[data-venta-id]').forEach(($tr) => {
-    $tr.addEventListener('click', () => {
-      const id = Number($tr.dataset.ventaId);
-      const venta = ventas.find(item => Number(item.id) === id);
-      if (venta) {
-        abrirModalDetalleVenta(venta, onActualizar);
-      }
+  function renderFilasVentas(lista) {
+    return lista.map((v) => {
+      const { texto, tono } = etiquetaFecha(v.fecha_instalacion_solicitada);
+      return `
+        <tr class="fila-cliqueable" data-venta-id="${v.id}" title="Toca para ver quién vendió, cuándo y detalles de la orden">
+          <td>
+            <strong class="fila-nombre" style="color: var(--acento-2);">${escapeHtml(v.cliente_nombre)}</strong>
+          </td>
+          <td>
+            <div style="font-size: 0.84rem;">
+              <div>${escapeHtml(v.cliente_direccion || '—')}</div>
+              <span style="color: var(--tinta-3); font-size: 0.78rem;">📍 ${escapeHtml(v.comuna || 'Sin comuna')}</span>
+            </div>
+          </td>
+          <td>
+            <span class="card-bloque-tag card-bloque-tag--indigo">${escapeHtml(v.plan_nombre)}</span>
+          </td>
+          <td>
+            <span class="usuario-pill">${escapeHtml(v.vendedor_nombre || 'TuVes (directo)')}</span>
+          </td>
+          <td style="text-align: right;">
+            <span class="chip chip--${tono}">${escapeHtml(texto)}</span>
+            <span style="color: var(--tinta-3); margin-left: 6px; font-weight: 800; font-size: 0.95rem;">→</span>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function enlazarFilas() {
+    $div.querySelectorAll('#tbody-ventas-pendientes tr[data-venta-id]').forEach(($tr) => {
+      $tr.addEventListener('click', () => {
+        const id = Number($tr.dataset.ventaId);
+        const venta = ventas.find(item => Number(item.id) === id);
+        if (venta) {
+          abrirModalDetalleVenta(venta, onActualizar);
+        }
+      });
     });
+  }
+  enlazarFilas();
+
+  // Buscador en vivo
+  const $inputFiltro = $div.querySelector('#filtro-ventas-pendientes');
+  const $tbody = $div.querySelector('#tbody-ventas-pendientes');
+  const $contador = $div.querySelector('#contador-ventas-pendientes');
+  const $vacioFiltro = $div.querySelector('#vacio-ventas-filtro');
+
+  $inputFiltro.addEventListener('input', (ev) => {
+    const q = ev.target.value.trim().toLowerCase();
+    if (!q) {
+      $tbody.innerHTML = renderFilasVentas(ventas);
+      $tbody.style.display = '';
+      $vacioFiltro.style.display = 'none';
+      $contador.textContent = `Mostrando ${ventas.length} de ${ventas.length} ${ventas.length === 1 ? 'venta' : 'ventas'}`;
+      enlazarFilas();
+      return;
+    }
+
+    const filtradas = ventas.filter((v) => {
+      const match = [
+        v.cliente_nombre,
+        v.cliente_direccion,
+        v.comuna,
+        v.plan_nombre,
+        v.vendedor_nombre,
+        v.cliente_rut,
+        v.numero_venta_tuves,
+        v.numero_orden_tuves,
+      ].some((campo) => campo && String(campo).toLowerCase().includes(q));
+      return match;
+    });
+
+    if (filtradas.length) {
+      $tbody.innerHTML = renderFilasVentas(filtradas);
+      $tbody.style.display = '';
+      $vacioFiltro.style.display = 'none';
+      $contador.textContent = `Mostrando ${filtradas.length} de ${ventas.length}`;
+      enlazarFilas();
+    } else {
+      $tbody.innerHTML = '';
+      $tbody.style.display = 'none';
+      $vacioFiltro.style.display = 'block';
+      $contador.textContent = `0 resultados para "${q}"`;
+    }
   });
 }
 

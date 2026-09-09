@@ -1071,15 +1071,24 @@ export async function renderBodega(container, params = {}) {
         return;
       }
       $tabla.innerHTML = `
-        <div class="form-fila" style="margin-bottom: 10px;">
-          <button type="button" class="btn btn--secundario" id="btn-escanear-seleccionar">📷 Escanear para seleccionar</button>
-          <span class="campo-ayuda">Escanea uno tras otro — se van tildando solos, sin tener que buscarlos a mano en la lista.</span>
+        <div class="form-fila" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <button type="button" class="btn btn--secundario" id="btn-escanear-seleccionar">📷 Escanear para seleccionar</button>
+            <span class="campo-ayuda">Escanea uno tras otro — se van tildando solos.</span>
+          </div>
+          <div style="position: relative; min-width: 260px; max-width: 360px; flex: 1;">
+            <input type="search" id="filtro-serie-asignar" placeholder="🔍 Filtrar por serie, tipo o técnico..." class="input" style="width: 100%; padding: 7px 12px; font-size: 0.85rem; border-radius: 8px; border: 1.5px solid var(--borde-fuerte, #cbd5e1); background: var(--blanco, #ffffff);">
+          </div>
         </div>
         <div id="acciones-masivas" class="acciones-masivas" hidden></div>
         <table class="tabla">
           <thead><tr><th></th><th>Serie</th><th>Tipo</th><th>${modo === 'bodega' ? 'Bodega' : 'Técnico'}</th><th>Acciones</th></tr></thead>
           <tbody></tbody>
         </table>
+        <div id="vacio-filtro-asignar" class="vacio-tarjeta" style="display: none; padding: 24px 16px; margin-top: 10px;">
+          <p class="vacio-titulo" style="font-size: 0.92rem;">Sin resultados para este filtro</p>
+          <p class="vacio-desc" style="font-size: 0.8rem;">Verifica la serie o limpia el campo de búsqueda.</p>
+        </div>
       `;
       const $barra = $tabla.querySelector('#acciones-masivas');
 
@@ -1173,7 +1182,7 @@ export async function renderBodega(container, params = {}) {
 
       for (const e of equipos) {
         const tr = el(`
-          <tr>
+          <tr data-equipo-id="${e.id}" data-texto="${escapeHtml((e.numero_serie + ' ' + e.tipo_equipo_nombre + ' ' + (e.tecnico_nombre || e.bodega_nombre || '')).toLowerCase())}">
             <td><input type="checkbox" class="check-equipo" data-id="${e.id}"></td>
             <td class="celda-mono">${escapeHtml(e.numero_serie)}</td>
             <td>${escapeHtml(e.tipo_equipo_nombre)}</td>
@@ -1235,6 +1244,29 @@ export async function renderBodega(container, params = {}) {
         }
         $tbody.appendChild(tr);
       }
+
+      const $filtroSerie = $tabla.querySelector('#filtro-serie-asignar');
+      const $vacioFiltro = $tabla.querySelector('#vacio-filtro-asignar');
+      const $tablaElem = $tabla.querySelector('table');
+
+      $filtroSerie?.addEventListener('input', (ev) => {
+        const q = ev.target.value.trim().toLowerCase();
+        let visibles = 0;
+        $tbody.querySelectorAll('tr[data-equipo-id]').forEach(($tr) => {
+          const texto = $tr.dataset.texto || '';
+          const coincide = !q || texto.includes(q);
+          $tr.style.display = coincide ? '' : 'none';
+          if (coincide) visibles++;
+        });
+
+        if (visibles === 0 && equipos.length > 0) {
+          $tablaElem.style.display = 'none';
+          if ($vacioFiltro) $vacioFiltro.style.display = 'block';
+        } else {
+          $tablaElem.style.display = '';
+          if ($vacioFiltro) $vacioFiltro.style.display = 'none';
+        }
+      });
     } catch (e) {
       $tabla.innerHTML = `<p class="vacio vacio--error">${escapeHtml(e.message)}</p>`;
     }

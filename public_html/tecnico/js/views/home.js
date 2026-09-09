@@ -4,7 +4,7 @@ import { irA } from '../router.js';
 import { setTopbar } from '../topbar.js';
 import { toast } from '../toast.js';
 import { confirmar } from '../modal.js';
-import { listarBorradores, eliminarBorrador, setCatalogo, setMaleta, setCatalogoFerreteria, setCatalogoPlanes } from '../storage.js';
+import { listarBorradores, eliminarBorrador, setCatalogo, setMaleta, getMaleta, setCatalogoFerreteria, setCatalogoPlanes } from '../storage.js';
 import { getUsuarioActual } from '../session.js';
 import { generarUuid } from '../uuid.js';
 import { onColaCambio, colaContar } from '../offline.js';
@@ -121,6 +121,20 @@ export async function renderHome(container) {
 
   pintarBorradores(seccion.querySelector('#lista-borradores'));
 
+  function actualizarAvisoStockMaleta(maleta) {
+    if (!maleta || !maleta.equipos) return;
+    const decos = maleta.equipos.filter((e) => /deco/i.test(e.tipo_equipo_nombre));
+    const $desc = seccion.querySelector('#btn-traspasos .hub-card-desc');
+    if ($desc) {
+      if (decos.length < 2) {
+        $desc.innerHTML = `<span style="color: #ea580c; font-weight: 700;">⚠️ ${decos.length} deco${decos.length === 1 ? '' : 's'} en maleta</span>`;
+      } else {
+        $desc.textContent = `${decos.length} decos disponibles`;
+      }
+    }
+  }
+  actualizarAvisoStockMaleta(getMaleta());
+
   // Refresca los catálogos en segundo plano — el wizard los necesita
   // cacheados para el paso 1 (tipos de servicio) y el paso 2 (maleta,
   // validación instantánea aunque se pierda la señal después).
@@ -193,6 +207,15 @@ async function refrescarCatalogos() {
   try {
     const maleta = await api('/maleta');
     setMaleta(maleta);
+    const decos = (maleta?.equipos || []).filter((e) => /deco/i.test(e.tipo_equipo_nombre));
+    const $desc = document.querySelector('#btn-traspasos .hub-card-desc');
+    if ($desc) {
+      if (decos.length < 2) {
+        $desc.innerHTML = `<span style="color: #ea580c; font-weight: 700;">⚠️ ${decos.length} deco${decos.length === 1 ? '' : 's'} en maleta</span>`;
+      } else {
+        $desc.textContent = `${decos.length} decos disponibles`;
+      }
+    }
   } catch {
     // idem
   }

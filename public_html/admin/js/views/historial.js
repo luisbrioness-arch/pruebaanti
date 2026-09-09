@@ -81,6 +81,17 @@ export async function renderHistorial(container) {
               <input type="date" name="hasta" value="${ultimoDiaMes()}" class="input-fecha-moderno">
             </label>
 
+            <label class="filtro-campo" style="flex: 1; min-width: 175px;">
+              <span class="filtro-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                Buscar
+              </span>
+              <input type="search" id="filtro-buscar-texto" name="buscar" placeholder="Folio, cliente o N° venta..." class="input-fecha-moderno" style="width: 100%;">
+            </label>
+
             <div class="filtro-acciones-submit">
               <button type="submit" class="btn btn--primario btn-con-icono">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -187,6 +198,36 @@ export async function renderHistorial(container) {
       $selectTecnico.appendChild(el(`<option value="${u.id}">${escapeHtml(u.nombre)}</option>`));
     }
   } catch { /* si falla, se mantiene con opción "Todos" */ }
+
+  const $inputBuscar = container.querySelector('#filtro-buscar-texto');
+
+  function aplicarFiltroTexto() {
+    const q = ($inputBuscar?.value || '').trim().toLowerCase();
+    if (!q) {
+      pintarInformeVentas(ultimoVentas);
+      pintarInformeInstalaciones(ultimoOrdenes);
+      pintarGeneral(ultimoVentas, ultimoOrdenes);
+      prepararInformeImpresion();
+      return;
+    }
+
+    const vFiltradas = ultimoVentas.filter((v) => {
+      return [v.cliente_nombre, v.cliente_rut, v.numero_venta_tuves, v.numero_orden_tuves, v.plan_nombre, v.comuna, v.vendedor_nombre].some(c => c && String(c).toLowerCase().includes(q));
+    });
+
+    const oFiltradas = ultimoOrdenes.filter((o) => {
+      return [o.folio, o.cliente_nombre, o.cliente_rut, o.numero_orden_tuves, o.tipo_servicio_nombre, o.tecnico_nombre].some(c => c && String(c).toLowerCase().includes(q));
+    });
+
+    pintarInformeVentas(vFiltradas);
+    pintarInformeInstalaciones(oFiltradas);
+    pintarGeneral(vFiltradas, oFiltradas);
+    prepararInformeImpresion();
+  }
+
+  $inputBuscar?.addEventListener('input', () => {
+    aplicarFiltroTexto();
+  });
 
   $form.addEventListener('submit', (ev) => {
     ev.preventDefault();
@@ -1910,10 +1951,14 @@ export async function renderHistorial(container) {
       const { ventas, ordenes } = await api(`/admin/historial${queryActual()}`);
       ultimoVentas = ventas;
       ultimoOrdenes = ordenes;
-      pintarInformeVentas(ventas);
-      pintarInformeInstalaciones(ordenes);
-      pintarGeneral(ventas, ordenes);
-      prepararInformeImpresion();
+      if ($inputBuscar?.value?.trim()) {
+        aplicarFiltroTexto();
+      } else {
+        pintarInformeVentas(ventas);
+        pintarInformeInstalaciones(ordenes);
+        pintarGeneral(ventas, ordenes);
+        prepararInformeImpresion();
+      }
     } catch (e) {
       const msg = `<div class="callout-aviso callout-aviso--error"><div class="callout-texto">${escapeHtml(e.message)}</div></div>`;
       $informeVentas.innerHTML = msg;

@@ -21,6 +21,41 @@ export function etiquetaFecha(fechaStr) {
   return { texto: fechaFmt, tono: 'neutro' };
 }
 
+export function botonCopiarHtml(texto, label = 'Copiar') {
+  if (!texto || texto === '—' || texto === 'No registrado' || texto === 'No informado' || texto === 'Sin comuna') return '';
+  return `<button type="button" class="btn-copiar-dato" data-copiar="${escapeHtml(String(texto))}" title="${escapeHtml(label)}" style="display: inline-flex; align-items: center; justify-content: center; background: none; border: 1px solid var(--borde, #cbd5e1); border-radius: 4px; cursor: pointer; padding: 1px 5px; font-size: 0.74rem; opacity: 0.8; vertical-align: middle; margin-left: 4px; color: var(--tinta-2, #64748b); line-height: 1;" aria-label="${escapeHtml(label)}">📋</button>`;
+}
+
+document.addEventListener('click', (ev) => {
+  const btn = ev.target.closest('.btn-copiar-dato');
+  if (!btn) return;
+  ev.stopPropagation();
+  const valor = btn.dataset.copiar;
+  if (!valor) return;
+  const copiarFallback = () => {
+    try {
+      const t = document.createElement('textarea');
+      t.value = valor;
+      t.style.position = 'fixed';
+      t.style.opacity = '0';
+      document.body.appendChild(t);
+      t.select();
+      document.execCommand('copy');
+      document.body.removeChild(t);
+      toast(`Copiado: ${valor}`, 'ok');
+    } catch {
+      toast(`No se pudo copiar automáticamente`, 'alerta');
+    }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(valor).then(() => {
+      toast(`Copiado: ${valor}`, 'ok');
+    }).catch(copiarFallback);
+  } else {
+    copiarFallback();
+  }
+});
+
 /**
  * Deduce la cantidad esperada de decodificadores a partir del nombre del plan.
  */
@@ -53,7 +88,7 @@ export function abrirModalDetalleVenta(v, onActualizar) {
         <div>
           <div class="modal-banner-nombre">${escapeHtml(v.cliente_nombre || 'Cliente sin nombre')}</div>
           <div class="modal-banner-sub">
-            RUT: <strong>${escapeHtml(v.cliente_rut || 'No informado')}</strong> · 📍 ${escapeHtml(v.comuna || 'Sin comuna')}
+            RUT: <strong>${escapeHtml(v.cliente_rut || 'No informado')}</strong>${botonCopiarHtml(v.cliente_rut, 'Copiar RUT')} · 📍 ${escapeHtml(v.comuna || 'Sin comuna')}
           </div>
         </div>
       </div>
@@ -89,7 +124,7 @@ export function abrirModalDetalleVenta(v, onActualizar) {
         <div class="detalle-campo-fila">
           <span class="detalle-campo-label">RUT Cliente:</span>
           <span class="detalle-campo-valor" style="font-family: var(--fuente-mono, monospace);">
-            ${escapeHtml(v.cliente_rut || 'No registrado')}
+            ${escapeHtml(v.cliente_rut || 'No registrado')}${botonCopiarHtml(v.cliente_rut, 'Copiar RUT')}
           </span>
         </div>
 
@@ -165,7 +200,7 @@ export function abrirModalDetalleVenta(v, onActualizar) {
         <div class="detalle-campo-fila">
           <span class="detalle-campo-label">N° Venta TuVes / ID:</span>
           <span class="detalle-campo-valor" style="font-family: var(--fuente-mono, monospace);">
-            ${escapeHtml(v.numero_venta_tuves || v.numero_orden_tuves || ('#' + v.id))}
+            ${escapeHtml(v.numero_venta_tuves || v.numero_orden_tuves || ('#' + v.id))}${botonCopiarHtml(v.numero_venta_tuves || v.numero_orden_tuves || v.id, 'Copiar N° Venta')}
           </span>
         </div>
 
@@ -384,7 +419,7 @@ export function abrirModalDetalleVenta(v, onActualizar) {
       <div class="detalle-campo-fila">
         <span class="detalle-campo-label">Folio OT:</span>
         <span class="detalle-campo-valor" style="font-weight: 800; font-family: var(--fuente-mono, monospace);">
-          ${escapeHtml(orden.folio || ('#' + orden.id))}
+          ${escapeHtml(orden.folio || ('#' + orden.id))}${botonCopiarHtml(orden.folio, 'Copiar Folio OT')}
         </span>
       </div>
 
@@ -429,7 +464,7 @@ export function abrirModalDetalleVenta(v, onActualizar) {
                 <div>
                   <strong>${escapeHtml(m.tipo_equipo_nombre || 'Decodificador HD')}</strong>
                   <div style="font-family: var(--fuente-mono, monospace); font-size: 0.78rem; color: #1E293B; font-weight: 700;">
-                    Serie: ${escapeHtml(m.numero_serie || '—')}
+                    Serie: ${escapeHtml(m.numero_serie || '—')}${botonCopiarHtml(m.numero_serie, 'Copiar Serie')}
                   </div>
                 </div>
               </div>
@@ -643,7 +678,7 @@ export async function abrirModalDetalleOrden(o, onActualizar) {
         <div>
           <div class="modal-banner-nombre">${escapeHtml(clienteNom)}</div>
           <div class="modal-banner-sub">
-            Folio OT: <strong>${escapeHtml(folioTxt)}</strong> · 📍 ${escapeHtml(comuna)}
+            Folio OT: <strong>${escapeHtml(folioTxt)}</strong>${botonCopiarHtml(o.folio || folioTxt, 'Copiar Folio OT')} · 📍 ${escapeHtml(comuna)}
           </div>
         </div>
       </div>
@@ -717,7 +752,7 @@ export async function abrirModalDetalleOrden(o, onActualizar) {
         <div class="detalle-campo-fila">
           <span class="detalle-campo-label">Folio de Orden:</span>
           <span class="detalle-campo-valor" style="font-family: var(--fuente-mono, monospace); font-weight: 800;">
-            ${escapeHtml(folioTxt)}
+            ${escapeHtml(folioTxt)}${botonCopiarHtml(o.folio || folioTxt, 'Copiar Folio OT')}
           </span>
         </div>
 
@@ -783,7 +818,7 @@ export async function abrirModalDetalleOrden(o, onActualizar) {
                 <div>
                   <strong>${escapeHtml(m.tipo_equipo_nombre || 'Decodificador')}</strong>
                   <div style="font-family: var(--fuente-mono, monospace); font-size: 0.78rem; color: #1E293B; font-weight: 700;">
-                    Serie: ${escapeHtml(m.numero_serie || '—')}
+                    Serie: ${escapeHtml(m.numero_serie || '—')}${botonCopiarHtml(m.numero_serie, 'Copiar Serie')}
                   </div>
                 </div>
               </div>
