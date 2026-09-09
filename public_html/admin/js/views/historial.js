@@ -101,25 +101,34 @@ export async function renderHistorial(container) {
                 <span>Filtrar</span>
               </button>
             </div>
+
+            <div class="filtros-exportar-grupo">
+              <button type="button" class="btn btn--secundario btn--chico btn-con-icono" id="btn-exportar-general">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <span>Exportar CSV</span>
+              </button>
+              <button type="button" class="btn btn--secundario btn--chico btn-con-icono" id="btn-imprimir-informe">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                  <rect x="6" y="14" width="12" height="8"></rect>
+                </svg>
+                <span>Imprimir / PDF</span>
+              </button>
+            </div>
           </div>
 
-          <div class="filtros-exportar-grupo">
-            <button type="button" class="btn btn--secundario btn--chico btn-con-icono" id="btn-exportar-general">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-              </svg>
-              <span>Exportar CSV</span>
-            </button>
-            <button type="button" class="btn btn--secundario btn--chico btn-con-icono" id="btn-imprimir-informe">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 9 6 2 18 2 18 9"></polyline>
-                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-                <rect x="6" y="14" width="12" height="8"></rect>
-              </svg>
-              <span>Imprimir / PDF</span>
-            </button>
+          <div class="filtros-presets-fechas">
+            <span class="filtros-presets-etiqueta">Rango rápido:</span>
+            <button type="button" class="btn-preset-fecha btn-preset-fecha--activo" data-preset="este-mes">📅 Este mes</button>
+            <button type="button" class="btn-preset-fecha" data-preset="mes-anterior">⏪ Mes anterior</button>
+            <button type="button" class="btn-preset-fecha" data-preset="ultimos-90">🗓️ Últimos 90 días</button>
+            <button type="button" class="btn-preset-fecha" data-preset="todo">♾️ Histórico completo</button>
+            <span id="filtro-buscar-badge" class="badge-filtro-conteo" style="display: none;"></span>
           </div>
         </form>
       </div>
@@ -200,10 +209,51 @@ export async function renderHistorial(container) {
   } catch { /* si falla, se mantiene con opción "Todos" */ }
 
   const $inputBuscar = container.querySelector('#filtro-buscar-texto');
+  const $inputDesde = container.querySelector('input[name="desde"]');
+  const $inputHasta = container.querySelector('input[name="hasta"]');
+  const $filtroBadge = container.querySelector('#filtro-buscar-badge');
+  const $presets = container.querySelectorAll('.btn-preset-fecha');
+
+  function marcarPresetActivo(preset) {
+    $presets.forEach((p) => p.classList.toggle('btn-preset-fecha--activo', p.dataset.preset === preset));
+  }
+
+  $presets.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const p = btn.dataset.preset;
+      marcarPresetActivo(p);
+      if (p === 'este-mes') {
+        $inputDesde.value = primerDiaMes();
+        $inputHasta.value = ultimoDiaMes();
+      } else if (p === 'mes-anterior') {
+        const d = new Date();
+        const y = d.getMonth() === 0 ? d.getFullYear() - 1 : d.getFullYear();
+        const m = d.getMonth() === 0 ? 12 : d.getMonth();
+        const mStr = String(m).padStart(2, '0');
+        const finMes = new Date(y, m, 0).getDate();
+        $inputDesde.value = `${y}-${mStr}-01`;
+        $inputHasta.value = `${y}-${mStr}-${String(finMes).padStart(2, '0')}`;
+      } else if (p === 'ultimos-90') {
+        const hoy = new Date();
+        const d90 = new Date();
+        d90.setDate(d90.getDate() - 90);
+        $inputDesde.value = d90.toISOString().slice(0, 10);
+        $inputHasta.value = hoy.toISOString().slice(0, 10);
+      } else if (p === 'todo') {
+        $inputDesde.value = '';
+        $inputHasta.value = '';
+      }
+      cargar();
+    });
+  });
+
+  $inputDesde?.addEventListener('change', () => marcarPresetActivo(null));
+  $inputHasta?.addEventListener('change', () => marcarPresetActivo(null));
 
   function aplicarFiltroTexto() {
     const q = ($inputBuscar?.value || '').trim().toLowerCase();
     if (!q) {
+      if ($filtroBadge) { $filtroBadge.textContent = ''; $filtroBadge.style.display = 'none'; }
       pintarInformeVentas(ultimoVentas);
       pintarInformeInstalaciones(ultimoOrdenes);
       pintarGeneral(ultimoVentas, ultimoOrdenes);
@@ -212,12 +262,40 @@ export async function renderHistorial(container) {
     }
 
     const vFiltradas = ultimoVentas.filter((v) => {
-      return [v.cliente_nombre, v.cliente_rut, v.numero_venta_tuves, v.numero_orden_tuves, v.plan_nombre, v.comuna, v.vendedor_nombre].some(c => c && String(c).toLowerCase().includes(q));
+      return [
+        v.numero_venta_tuves,
+        v.numero_orden_tuves,
+        v.cliente_nombre,
+        v.cliente_rut,
+        v.cliente_telefono,
+        v.cliente_direccion,
+        v.plan_nombre,
+        v.comuna,
+        v.vendedor_nombre,
+        v.id
+      ].some(c => c && String(c).toLowerCase().includes(q));
     });
 
     const oFiltradas = ultimoOrdenes.filter((o) => {
-      return [o.folio, o.cliente_nombre, o.cliente_rut, o.numero_orden_tuves, o.tipo_servicio_nombre, o.tecnico_nombre].some(c => c && String(c).toLowerCase().includes(q));
+      return [
+        o.folio,
+        o.numero_orden_tuves,
+        o.cliente_nombre,
+        o.venta_cliente_nombre,
+        o.cliente_rut,
+        o.tipo_servicio_nombre,
+        o.tecnico_nombre,
+        o.venta_comuna,
+        o.venta_cliente_direccion,
+        o.venta_cliente_telefono,
+        o.id
+      ].some(c => c && String(c).toLowerCase().includes(q));
     });
+
+    if ($filtroBadge) {
+      $filtroBadge.textContent = `Coincidencias: ${oFiltradas.length} órdenes · ${vFiltradas.length} ventas`;
+      $filtroBadge.style.display = 'inline-block';
+    }
 
     pintarInformeVentas(vFiltradas);
     pintarInformeInstalaciones(oFiltradas);

@@ -1797,6 +1797,55 @@ a.tile[href*="billetera"]:hover { box-shadow: 0 14px 30px -4px rgba(15, 118, 110
   margin-left: auto;
 }
 
+.filtros-presets-fechas {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--borde);
+}
+.filtros-presets-etiqueta {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--tinta-3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.btn-preset-fecha {
+  background: var(--superficie-2);
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--tinta-2);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-preset-fecha:hover {
+  background: var(--acento-suave);
+  color: var(--acento);
+  border-color: var(--acento);
+}
+.btn-preset-fecha--activo {
+  background: var(--acento);
+  color: #fff;
+  border-color: var(--acento);
+}
+.badge-filtro-conteo {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--acento);
+  background: var(--acento-suave);
+  padding: 3px 10px;
+  border-radius: 12px;
+  margin-left: auto;
+  border: 1px solid rgba(13, 148, 136, 0.2);
+}
+
 /* Grid de KPIs de Informes */
 .informes-kpi-grid {
   display: grid;
